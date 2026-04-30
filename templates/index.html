@@ -43,13 +43,13 @@
 
     /* ── HEADER ── */
     header {
-      height: 56px; flex-shrink: 0;
+      height: 64px; flex-shrink: 0;
       display: flex; align-items: center; gap: 12px;
-      padding: 0 24px;
+      padding: 0 20px 0 20px;
       background: var(--nav-bg);
       border-bottom: 1px solid var(--bd);
       box-shadow: 0 1px 6px rgba(15,23,42,.07);
-      z-index: 100;
+      z-index: 100; overflow: visible;
     }
     .hdr-logo {
       display: flex; align-items: center; gap: 9px; flex-shrink: 0;
@@ -61,9 +61,40 @@
       font-size: 10px; font-weight: 800; color: #fff; letter-spacing: -.5px;
     }
     .hdr-title { font-size: 14px; font-weight: 700; color: var(--t1); letter-spacing: -.2px; }
-    .hdr-subtitle { font-size: 11px; color: var(--t3); margin-left: 2px; }
     .hdr-spacer { flex: 1; }
-    .hdr-date { font-size: 11px; color: var(--t3); margin-right: 16px; }
+    .hdr-date { font-size: 11px; color: var(--t3); margin-right: 8px; }
+
+    /* 헤더 쿠코니 캐릭터 */
+    .hdr-kukoni-wrap {
+      position: relative; flex-shrink: 0;
+      width: 52px; height: 72px; /* 헤더 바닥에서 살짝 삐져 나옴 */
+      margin-bottom: -8px;
+      display: flex; align-items: flex-end; justify-content: center;
+    }
+    .hdr-kukoni-video {
+      height: 72px; width: auto; object-fit: contain;
+      transform-origin: bottom center;
+      transition: filter .3s;
+    }
+    /* 뱃살 만지기 애니메이션 (수집 중) */
+    .hdr-kukoni-video.collecting {
+      animation: belly-poke .5s ease-in-out infinite alternate;
+    }
+    @keyframes belly-poke {
+      0%   { transform: rotate(-6deg) scale(1.0) translateX(-2px); }
+      30%  { transform: rotate(0deg)  scale(1.07) translateX(0px); }
+      60%  { transform: rotate(5deg)  scale(1.04) translateX(2px); }
+      100% { transform: rotate(-3deg) scale(1.08) translateX(-1px); }
+    }
+    .hdr-kukoni-bubble {
+      position: absolute; top: 0; left: 54px;
+      background: #fff; border: 1.5px solid var(--accent-lt);
+      border-radius: 10px 10px 10px 0;
+      padding: 3px 9px; font-size: 10px; font-weight: 600; color: var(--accent);
+      white-space: nowrap; box-shadow: var(--sh-sm);
+      animation: pop .25s ease;
+    }
+    @keyframes pop { from{opacity:0;transform:scale(.8)} to{opacity:1;transform:scale(1)} }
 
     .collect-btn {
       padding: 7px 16px; border-radius: 8px; border: none;
@@ -72,9 +103,18 @@
       display: flex; align-items: center; gap: 5px;
     }
     .collect-btn.primary { background: var(--accent2); }
-    .collect-btn.all     { background: #475569; }
     .collect-btn:hover:not(:disabled) { filter: brightness(1.1); box-shadow: var(--sh); }
     .collect-btn:disabled { opacity: .5; cursor: not-allowed; }
+
+    /* 로그 토글 버튼 */
+    .log-toggle-btn {
+      padding: 6px 12px; border-radius: 8px;
+      border: 1px solid var(--bd); background: #f8faff;
+      color: var(--t2); font-size: 11px; font-weight: 600;
+      cursor: pointer; transition: all .15s;
+      display: flex; align-items: center; gap: 5px; white-space: nowrap;
+    }
+    .log-toggle-btn:hover { background: var(--accent-lt); border-color: var(--accent2); color: var(--accent); }
 
     /* ── BODY WRAP ── */
     #wrap { display: flex; flex: 1; overflow: hidden; }
@@ -291,7 +331,11 @@
       border-left: 1px solid var(--bd);
       display: flex; flex-direction: column;
       overflow: hidden;
+      transition: width .3s ease, opacity .3s ease;
     }
+    /* 로그 패널 숨김 트랜지션 (Alpine x-transition 보조) */
+    .log-panel[style*="display: none"] { width: 0; }
+
     .log-header {
       padding: 12px 14px 10px;
       border-bottom: 1px solid var(--bd);
@@ -306,39 +350,6 @@
       cursor: pointer; padding: 2px 6px; border-radius: 4px;
     }
     .log-clear:hover { background: #f1f5f9; color: var(--t1); }
-
-    /* 쿠코니 캐릭터 영역 */
-    .kukoni-wrap {
-      position: relative; flex-shrink: 0;
-      background: linear-gradient(160deg, #eef2ff 0%, #f0fdf4 100%);
-      border-bottom: 1px solid var(--bd);
-      display: flex; align-items: flex-end; justify-content: center;
-      height: 160px; overflow: hidden;
-      transition: height .4s ease;
-    }
-    .kukoni-wrap.idle { height: 80px; }
-    .kukoni-video {
-      height: 100%; width: auto; object-fit: contain;
-      transition: filter .4s, transform .4s;
-    }
-    .kukoni-wrap.idle .kukoni-video {
-      filter: grayscale(40%) opacity(0.7);
-      transform: scale(0.85) translateY(8px);
-    }
-    .kukoni-status {
-      position: absolute; bottom: 6px; left: 0; right: 0;
-      text-align: center; font-size: 10px; font-weight: 700;
-      color: var(--accent); letter-spacing: .3px;
-    }
-    .kukoni-bubble {
-      position: absolute; top: 8px; right: 10px;
-      background: #fff; border: 1.5px solid var(--accent-lt);
-      border-radius: 10px 10px 0 10px;
-      padding: 4px 9px; font-size: 10px; font-weight: 600; color: var(--accent);
-      box-shadow: var(--sh-sm);
-      animation: pop .3s ease;
-    }
-    @keyframes pop { from{opacity:0;transform:scale(.8)} to{opacity:1;transform:scale(1)} }
 
     .log-body {
       flex: 1; overflow-y: auto; padding: 8px 12px;
@@ -489,10 +500,28 @@
       <div class="hdr-badge">WR</div>
       <span class="hdr-title">쿠콘 보도자료/언론기사 모니터링</span>
     </div>
+
+    <!-- 쿠코니 캐릭터 (제목 옆) -->
+    <div class="hdr-kukoni-wrap">
+      <video x-ref="kukoni" class="hdr-kukoni-video" :class="collecting ? 'collecting' : ''"
+        src="/static/kukoni.mp4"
+        autoplay loop muted playsinline
+        x-effect="collecting ? $refs.kukoni.play() : $refs.kukoni.pause()">
+      </video>
+      <template x-if="collecting">
+        <div class="hdr-kukoni-bubble" x-text="kukoniMsg"></div>
+      </template>
+    </div>
+
     <div class="hdr-spacer"></div>
     <span class="hdr-date" x-text="today"></span>
     <button class="collect-btn primary" :disabled="collecting" @click="startCollect(activeCategory)">
       <span x-text="collecting ? '수집 중...' : '▶ 수집 시작'"></span>
+    </button>
+    <!-- 로그 패널 토글 -->
+    <button class="log-toggle-btn" @click="showLog = !showLog"
+      :title="showLog ? '로그 숨기기' : '로그 보기'">
+      <span x-text="showLog ? '◀ 로그' : '로그 ▶'"></span>
     </button>
   </header>
 
@@ -692,27 +721,19 @@
     </main>
 
     <!-- ── LOG PANEL ── -->
-    <aside class="log-panel">
+    <aside class="log-panel"
+      x-show="showLog"
+      x-transition:enter="transition ease-out duration-200"
+      x-transition:enter-start="opacity-0 translate-x-4"
+      x-transition:enter-end="opacity-100 translate-x-0"
+      x-transition:leave="transition ease-in duration-150"
+      x-transition:leave-start="opacity-100 translate-x-0"
+      x-transition:leave-end="opacity-0 translate-x-4">
       <div class="log-header">
         <div class="log-dot" :class="collecting ? 'live' : ''"></div>
         <span class="log-title">수집 로그</span>
         <button class="log-clear" @click="logs = []">지우기</button>
       </div>
-
-      <!-- 쿠코니 캐릭터 -->
-      <div class="kukoni-wrap" :class="collecting ? '' : 'idle'">
-        <video x-ref="kukoni" class="kukoni-video"
-          src="/static/kukoni.mp4"
-          autoplay loop muted playsinline
-          x-effect="collecting ? $refs.kukoni.play() : $refs.kukoni.pause()">
-        </video>
-        <template x-if="collecting">
-          <div class="kukoni-bubble" x-text="kukoniMsg"></div>
-        </template>
-        <div class="kukoni-status"
-          x-text="collecting ? '수집 중...' : '쿠코니 대기 중'"></div>
-      </div>
-
       <div class="log-body" id="logbox">
         <template x-if="logs.length === 0">
           <div class="log-line">수집 시작 시 로그가 표시됩니다.</div>
@@ -790,6 +811,7 @@
       priorityFilter: '',
       allArticles: { '데이터':[], '페이먼트':[], 'AML':[] },
       collecting: false,
+      showLog: true,
       kukoniMsg: '보도자료 수집 중!',
       formatting: false,
       generating: false,
