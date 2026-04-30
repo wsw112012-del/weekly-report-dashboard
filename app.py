@@ -10,14 +10,43 @@ import io
 import json
 import os
 import re
+import ssl as _ssl
 import subprocess
 import sys
 import tempfile
 import urllib.parse
+import warnings
 import webbrowser
 import zipfile
 from datetime import date, datetime
 from pathlib import Path
+
+import requests as _requests
+import urllib3
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
+from urllib3.util.ssl_ import create_urllib3_context
+
+urllib3.disable_warnings()
+
+
+class _LaxSSLAdapter(HTTPAdapter):
+    """SSL 검증 우회 어댑터 (회사 프록시 대응)"""
+    def init_poolmanager(self, *args, **kwargs):
+        ctx = create_urllib3_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = _ssl.CERT_NONE
+        ctx.set_ciphers('DEFAULT:@SECLEVEL=1')
+        kwargs['ssl_context'] = ctx
+        super().init_poolmanager(*args, **kwargs)
+
+
+_APP_SESSION = _requests.Session()
+_APP_SESSION.verify = False
+_APP_SESSION.headers.update({'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'})
+_app_adapter = _LaxSSLAdapter(max_retries=Retry(total=1, backoff_factor=0, status_forcelist=[429, 500, 502, 503]))
+_APP_SESSION.mount('https://', _app_adapter)
+_APP_SESSION.mount('http://', _app_adapter)
 
 try:
     from dotenv import load_dotenv
@@ -221,7 +250,7 @@ _UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124.0
 
 _ATTACH_ONLY = re.compile(r'첨부\s*자료[^가-힣]{0,10}참고|보도자료를 전재하여 제공')
 
-# 기관별 직접 크롤링 설정 (curl로 접근 가능한 기관만 등록)
+# 기관별 직접 크롤링 설정
 AGENCY_SITE_CONFIG: dict = {
     "금융위원회": {
         "base": "https://www.fsc.go.kr",
@@ -253,13 +282,9 @@ def _fetch_agency_list(agency: str) -> list[tuple[str, str]]:
     if not cfg:
         return []
     try:
-        r = subprocess.run(
-            ['curl', '-sk', '--tlsv1.2', '-A', _UA, '--max-time', '15', cfg["list_url"]],
-            capture_output=True, timeout=20,
-        )
-        if r.returncode != 0:
-            return []
-        soup = BeautifulSoup(r.stdout.decode('utf-8', errors='replace'), 'lxml')
+        resp = _APP_SESSION.get(cfg["list_url"], timeout=15)
+        resp.raise_for_status()
+        soup = BeautifulSoup(resp.text, 'lxml')
         base = cfg["base"]
         link_re = cfg["link_re"]
         result = []
@@ -302,13 +327,9 @@ def _fetch_body_from_agency(agency: str, title: str) -> str:
     if best_score < 0.25 or not best_url:
         return ""
     try:
-        r = subprocess.run(
-            ['curl', '-sk', '--tlsv1.2', '-A', _UA, '--max-time', '15', best_url],
-            capture_output=True, timeout=20,
-        )
-        if r.returncode != 0:
-            return ""
-        soup = BeautifulSoup(r.stdout.decode('utf-8', errors='replace'), 'lxml')
+        resp = _APP_SESSION.get(best_url, timeout=15)
+        resp.raise_for_status()
+        soup = BeautifulSoup(resp.text, 'lxml')
         for sel in cfg["content_selectors"]:
             div = soup.select_one(sel)
             if div:
@@ -374,12 +395,10 @@ def _fetch_odt_from_page(soup: BeautifulSoup, base_url: str) -> str:
         seen.add(href)
 
         try:
-            r = subprocess.run(
-                ['curl', '-sk', '--tlsv1.2', '-L', '-A', _UA, '--max-time', '20', href],
-                capture_output=True, timeout=25,
-            )
-            if r.returncode == 0 and r.stdout[:2] == b'PK':
-                text = _parse_odt_bytes(r.stdout)
+            r = _APP_SESSION.get(href, timeout=20, allow_redirects=True)
+            r.raise_for_status()
+            if r.content[:2] == b'PK':
+                text = _parse_odt_bytes(r.content)
                 if text:
                     return text
         except Exception:
@@ -388,17 +407,13 @@ def _fetch_odt_from_page(soup: BeautifulSoup, base_url: str) -> str:
 
 
 def _fetch_body(url: str) -> str:
-    """보도자료 상세 페이지에서 본문 텍스트 추출 (curl 기반, ODT fallback 포함)"""
+    """보도자료 상세 페이지에서 본문 텍스트 추출 (requests 기반, ODT fallback 포함)"""
     if not url:
         return ""
     try:
-        result = subprocess.run(
-            ['curl', '-sk', '--tlsv1.2', '-A', _UA, '--max-time', '15', url],
-            capture_output=True, timeout=20,
-        )
-        if result.returncode != 0:
-            return ""
-        html = result.stdout.decode('utf-8', errors='replace')
+        resp = _APP_SESSION.get(url, timeout=15)
+        resp.raise_for_status()
+        html = resp.text
         soup = BeautifulSoup(html, 'lxml')
         for sel in ['.article_body', '.view_content', '.articleView',
                     '#articleBody', '.news_body', '.cont_view', '.press_content']:
