@@ -1,0 +1,23 @@
+# API keys — never commit
+.env
+
+# Collected data files
+collected_*.txt
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+
+# Debug/temp HTML files
+*.html
+agency_check.txt
+content_check.txt
+rss_check.txt
+site_check*.txt
+
+# PPT output
+*.pptx
+
+# Logs
+*.log
