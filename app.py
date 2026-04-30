@@ -27,7 +27,7 @@ except ImportError:
 from bs4 import BeautifulSoup
 
 from fastapi import FastAPI
-from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
+from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse, FileResponse
 from pydantic import BaseModel
 
 BASE_DIR    = Path(__file__).parent
@@ -46,6 +46,7 @@ SUPABASE_KEY: str = os.environ.get("SUPABASE_KEY", "")
 WEEKDAY_KO = ['월', '화', '수', '목', '금', '토', '일']
 
 app = FastAPI()
+STATIC_DIR = BASE_DIR / "static"
 
 
 # ── 유틸 ──────────────────────────────────────────────────────────────────────
@@ -623,6 +624,14 @@ def auto_format_article(article: dict) -> str:
 
 # ── 라우트 ────────────────────────────────────────────────────────────────────
 
+@app.get("/static/{filename}")
+async def serve_static(filename: str):
+    file_path = STATIC_DIR / filename
+    if not file_path.exists():
+        return JSONResponse({"error": "not found"}, status_code=404)
+    return FileResponse(str(file_path))
+
+
 @app.get("/", response_class=HTMLResponse)
 async def root():
     html = (TEMPLATES / "index.html").read_text(encoding="utf-8")
@@ -651,7 +660,9 @@ async def get_articles(report_type: str):
 
 @app.get("/api/stream/{report_type}")
 async def stream_collect(report_type: str):
-    """SSE: collect_보도자료.py 실시간 로그 스트림"""
+    """SSE: collect_보도자료.py 실시간 로그 스트림 (전체=3개 순차 실행)"""
+    targets = CATEGORIES if report_type == "전체" else [report_type]
+
     async def event_generator():
         loop = asyncio.get_running_loop()
         collect_env = {
@@ -659,22 +670,25 @@ async def stream_collect(report_type: str):
             "PYTHONIOENCODING": "utf-8",
             "PYTHONUNBUFFERED": "1",
         }
-        proc = await loop.run_in_executor(
-            None,
-            lambda: subprocess.Popen(
-                [sys.executable, "-u", str(COLLECT_SCR), report_type],
-                stdout=subprocess.PIPE,
-                stderr=subprocess.STDOUT,
-                cwd=str(BASE_DIR),
-                env=collect_env,
-            ),
-        )
-        while True:
-            line = await loop.run_in_executor(None, proc.stdout.readline)
-            if not line:
-                break
-            yield f"data: {line.decode('utf-8', errors='replace').rstrip()}\n\n"
-        await loop.run_in_executor(None, proc.wait)
+        for cat in targets:
+            yield f"data: ━━ [{cat}] 수집 시작 ━━\n\n"
+            proc = await loop.run_in_executor(
+                None,
+                lambda c=cat: subprocess.Popen(
+                    [sys.executable, "-u", str(COLLECT_SCR), c],
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.STDOUT,
+                    cwd=str(BASE_DIR),
+                    env=collect_env,
+                ),
+            )
+            while True:
+                line = await loop.run_in_executor(None, proc.stdout.readline)
+                if not line:
+                    break
+                yield f"data: {line.decode('utf-8', errors='replace').rstrip()}\n\n"
+            await loop.run_in_executor(None, proc.wait)
+            yield f"data: ✓ [{cat}] 수집 완료\n\n"
         yield "data: [DONE]\n\n"
 
     return StreamingResponse(event_generator(), media_type="text/event-stream")

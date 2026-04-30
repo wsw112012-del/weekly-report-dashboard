@@ -286,7 +286,7 @@
 
     /* ── LOG PANEL ── */
     .log-panel {
-      width: 260px; flex-shrink: 0;
+      width: 280px; flex-shrink: 0;
       background: var(--sidebar-bg);
       border-left: 1px solid var(--bd);
       display: flex; flex-direction: column;
@@ -306,6 +306,40 @@
       cursor: pointer; padding: 2px 6px; border-radius: 4px;
     }
     .log-clear:hover { background: #f1f5f9; color: var(--t1); }
+
+    /* 쿠코니 캐릭터 영역 */
+    .kukoni-wrap {
+      position: relative; flex-shrink: 0;
+      background: linear-gradient(160deg, #eef2ff 0%, #f0fdf4 100%);
+      border-bottom: 1px solid var(--bd);
+      display: flex; align-items: flex-end; justify-content: center;
+      height: 160px; overflow: hidden;
+      transition: height .4s ease;
+    }
+    .kukoni-wrap.idle { height: 80px; }
+    .kukoni-video {
+      height: 100%; width: auto; object-fit: contain;
+      transition: filter .4s, transform .4s;
+    }
+    .kukoni-wrap.idle .kukoni-video {
+      filter: grayscale(40%) opacity(0.7);
+      transform: scale(0.85) translateY(8px);
+    }
+    .kukoni-status {
+      position: absolute; bottom: 6px; left: 0; right: 0;
+      text-align: center; font-size: 10px; font-weight: 700;
+      color: var(--accent); letter-spacing: .3px;
+    }
+    .kukoni-bubble {
+      position: absolute; top: 8px; right: 10px;
+      background: #fff; border: 1.5px solid var(--accent-lt);
+      border-radius: 10px 10px 0 10px;
+      padding: 4px 9px; font-size: 10px; font-weight: 600; color: var(--accent);
+      box-shadow: var(--sh-sm);
+      animation: pop .3s ease;
+    }
+    @keyframes pop { from{opacity:0;transform:scale(.8)} to{opacity:1;transform:scale(1)} }
+
     .log-body {
       flex: 1; overflow-y: auto; padding: 8px 12px;
     }
@@ -314,8 +348,17 @@
     .log-line {
       font-family: 'Menlo','Consolas',monospace;
       font-size: 10.5px; color: var(--t2); line-height: 1.85;
+      animation: slideIn .2s ease;
     }
+    @keyframes slideIn { from{opacity:0;transform:translateX(-6px)} to{opacity:1;transform:translateX(0)} }
+    .log-line.log-section {
+      color: var(--accent); font-weight: 700; margin-top: 4px;
+      border-top: 1px solid var(--bd); padding-top: 4px;
+    }
+    .log-line.log-ok { color: #16a34a; }
     .log-line::before { content: '›'; margin-right: 5px; color: var(--t3); }
+    .log-line.log-section::before { content: ''; }
+    .log-line.log-ok::before     { content: '✓'; color: #16a34a; }
 
     /* ── MODAL ── */
     .modal-backdrop {
@@ -656,12 +699,29 @@
         <span class="log-title">수집 로그</span>
         <button class="log-clear" @click="logs = []">지우기</button>
       </div>
+
+      <!-- 쿠코니 캐릭터 -->
+      <div class="kukoni-wrap" :class="collecting ? '' : 'idle'">
+        <video x-ref="kukoni" class="kukoni-video"
+          src="/static/kukoni.mp4"
+          autoplay loop muted playsinline
+          x-effect="collecting ? $refs.kukoni.play() : $refs.kukoni.pause()">
+        </video>
+        <template x-if="collecting">
+          <div class="kukoni-bubble" x-text="kukoniMsg"></div>
+        </template>
+        <div class="kukoni-status"
+          x-text="collecting ? '수집 중...' : '쿠코니 대기 중'"></div>
+      </div>
+
       <div class="log-body" id="logbox">
         <template x-if="logs.length === 0">
           <div class="log-line">수집 시작 시 로그가 표시됩니다.</div>
         </template>
         <template x-for="(l, i) in logs" :key="i">
-          <div class="log-line" x-text="l"></div>
+          <div class="log-line"
+            :class="l.startsWith('━━') ? 'log-section' : l.startsWith('✓') ? 'log-ok' : ''"
+            x-text="l"></div>
         </template>
       </div>
     </aside>
@@ -731,6 +791,7 @@
       priorityFilter: '',
       allArticles: { '데이터':[], '페이먼트':[], 'AML':[] },
       collecting: false,
+      kukoniMsg: '보도자료 수집 중!',
       formatting: false,
       generating: false,
       formattedContent: '',
@@ -869,12 +930,22 @@
 
       async startCollect(type) {
         this.collecting = true;
-        this.logs.push(`[${type}] 수집 시작...`);
+        const KUKONI_MSGS = [
+          '보도자료 수집 중!', '열심히 찾는 중!', '잠깐만요~', '거의 다 됐어요!',
+          '뉴스 탐색 중!', '데이터 수집 중!', '꼼꼼히 확인 중!',
+        ];
+        let msgIdx = 0;
+        const msgTimer = setInterval(() => {
+          msgIdx = (msgIdx + 1) % KUKONI_MSGS.length;
+          this.kukoniMsg = KUKONI_MSGS[msgIdx];
+        }, 2500);
+
         const es = new EventSource(`/api/stream/${encodeURIComponent(type)}`);
         es.onmessage = e => {
           if (e.data === '[DONE]') {
             es.close(); this.collecting = false;
-            this.logs.push(`[${type}] 수집 완료`);
+            clearInterval(msgTimer);
+            this.kukoniMsg = '수집 완료!';
             this._scroll();
             setTimeout(() => this.loadAll(), 800);
             return;
@@ -884,6 +955,7 @@
         es.onerror = () => {
           if (es.readyState === EventSource.CLOSED) return;
           es.close(); this.collecting = false;
+          clearInterval(msgTimer);
           this.logs.push(`[${type}] 연결 종료`);
         };
       },
