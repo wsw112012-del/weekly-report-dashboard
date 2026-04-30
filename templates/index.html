@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>주간보고 대시보드 — COOCON</title>
+  <title>쿠콘 보도자료/언론기사 모니터링</title>
   <link href="https://fonts.googleapis.com/css2?family=Pretendard:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
   <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
   <style>
@@ -487,8 +487,7 @@
   <header>
     <div class="hdr-logo">
       <div class="hdr-badge">WR</div>
-      <span class="hdr-title">주간보고 대시보드</span>
-      <span class="hdr-subtitle">— COOCON</span>
+      <span class="hdr-title">쿠콘 보도자료/언론기사 모니터링</span>
     </div>
     <div class="hdr-spacer"></div>
     <span class="hdr-date" x-text="today"></span>
@@ -803,13 +802,34 @@
       pptReadyUid: null,     // PPT 생성 가능한 _uid
       generatingUid: null,   // PPT 생성 중인 _uid
 
+      _applyFilters(list) {
+        if (this.articleType !== '전체') {
+          list = list.filter(a => this.sourceType(a) === this.articleType);
+        }
+        if (this.activeKeywords.length > 0) {
+          list = list.filter(a =>
+            this.activeKeywords.some(kw => (a['제목'] + a['내용']).includes(kw))
+          );
+        }
+        if (this.searchQuery.trim()) {
+          const q = this.searchQuery.trim().toLowerCase();
+          list = list.filter(a =>
+            (a['제목'] + a['내용'] + a['기관']).toLowerCase().includes(q)
+          );
+        }
+        if (this.priorityFilter) {
+          list = list.filter(a => a['우선순위'] === this.priorityFilter);
+        }
+        const rank = { '상': 0, '중': 1, '하': 2 };
+        return [...list].sort((a, b) =>
+          (rank[a['우선순위']] ?? 1) - (rank[b['우선순위']] ?? 1)
+        );
+      },
+
       get kanbanCols() {
         return ['데이터','페이먼트','AML'].map(cat => {
-          let arts = (this.allArticles[cat] || []).map((a, i) => ({ ...a, _idx: i, _cat: cat, _uid: `${cat}-${i}` }));
-          if (this.articleType !== '전체') {
-            arts = arts.filter(a => this.sourceType(a) === this.articleType);
-          }
-          return { key: cat, label: cat, articles: arts };
+          const raw = (this.allArticles[cat] || []).map((a, i) => ({ ...a, _idx: i, _cat: cat, _uid: `${cat}-${i}` }));
+          return { key: cat, label: cat, articles: this._applyFilters(raw) };
         });
       },
 
@@ -843,28 +863,7 @@
       },
 
       get displayedArticles() {
-        let list = this.currentArticles;
-        if (this.articleType !== '전체') {
-          list = list.filter(a => this.sourceType(a) === this.articleType);
-        }
-        if (this.activeKeywords.length > 0) {
-          list = list.filter(a =>
-            this.activeKeywords.some(kw => (a['제목'] + a['내용']).includes(kw))
-          );
-        }
-        if (this.searchQuery.trim()) {
-          const q = this.searchQuery.trim().toLowerCase();
-          list = list.filter(a =>
-            (a['제목'] + a['내용'] + a['기관']).toLowerCase().includes(q)
-          );
-        }
-        if (this.priorityFilter) {
-          list = list.filter(a => a['우선순위'] === this.priorityFilter);
-        }
-        const rank = { '상': 0, '중': 1, '하': 2 };
-        return [...list].sort((a, b) =>
-          (rank[a['우선순위']] ?? 1) - (rank[b['우선순위']] ?? 1)
-        );
+        return this._applyFilters(this.currentArticles);
       },
 
       sourceType(a) {
