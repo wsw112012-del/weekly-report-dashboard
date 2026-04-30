@@ -1,0 +1,827 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>주간보고 대시보드 — COOCON</title>
+  <link href="https://fonts.googleapis.com/css2?family=Pretendard:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:         #f0f4fb;
+      --bg-card:    #ffffff;
+      --accent:     #1e40af;
+      --accent2:    #2563eb;
+      --accent-lt:  #dbeafe;
+      --aml-color:  #b91c1c;
+      --aml-lt:     #fee2e2;
+      --pay-color:  #0f766e;
+      --pay-lt:     #ccfbf1;
+      --accent-grd: linear-gradient(135deg,#1e3a8a,#2563eb);
+      --aml-grd:    linear-gradient(135deg,#b91c1c,#ea580c);
+      --pay-grd:    linear-gradient(135deg,#0f766e,#0891b2);
+      --nav-bg:     #ffffff;
+      --sidebar-bg: #ffffff;
+      --bd:         #d1ddf0;
+      --bd2:        #93afd4;
+      --t1:         #0f172a;
+      --t2:         #334155;
+      --t3:         #64748b;
+      --sh-sm:      0 1px 2px rgba(15,23,42,.06);
+      --sh:         0 1px 4px rgba(15,23,42,.09),0 1px 2px rgba(15,23,42,.05);
+      --sh-md:      0 4px 12px rgba(15,23,42,.08),0 2px 4px rgba(15,23,42,.04);
+    }
+
+    html, body { height: 100%; }
+    body {
+      font-family: 'Pretendard', 'Apple SD Gothic Neo', sans-serif;
+      background: var(--bg); color: var(--t1);
+      display: flex; flex-direction: column; overflow: hidden;
+    }
+
+    /* ── HEADER ── */
+    header {
+      height: 56px; flex-shrink: 0;
+      display: flex; align-items: center; gap: 12px;
+      padding: 0 24px;
+      background: var(--nav-bg);
+      border-bottom: 1px solid var(--bd);
+      box-shadow: 0 1px 6px rgba(15,23,42,.07);
+      z-index: 100;
+    }
+    .hdr-logo {
+      display: flex; align-items: center; gap: 9px; flex-shrink: 0;
+    }
+    .hdr-badge {
+      width: 30px; height: 30px; border-radius: 8px;
+      background: var(--accent-grd);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 10px; font-weight: 800; color: #fff; letter-spacing: -.5px;
+    }
+    .hdr-title { font-size: 14px; font-weight: 700; color: var(--t1); letter-spacing: -.2px; }
+    .hdr-subtitle { font-size: 11px; color: var(--t3); margin-left: 2px; }
+    .hdr-spacer { flex: 1; }
+    .hdr-date { font-size: 11px; color: var(--t3); margin-right: 16px; }
+
+    .collect-btn {
+      padding: 7px 16px; border-radius: 8px; border: none;
+      font-size: 12px; font-weight: 700; cursor: pointer;
+      transition: all .18s; white-space: nowrap; color: #fff;
+      display: flex; align-items: center; gap: 5px;
+    }
+    .collect-btn.primary { background: var(--accent2); }
+    .collect-btn.all     { background: #475569; }
+    .collect-btn:hover:not(:disabled) { filter: brightness(1.1); box-shadow: var(--sh); }
+    .collect-btn:disabled { opacity: .5; cursor: not-allowed; }
+
+    /* ── BODY WRAP ── */
+    #wrap { display: flex; flex: 1; overflow: hidden; }
+
+    /* ── SIDEBAR ── */
+    .sidebar {
+      width: 220px; flex-shrink: 0;
+      background: var(--sidebar-bg);
+      border-right: 1px solid var(--bd);
+      overflow-y: auto; padding: 16px 12px;
+      display: flex; flex-direction: column; gap: 4px;
+    }
+    .sidebar::-webkit-scrollbar { width: 3px; }
+    .sidebar::-webkit-scrollbar-thumb { background: var(--bd); border-radius: 2px; }
+
+    .sb-section-label {
+      font-size: 10px; font-weight: 700; color: var(--t3);
+      letter-spacing: .6px; text-transform: uppercase;
+      padding: 10px 8px 4px;
+    }
+    .sb-divider { height: 1px; background: var(--bd); margin: 8px 0; }
+
+    /* 카테고리 메뉴 */
+    .cat-item {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 8px 10px; border-radius: 8px;
+      cursor: pointer; font-size: 13px; font-weight: 500; color: var(--t2);
+      transition: all .15s; border: 1px solid transparent;
+    }
+    .cat-item:hover { background: #f1f5f9; color: var(--t1); }
+    .cat-item.active {
+      background: var(--accent-lt); color: var(--accent);
+      border-color: rgba(37,99,235,.2); font-weight: 700;
+    }
+    .cat-item.active.pay { background: var(--pay-lt); color: var(--pay-color); border-color: rgba(15,118,110,.2); }
+    .cat-item.active.aml { background: var(--aml-lt);  color: var(--aml-color); border-color: rgba(185,28,28,.2); }
+    .cat-count {
+      font-size: 10px; font-weight: 700;
+      padding: 1px 7px; border-radius: 10px;
+      background: rgba(0,0,0,.06); color: var(--t3);
+    }
+    .cat-item.active .cat-count { background: rgba(37,99,235,.15); color: var(--accent); }
+    .cat-item.active.pay .cat-count { background: rgba(15,118,110,.15); color: var(--pay-color); }
+    .cat-item.active.aml .cat-count { background: rgba(185,28,28,.15); color: var(--aml-color); }
+
+    /* 키워드 chip */
+    .kw-chip {
+      display: inline-flex; align-items: center;
+      padding: 3px 10px; border-radius: 20px; margin: 2px 2px 0 0;
+      border: 1px solid var(--bd); background: #f1f5f9;
+      color: var(--t2); font-size: 11px; font-weight: 500;
+      cursor: pointer; transition: all .15s; white-space: nowrap;
+    }
+    .kw-chip:hover { border-color: var(--bd2); background: #e2e8f0; }
+    .kw-chip.active          { background: var(--accent-lt); border-color: var(--accent2); color: var(--accent); font-weight: 600; }
+    .kw-chip.active.pay-chip { background: var(--pay-lt); border-color: var(--pay-color); color: var(--pay-color); }
+    .kw-chip.active.aml-chip { background: var(--aml-lt); border-color: var(--aml-color); color: var(--aml-color); }
+    .kw-wrap { display: flex; flex-wrap: wrap; padding: 2px 0 6px; }
+
+    /* 우선순위 */
+    .pri-wrap { display: flex; gap: 5px; padding: 4px 0; }
+    .pri-btn {
+      flex: 1; padding: 5px 0; border-radius: 6px;
+      border: 1px solid var(--bd); background: #f1f5f9;
+      font-size: 11px; font-weight: 700; cursor: pointer; transition: all .15s; text-align: center;
+    }
+    .pri-btn:hover { filter: brightness(.95); }
+    .pri-btn.active-high { background: #fef2f2; border-color: #fca5a5; color: #b91c1c; }
+    .pri-btn.active-mid  { background: #fffbeb; border-color: #fcd34d; color: #92400e; }
+    .pri-btn.active-low  { background: #f1f5f9; border-color: #94a3b8; color: #475569; }
+
+    /* 검색 */
+    .sb-search {
+      position: relative; margin: 4px 0;
+    }
+    .sb-search input {
+      width: 100%; height: 32px; padding: 0 10px 0 28px;
+      border: 1px solid var(--bd); border-radius: 7px;
+      background: #f8faff; color: var(--t1); font-size: 12px; font-family: inherit;
+      transition: all .18s;
+    }
+    .sb-search input:focus { outline: none; border-color: var(--accent2); box-shadow: 0 0 0 2px rgba(37,99,235,.1); }
+    .sb-search input::placeholder { color: var(--t3); }
+    .sb-search-icon { position: absolute; left: 8px; top: 50%; transform: translateY(-50%); font-size: 12px; pointer-events: none; }
+
+    /* ── MAIN ── */
+    .main { flex: 1; overflow-y: auto; padding: 20px 24px; }
+    .main::-webkit-scrollbar { width: 4px; }
+    .main::-webkit-scrollbar-thumb { background: var(--bd); border-radius: 2px; }
+
+    /* 수집 기간 라벨 */
+    .period-label {
+      font-size: 11px; color: var(--t3); margin-bottom: 10px; font-weight: 500;
+    }
+    .period-label strong { color: var(--t2); }
+
+    /* 통계 박스 4개 */
+    .stat-grid {
+      display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 20px;
+    }
+    .stat-box {
+      background: var(--bg-card); border: 1px solid var(--bd);
+      border-radius: 12px; padding: 14px 16px;
+      cursor: pointer; transition: all .18s; box-shadow: var(--sh-sm);
+    }
+    .stat-box:hover { box-shadow: var(--sh); border-color: var(--bd2); transform: translateY(-1px); }
+    .stat-box.active-data { border-color: var(--accent2); background: #f0f6ff; box-shadow: 0 0 0 2px rgba(37,99,235,.15), var(--sh); }
+    .stat-box.active-pay  { border-color: var(--pay-color); background: #f0fdf8; box-shadow: 0 0 0 2px rgba(15,118,110,.15), var(--sh); }
+    .stat-box.active-aml  { border-color: var(--aml-color); background: #fff5f5; box-shadow: 0 0 0 2px rgba(185,28,28,.15), var(--sh); }
+    .stat-box.active-all  { border-color: #475569; background: #f8faff; box-shadow: 0 0 0 2px rgba(71,85,105,.12), var(--sh); }
+    .stat-label { font-size: 11px; color: var(--t3); font-weight: 600; margin-bottom: 6px; }
+    .stat-num   { font-size: 26px; font-weight: 700; color: var(--t1); line-height: 1; }
+    .stat-unit  { font-size: 12px; color: var(--t3); margin-left: 3px; font-weight: 500; }
+
+    /* 기사 리스트 */
+    .list-header {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 10px;
+    }
+    .list-title { font-size: 13px; font-weight: 700; color: var(--t1); }
+    .list-count { font-size: 11px; color: var(--t3); }
+
+    .article-list { display: flex; flex-direction: column; gap: 8px; }
+
+    .article-row {
+      background: var(--bg-card); border: 1px solid var(--bd);
+      border-radius: 10px; padding: 13px 16px;
+      display: flex; flex-direction: column; gap: 6px;
+      box-shadow: var(--sh-sm); transition: all .18s;
+    }
+    .article-row:hover { border-color: var(--bd2); box-shadow: var(--sh); }
+
+    .row-top {
+      display: flex; align-items: center; gap: 8px;
+    }
+    .agency-badge {
+      font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 4px;
+      color: #fff; white-space: nowrap; flex-shrink: 0;
+    }
+    .badge-data { background: var(--accent-grd); }
+    .badge-pay  { background: var(--pay-grd); }
+    .badge-aml  { background: var(--aml-grd); }
+
+    .row-title {
+      font-size: 13px; font-weight: 700; color: var(--t1); flex: 1;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .cat-tag {
+      font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 10px;
+      white-space: nowrap; flex-shrink: 0;
+    }
+    .tag-data { background: var(--accent-lt); color: var(--accent); border: 1px solid rgba(37,99,235,.25); }
+    .tag-pay  { background: var(--pay-lt); color: var(--pay-color); border: 1px solid rgba(15,118,110,.25); }
+    .tag-aml  { background: var(--aml-lt); color: var(--aml-color); border: 1px solid rgba(185,28,28,.25); }
+
+    .pri-badge {
+      font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 10px;
+      white-space: nowrap; flex-shrink: 0;
+    }
+    .pri-high { background: #ecfdf5; color: #16a34a; border: 1px solid #86efac; }
+    .pri-mid  { background: #eff6ff; color: #2563eb; border: 1px solid #93c5fd; }
+    .pri-low  { background: #f8fafc; color: #94a3b8; border: 1px solid #cbd5e1; }
+
+    .row-lead {
+      font-size: 12px; color: var(--t2); line-height: 1.6;
+      display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden;
+    }
+
+    .row-bottom {
+      display: flex; align-items: center; gap: 8px; margin-top: 2px;
+    }
+    .row-date { font-size: 11px; color: var(--t3); flex: 1; }
+
+    .row-btn {
+      padding: 5px 12px; border-radius: 6px; border: 1px solid var(--bd);
+      font-size: 11px; font-weight: 600; cursor: pointer; transition: all .15s;
+      background: #f8faff; color: var(--t2); white-space: nowrap;
+    }
+    .row-btn:hover:not(:disabled) { background: var(--accent2); color: #fff; border-color: var(--accent2); }
+    .row-btn:disabled { opacity: .45; cursor: not-allowed; }
+    .row-btn.ppt-btn:hover:not(:disabled) { background: var(--pay-color); border-color: var(--pay-color); color: #fff; }
+    .link-btn {
+      font-size: 11px; color: var(--accent2); text-decoration: none;
+      padding: 4px 10px; border-radius: 6px; border: 1px solid var(--accent-lt);
+      background: var(--accent-lt); font-weight: 600; transition: all .15s; flex-shrink: 0;
+    }
+    .link-btn:hover { background: var(--accent2); color: #fff; border-color: var(--accent2); }
+
+    mark { background: rgba(37,99,235,.13); color: var(--accent); border-radius: 2px; padding: 0 1px; }
+
+    .empty-list {
+      padding: 48px 0; text-align: center;
+      border: 1px dashed var(--bd); border-radius: 12px;
+      color: var(--t3); font-size: 13px; background: var(--bg-card);
+    }
+
+    /* ── LOG PANEL ── */
+    .log-panel {
+      width: 260px; flex-shrink: 0;
+      background: var(--sidebar-bg);
+      border-left: 1px solid var(--bd);
+      display: flex; flex-direction: column;
+      overflow: hidden;
+    }
+    .log-header {
+      padding: 12px 14px 10px;
+      border-bottom: 1px solid var(--bd);
+      display: flex; align-items: center; gap: 7px; flex-shrink: 0;
+    }
+    .log-title { font-size: 12px; font-weight: 700; color: var(--t2); flex: 1; }
+    .log-dot { width: 6px; height: 6px; border-radius: 50%; background: #94a3b8; transition: .3s; }
+    .log-dot.live { background: #0ea5e9; animation: blink 1.2s infinite; }
+    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.2} }
+    .log-clear {
+      font-size: 10px; color: var(--t3); background: none; border: none;
+      cursor: pointer; padding: 2px 6px; border-radius: 4px;
+    }
+    .log-clear:hover { background: #f1f5f9; color: var(--t1); }
+    .log-body {
+      flex: 1; overflow-y: auto; padding: 8px 12px;
+    }
+    .log-body::-webkit-scrollbar { width: 3px; }
+    .log-body::-webkit-scrollbar-thumb { background: var(--bd); border-radius: 2px; }
+    .log-line {
+      font-family: 'Menlo','Consolas',monospace;
+      font-size: 10.5px; color: var(--t2); line-height: 1.85;
+    }
+    .log-line::before { content: '›'; margin-right: 5px; color: var(--t3); }
+
+    /* ── MODAL ── */
+    .modal-backdrop {
+      position: fixed; inset: 0; z-index: 500;
+      background: rgba(15,23,42,.45);
+      display: flex; align-items: center; justify-content: center;
+      padding: 24px;
+    }
+    .modal {
+      background: #fff; border-radius: 16px;
+      width: 100%; max-width: 660px; max-height: 85vh;
+      display: flex; flex-direction: column;
+      box-shadow: 0 20px 60px rgba(15,23,42,.2);
+      overflow: hidden;
+    }
+    .modal-header {
+      padding: 16px 20px 14px;
+      border-bottom: 1px solid var(--bd);
+      display: flex; align-items: center; gap: 10px;
+    }
+    .modal-title { font-size: 14px; font-weight: 700; color: var(--t1); flex: 1; }
+    .modal-close {
+      width: 28px; height: 28px; border-radius: 6px;
+      border: 1px solid var(--bd); background: #f8faff;
+      color: var(--t3); cursor: pointer; font-size: 14px;
+      display: flex; align-items: center; justify-content: center;
+      transition: all .15s;
+    }
+    .modal-close:hover { background: #f1f5f9; color: var(--t1); }
+    .modal-body { flex: 1; overflow-y: auto; padding: 16px 20px; }
+    textarea {
+      width: 100%; min-height: 220px; resize: vertical;
+      background: #f8faff; color: var(--t1);
+      border: 1px solid var(--bd); border-radius: 8px;
+      padding: 12px 14px; font-family: 'Pretendard', monospace;
+      font-size: 12px; line-height: 1.9;
+    }
+    textarea:focus { outline: none; border-color: var(--accent2); box-shadow: 0 0 0 3px rgba(37,99,235,.1); }
+    .modal-footer {
+      padding: 12px 20px;
+      border-top: 1px solid var(--bd);
+      display: flex; align-items: center; gap: 8px;
+    }
+    .modal-footer-spacer { flex: 1; }
+    .btn-ppt {
+      padding: 8px 20px; border-radius: 8px; border: none;
+      background: var(--pay-grd); color: #fff;
+      font-size: 12px; font-weight: 700; cursor: pointer; transition: all .18s;
+    }
+    .btn-ppt:hover:not(:disabled) { filter: brightness(1.1); }
+    .btn-ppt:disabled { opacity: .4; cursor: not-allowed; }
+    .btn-cancel {
+      padding: 8px 18px; border-radius: 8px;
+      border: 1px solid var(--bd); background: #f8faff;
+      color: var(--t2); font-size: 12px; font-weight: 600; cursor: pointer; transition: all .15s;
+    }
+    .btn-cancel:hover { background: #f1f5f9; }
+
+    .result-ok  { padding: 10px 14px; border-radius: 8px; font-size: 12px; background: #ecfdf5; border: 1px solid #6ee7b7; color: #065f46; margin-top: 12px; }
+    .result-err { padding: 10px 14px; border-radius: 8px; font-size: 12px; background: #fef2f2; border: 1px solid #fca5a5; color: #991b1b; margin-top: 12px; }
+    .result-path { font-size: 10px; color: var(--t3); margin-top: 4px; word-break: break-all; }
+
+    [x-cloak] { display: none !important; }
+  </style>
+</head>
+
+<body x-data="app()" x-init="init()">
+
+  <!-- ── HEADER ── -->
+  <header>
+    <div class="hdr-logo">
+      <div class="hdr-badge">WR</div>
+      <span class="hdr-title">주간보고 대시보드</span>
+      <span class="hdr-subtitle">— COOCON</span>
+    </div>
+    <div class="hdr-spacer"></div>
+    <span class="hdr-date" x-text="today"></span>
+    <button class="collect-btn primary" :disabled="collecting" @click="startCollect(activeCategory)">
+      <span x-text="collecting ? '수집 중...' : '▶ 수집 시작'"></span>
+    </button>
+    <button class="collect-btn all" :disabled="collecting" @click="startCollect('전체')">
+      ▶ 전체 수집
+    </button>
+  </header>
+
+  <!-- ── BODY ── -->
+  <div id="wrap">
+
+    <!-- ── SIDEBAR ── -->
+    <aside class="sidebar">
+      <div class="sb-section-label">카테고리</div>
+
+      <!-- 전체 -->
+      <div class="cat-item" :class="activeCategory === '전체' ? 'active' : ''"
+           @click="switchCategory('전체')">
+        <span>전체</span>
+        <span class="cat-count" x-text="totalCount"></span>
+      </div>
+      <!-- 데이터 -->
+      <div class="cat-item" :class="activeCategory === '데이터' ? 'active' : ''"
+           @click="switchCategory('데이터')">
+        <span>데이터</span>
+        <span class="cat-count" x-text="allArticles['데이터'].length"></span>
+      </div>
+      <!-- 페이먼트 -->
+      <div class="cat-item" :class="activeCategory === '페이먼트' ? 'active pay' : ''"
+           @click="switchCategory('페이먼트')">
+        <span>페이먼트</span>
+        <span class="cat-count" x-text="allArticles['페이먼트'].length"></span>
+      </div>
+      <!-- AML -->
+      <div class="cat-item" :class="activeCategory === 'AML' ? 'active aml' : ''"
+           @click="switchCategory('AML')">
+        <span>AML</span>
+        <span class="cat-count" x-text="allArticles['AML'].length"></span>
+      </div>
+
+      <div class="sb-divider"></div>
+
+      <!-- 검색 -->
+      <div class="sb-search">
+        <span class="sb-search-icon">🔍</span>
+        <input type="text" x-model="searchQuery" placeholder="기사 검색..." />
+      </div>
+
+      <div class="sb-divider"></div>
+
+      <!-- 키워드 필터 -->
+      <div class="sb-section-label">키워드 필터</div>
+      <div class="kw-wrap">
+        <template x-for="kw in currentKeywords" :key="kw">
+          <button class="kw-chip"
+            :class="[activeKeywords.includes(kw) ? 'active' : '', currentChipClass]"
+            @click="toggleKeyword(kw)"
+            x-text="kw"></button>
+        </template>
+      </div>
+
+      <div class="sb-divider"></div>
+
+      <!-- 우선순위 필터 -->
+      <div class="sb-section-label">우선순위</div>
+      <div class="pri-wrap">
+        <button class="pri-btn" :class="priorityFilter === '상' ? 'active-high' : ''"
+          @click="togglePriority('상')">상</button>
+        <button class="pri-btn" :class="priorityFilter === '중' ? 'active-mid' : ''"
+          @click="togglePriority('중')">중</button>
+        <button class="pri-btn" :class="priorityFilter === '하' ? 'active-low' : ''"
+          @click="togglePriority('하')">하</button>
+      </div>
+    </aside>
+
+    <!-- ── MAIN ── -->
+    <main class="main">
+
+      <!-- 수집 기간 -->
+      <div class="period-label">
+        수집 대상 기간: <strong x-text="periodLabel"></strong>
+      </div>
+
+      <!-- 통계 박스 4개 -->
+      <div class="stat-grid">
+        <div class="stat-box" :class="activeCategory === '데이터' ? 'active-data' : ''"
+             @click="switchCategory('데이터')">
+          <div class="stat-label">데이터</div>
+          <div><span class="stat-num" x-text="allArticles['데이터'].length"></span><span class="stat-unit">건</span></div>
+        </div>
+        <div class="stat-box" :class="activeCategory === '페이먼트' ? 'active-pay' : ''"
+             @click="switchCategory('페이먼트')">
+          <div class="stat-label">페이먼트</div>
+          <div><span class="stat-num" x-text="allArticles['페이먼트'].length"></span><span class="stat-unit">건</span></div>
+        </div>
+        <div class="stat-box" :class="activeCategory === 'AML' ? 'active-aml' : ''"
+             @click="switchCategory('AML')">
+          <div class="stat-label">AML</div>
+          <div><span class="stat-num" x-text="allArticles['AML'].length"></span><span class="stat-unit">건</span></div>
+        </div>
+        <div class="stat-box" :class="activeCategory === '전체' ? 'active-all' : ''"
+             @click="switchCategory('전체')">
+          <div class="stat-label">전체</div>
+          <div><span class="stat-num" x-text="totalCount"></span><span class="stat-unit">건</span></div>
+        </div>
+      </div>
+
+      <!-- 기사 리스트 헤더 -->
+      <div class="list-header">
+        <span class="list-title" x-text="activeCategory + ' 보도자료'"></span>
+        <span class="list-count" x-text="`${displayedArticles.length}건 표시`"></span>
+      </div>
+
+      <!-- 기사 리스트 -->
+      <div class="article-list">
+        <template x-if="currentArticles.length === 0">
+          <div class="empty-list">수집된 보도자료가 없습니다 — 수집 시작 버튼을 눌러주세요</div>
+        </template>
+        <template x-if="displayedArticles.length === 0 && currentArticles.length > 0">
+          <div class="empty-list">조건에 맞는 보도자료가 없습니다</div>
+        </template>
+
+        <template x-for="a in displayedArticles" :key="a._uid">
+          <div class="article-row">
+            <!-- 상단: 기관뱃지 + 제목 + 카테고리태그 + 우선순위 -->
+            <div class="row-top">
+              <span class="agency-badge" :class="badgeClass(a._cat)" x-text="a['기관']"></span>
+              <span class="row-title" x-html="highlight(a['제목'])"></span>
+              <!-- 전체 보기 시 카테고리 태그 표시 -->
+              <template x-if="activeCategory === '전체'">
+                <span class="cat-tag" :class="tagClass(a._cat)" x-text="a._cat"></span>
+              </template>
+              <span class="pri-badge"
+                :class="a['우선순위']==='상' ? 'pri-high' : a['우선순위']==='하' ? 'pri-low' : 'pri-mid'"
+                x-text="a['우선순위'] || '중'"></span>
+            </div>
+            <!-- 1줄 요약 -->
+            <div class="row-lead" x-html="highlight(a['내용'])"></div>
+            <!-- 하단: 날짜 + 버튼 -->
+            <div class="row-bottom">
+              <span class="row-date" x-text="'📅 ' + a['날짜']"></span>
+              <a x-show="a['링크']" :href="a['링크']" target="_blank" rel="noopener noreferrer"
+                 @click.stop class="link-btn">원문 ↗</a>
+              <button class="row-btn" :disabled="formatting"
+                @click="formatSingle(a._idx, a._cat)">
+                <span x-text="(formattingIdx === a._uid && formatting) ? '요약 중...' : '요약하기'"></span>
+              </button>
+              <button class="row-btn ppt-btn" :disabled="generating || !pptReadyUid || pptReadyUid !== a._uid"
+                @click="generatePPTFor(a._uid)">
+                <span x-text="(generatingUid === a._uid && generating) ? 'PPT 생성 중...' : 'PPT 생성'"></span>
+              </button>
+            </div>
+          </div>
+        </template>
+      </div>
+    </main>
+
+    <!-- ── LOG PANEL ── -->
+    <aside class="log-panel">
+      <div class="log-header">
+        <div class="log-dot" :class="collecting ? 'live' : ''"></div>
+        <span class="log-title">수집 로그</span>
+        <button class="log-clear" @click="logs = []">지우기</button>
+      </div>
+      <div class="log-body" id="logbox">
+        <template x-if="logs.length === 0">
+          <div class="log-line">수집 시작 시 로그가 표시됩니다.</div>
+        </template>
+        <template x-for="(l, i) in logs" :key="i">
+          <div class="log-line" x-text="l"></div>
+        </template>
+      </div>
+    </aside>
+  </div>
+
+  <!-- ── 요약 모달 ── -->
+  <div class="modal-backdrop" x-show="showModal" x-cloak @click.self="closeModal()">
+    <div class="modal">
+      <div class="modal-header">
+        <span class="modal-title">요약 결과 — 편집 후 PPT 생성</span>
+        <button class="modal-close" @click="closeModal()">✕</button>
+      </div>
+      <div class="modal-body">
+        <textarea x-model="formattedContent" spellcheck="false"></textarea>
+        <template x-if="pptResult">
+          <div :class="pptResult.ok ? 'result-ok' : 'result-err'">
+            <div x-show="pptResult.ok">
+              ✓ PPT 생성 완료
+              <div class="result-path" x-text="pptResult.ppt_path"></div>
+            </div>
+            <div x-show="!pptResult.ok">✕ 생성 실패 — <span x-text="pptResult.log"></span></div>
+          </div>
+        </template>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-ppt" :disabled="!formattedContent || generating"
+          @click="generatePPT()">
+          <span x-text="generating ? 'PPT 생성 중...' : '③ PPT 생성'"></span>
+        </button>
+        <div class="modal-footer-spacer"></div>
+        <button class="btn-cancel" @click="closeModal()">닫기</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── ALPINE ── -->
+  <script>
+  function app() {
+    const KEYWORD_MAP = {
+      '데이터':   ['인공지능','AI','마이데이터','개인정보','클라우드','데이터법','생성형AI','디지털전환','개보위','데이터경제'],
+      '페이먼트': ['전자금융','핀테크','간편결제','지급결제','오픈뱅킹','가상자산','선불전자','가상계좌','입금이체','금융혁신'],
+      'AML':      ['자금세탁방지','제재','과태료','FATF','FIU','의심거래','STR','특정금융','가상자산범죄','금융정보분석원'],
+      '전체':     ['인공지능','AI','전자금융','핀테크','자금세탁방지','개인정보','가상자산','마이데이터','FIU','FATF'],
+    };
+
+    function periodLabel() {
+      const WEEKDAY = ['일','월','화','수','목','금','토'];
+      const fmt = d => {
+        const y = String(d.getFullYear()).slice(2);
+        const m = d.getMonth() + 1;
+        const dd = d.getDate();
+        const wd = WEEKDAY[d.getDay()];
+        return `'${y}.${m}.${dd}(${wd})`;
+      };
+      const end = new Date();
+      const start = new Date(end); start.setDate(start.getDate() - 6);
+      return `${fmt(start)} ~ ${fmt(end)}`;
+    }
+
+    return {
+      today: new Date().toLocaleDateString('ko-KR',{year:'numeric',month:'long',day:'numeric',weekday:'short'}),
+      periodLabel: periodLabel(),
+      activeCategory: '데이터',
+      searchQuery: '',
+      activeKeywords: [],
+      priorityFilter: '',
+      allArticles: { '데이터':[], '페이먼트':[], 'AML':[] },
+      collecting: false,
+      formatting: false,
+      generating: false,
+      formattedContent: '',
+      showModal: false,
+      modalCategory: '',
+      pptResult: null,
+      logs: [],
+      formattingIdx: null,   // 현재 요약 중인 _uid
+      pptReadyUid: null,     // PPT 생성 가능한 _uid
+      generatingUid: null,   // PPT 생성 중인 _uid
+
+      get totalCount() {
+        return (this.allArticles['데이터']?.length || 0)
+             + (this.allArticles['페이먼트']?.length || 0)
+             + (this.allArticles['AML']?.length || 0);
+      },
+
+      get currentKeywords() { return KEYWORD_MAP[this.activeCategory] || []; },
+
+      get currentChipClass() {
+        if (this.activeCategory === '페이먼트') return 'pay-chip';
+        if (this.activeCategory === 'AML') return 'aml-chip';
+        return '';
+      },
+
+      get currentArticles() {
+        if (this.activeCategory === '전체') {
+          let uid = 0;
+          return ['데이터','페이먼트','AML'].flatMap(cat =>
+            (this.allArticles[cat] || []).map((a, i) => ({ ...a, _idx: i, _cat: cat, _uid: `${cat}-${i}` }))
+          );
+        }
+        const cat = this.activeCategory;
+        return (this.allArticles[cat] || []).map((a, i) => ({ ...a, _idx: i, _cat: cat, _uid: `${cat}-${i}` }));
+      },
+
+      get displayedArticles() {
+        let list = this.currentArticles;
+        if (this.activeKeywords.length > 0) {
+          list = list.filter(a =>
+            this.activeKeywords.some(kw => (a['제목'] + a['내용']).includes(kw))
+          );
+        }
+        if (this.searchQuery.trim()) {
+          const q = this.searchQuery.trim().toLowerCase();
+          list = list.filter(a =>
+            (a['제목'] + a['내용'] + a['기관']).toLowerCase().includes(q)
+          );
+        }
+        if (this.priorityFilter) {
+          list = list.filter(a => a['우선순위'] === this.priorityFilter);
+        }
+        const rank = { '상': 0, '중': 1, '하': 2 };
+        return [...list].sort((a, b) =>
+          (rank[a['우선순위']] ?? 1) - (rank[b['우선순위']] ?? 1)
+        );
+      },
+
+      badgeClass(cat) {
+        if (cat === '페이먼트') return 'badge-pay';
+        if (cat === 'AML') return 'badge-aml';
+        return 'badge-data';
+      },
+
+      tagClass(cat) {
+        if (cat === '페이먼트') return 'tag-pay';
+        if (cat === 'AML') return 'tag-aml';
+        return 'tag-data';
+      },
+
+      switchCategory(key) {
+        this.activeCategory = key;
+        this.activeKeywords = [];
+        this.priorityFilter = '';
+        this.searchQuery = '';
+        this.pptReadyUid = null;
+      },
+
+      toggleKeyword(kw) {
+        const i = this.activeKeywords.indexOf(kw);
+        if (i === -1) this.activeKeywords.push(kw);
+        else this.activeKeywords.splice(i, 1);
+      },
+
+      togglePriority(p) {
+        this.priorityFilter = this.priorityFilter === p ? '' : p;
+      },
+
+      highlight(text) {
+        if (!text) return '';
+        let t = text.replace(/</g,'&lt;').replace(/>/g,'&gt;');
+        const terms = [...this.activeKeywords];
+        if (this.searchQuery.trim()) terms.push(this.searchQuery.trim());
+        terms.forEach(kw => {
+          if (!kw) return;
+          const esc = kw.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+          t = t.replace(new RegExp(esc,'gi'), m => `<mark>${m}</mark>`);
+        });
+        return t;
+      },
+
+      async init() {
+        await this.loadAll();
+        setInterval(() => this.loadAll(), 10000);
+      },
+
+      async loadAll() {
+        try {
+          const data = await fetch('/api/articles/all').then(r => r.json());
+          for (const t of Object.keys(data)) {
+            if (data[t].length !== (this.allArticles[t]||[]).length) {
+              this.allArticles[t] = data[t];
+            }
+          }
+        } catch(_) {}
+      },
+
+      async startCollect(type) {
+        this.collecting = true;
+        this.logs.push(`[${type}] 수집 시작...`);
+        const es = new EventSource(`/api/stream/${encodeURIComponent(type)}`);
+        es.onmessage = e => {
+          if (e.data === '[DONE]') {
+            es.close(); this.collecting = false;
+            this.loadAll();
+            this.logs.push(`[${type}] 수집 완료`);
+            this._scroll(); return;
+          }
+          this.logs.push(e.data); this._scroll();
+        };
+        es.onerror = () => {
+          if (es.readyState === EventSource.CLOSED) return;
+          es.close(); this.collecting = false;
+          this.logs.push(`[${type}] 연결 종료`);
+        };
+      },
+
+      async formatSingle(idx, cat) {
+        this.formatting = true;
+        const uid = `${cat}-${idx}`;
+        this.formattingIdx = uid;
+        this.pptReadyUid = null;
+        this.pptResult = null;
+        this.formattedContent = '';
+        this.logs.push(`[${cat}] 요약 중...`);
+        try {
+          const res = await fetch(`/api/format/${encodeURIComponent(cat)}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ indices: [idx] }),
+          });
+          const data = await res.json();
+          if (!res.ok) { this.logs.push(`요약 오류: ${JSON.stringify(data.detail || data)}`); return; }
+          this.formattedContent = data.content || '';
+          this.modalCategory = cat;
+          this.pptReadyUid = uid;
+          this.showModal = true;
+          this.logs.push(`요약 완료`);
+          this._scroll();
+        } catch(e) {
+          this.logs.push(`요약 오류: ${e}`);
+        } finally {
+          this.formatting = false;
+          this.formattingIdx = null;
+        }
+      },
+
+      async generatePPTFor(uid) {
+        this.generatingUid = uid;
+        await this.generatePPT();
+        this.generatingUid = null;
+      },
+
+      async generatePPT() {
+        if (!this.formattedContent) return;
+        this.generating = true; this.pptResult = null;
+        this.logs.push(`[${this.modalCategory}] PPT 생성 중...`);
+        try {
+          const res = await fetch(`/api/generate/${encodeURIComponent(this.modalCategory)}`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ content: this.formattedContent }),
+          });
+          const data = await res.json();
+          this.pptResult = data;
+          this.logs.push(data.ok ? `PPT 저장: ${data.ppt_path}` : 'PPT 생성 실패');
+          await this.loadAll();
+        } catch(e) {
+          this.logs.push(`오류: ${e}`);
+        } finally { this.generating = false; this._scroll(); }
+      },
+
+      closeModal() {
+        this.showModal = false;
+        this.pptResult = null;
+      },
+
+      _scroll() {
+        this.$nextTick(() => {
+          const b = document.getElementById('logbox');
+          if (b) b.scrollTop = b.scrollHeight;
+        });
+      },
+    };
+  }
+  </script>
+</body>
+</html>

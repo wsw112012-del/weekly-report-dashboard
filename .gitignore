@@ -9,8 +9,8 @@ __pycache__/
 *.pyc
 *.pyo
 
-# Debug/temp HTML files
-*.html
+# Debug/temp HTML files (루트 디렉토리만 제외, templates/ 폴더는 포함)
+/*.html
 agency_check.txt
 content_check.txt
 rss_check.txt
