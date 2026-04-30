@@ -383,9 +383,6 @@
     <button class="collect-btn primary" :disabled="collecting" @click="startCollect(activeCategory)">
       <span x-text="collecting ? '수집 중...' : '▶ 수집 시작'"></span>
     </button>
-    <button class="collect-btn all" :disabled="collecting" @click="startCollect('전체')">
-      ▶ 전체 수집
-    </button>
   </header>
 
   <!-- ── BODY ── -->
@@ -727,11 +724,7 @@
       async loadAll() {
         try {
           const data = await fetch('/api/articles/all').then(r => r.json());
-          for (const t of Object.keys(data)) {
-            if (data[t].length !== (this.allArticles[t]||[]).length) {
-              this.allArticles[t] = data[t];
-            }
-          }
+          this.allArticles = { '데이터': data['데이터'] || [], '페이먼트': data['페이먼트'] || [], 'AML': data['AML'] || [] };
         } catch(_) {}
       },
 
@@ -742,9 +735,10 @@
         es.onmessage = e => {
           if (e.data === '[DONE]') {
             es.close(); this.collecting = false;
-            this.loadAll();
             this.logs.push(`[${type}] 수집 완료`);
-            this._scroll(); return;
+            this._scroll();
+            setTimeout(() => this.loadAll(), 800);
+            return;
           }
           this.logs.push(e.data); this._scroll();
         };
