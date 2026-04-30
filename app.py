@@ -787,6 +787,25 @@ async def get_history():
         return JSONResponse([])
 
 
+@app.get("/api/ppt/{item_id}")
+async def download_ppt(item_id: int):
+    """history.json의 id로 PPT 파일 다운로드"""
+    if not HISTORY_FILE.exists():
+        return JSONResponse({"error": "이력 없음"}, status_code=404)
+    history = json.loads(HISTORY_FILE.read_text(encoding='utf-8'))
+    entry = next((h for h in history if h.get("id") == item_id), None)
+    if not entry:
+        return JSONResponse({"error": "항목 없음"}, status_code=404)
+    ppt_path = Path(entry.get("ppt_path", ""))
+    if not ppt_path.exists():
+        return JSONResponse({"error": f"파일 없음: {ppt_path.name}"}, status_code=404)
+    return FileResponse(
+        path=str(ppt_path),
+        media_type="application/vnd.openxmlformats-officedocument.presentationml.presentation",
+        filename=ppt_path.name,
+    )
+
+
 @app.post("/api/generate/{report_type}")
 async def generate_ppt(report_type: str, req: GenerateRequest):
     """CONTENT 교체 후 make_report.py 실행 — tempfile로 race condition 방지 [C-3 fix]"""

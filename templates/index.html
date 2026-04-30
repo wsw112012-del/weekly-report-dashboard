@@ -485,6 +485,12 @@
       max-width: 400px; white-space: pre-wrap; font-size: 11px;
       color: var(--t3); line-height: 1.6; max-height: 80px; overflow: hidden;
     }
+    .ppt-dl-btn {
+      display: inline-block; padding: 5px 12px; border-radius: 6px;
+      background: var(--accent); color: #fff; font-size: 11px; font-weight: 600;
+      text-decoration: none; transition: opacity .15s;
+    }
+    .ppt-dl-btn:hover { opacity: .8; }
     .history-empty {
       text-align: center; padding: 48px; color: var(--t3); font-size: 13px;
     }
@@ -699,11 +705,12 @@
                 <th>보도자료 일자</th>
                 <th>제목</th>
                 <th>요약 내용</th>
+                <th>주간보고 작성본</th>
               </tr>
             </thead>
             <tbody>
               <template x-if="historyItems.length === 0">
-                <tr><td colspan="4" class="history-empty">PPT 생성 이력이 없습니다</td></tr>
+                <tr><td colspan="5" class="history-empty">PPT 생성 이력이 없습니다</td></tr>
               </template>
               <template x-for="h in historyItems" :key="h.id">
                 <tr>
@@ -711,6 +718,12 @@
                   <td x-text="h.article_date" style="white-space:nowrap"></td>
                   <td x-text="h.title" style="min-width:160px"></td>
                   <td class="history-summary" x-text="h.summary"></td>
+                  <td style="white-space:nowrap;text-align:center">
+                    <a :href="'/api/ppt/' + h.id" download
+                       class="ppt-dl-btn">
+                      📥 PPT 열기
+                    </a>
+                  </td>
                 </tr>
               </template>
             </tbody>
