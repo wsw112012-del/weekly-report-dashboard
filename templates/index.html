@@ -217,6 +217,19 @@
     .badge-data { background: var(--accent-grd); }
     .badge-pay  { background: var(--pay-grd); }
     .badge-aml  { background: var(--aml-grd); }
+    .badge-news { background: linear-gradient(135deg,#6d28d9,#7c3aed); }
+
+    /* 보도자료 / 언론기사 필터 버튼 */
+    .source-filter { display: flex; gap: 4px; }
+    .src-btn {
+      padding: 4px 12px; border-radius: 20px; border: 1px solid var(--bd);
+      font-size: 11px; font-weight: 600; cursor: pointer; transition: all .15s;
+      background: #f1f5f9; color: var(--t2); white-space: nowrap;
+    }
+    .src-btn:hover { border-color: var(--bd2); background: #e2e8f0; }
+    .src-btn.active-press { background: var(--accent-lt); border-color: var(--accent2); color: var(--accent); }
+    .src-btn.active-news  { background: #f3e8ff; border-color: #7c3aed; color: #6d28d9; }
+    .src-btn.active-all   { background: #f8faff; border-color: #475569; color: #475569; }
 
     .row-title {
       font-size: 13px; font-weight: 700; color: var(--t1); flex: 1;
@@ -543,7 +556,15 @@
       <!-- 기사 헤더 -->
       <div class="list-header">
         <span class="list-title" x-text="activeCategory + ' 보도자료'"></span>
-        <span class="list-count" x-text="activeCategory === '전체' ? `${totalCount}건` : `${displayedArticles.length}건`"></span>
+        <div class="source-filter">
+          <button class="src-btn" :class="articleType === '전체' ? 'active-all' : ''"
+            @click="articleType = '전체'">전체</button>
+          <button class="src-btn" :class="articleType === '보도자료' ? 'active-press' : ''"
+            @click="articleType = '보도자료'">📋 보도자료</button>
+          <button class="src-btn" :class="articleType === '언론기사' ? 'active-news' : ''"
+            @click="articleType = '언론기사'">📰 언론기사</button>
+        </div>
+        <span class="list-count" x-text="activeCategory === '전체' ? `${filteredTotalCount}건` : `${displayedArticles.length}건`"></span>
       </div>
 
       <!-- ── 전체 탭: 3컬럼 칸반 (데이터 | 페이먼트 | AML) ── -->
@@ -561,7 +582,7 @@
               <template x-for="a in col.articles" :key="a._uid">
                 <div class="art-card">
                   <div class="art-card-top">
-                    <span class="agency-badge" :class="badgeClass(col.key)" x-text="a['기관']"></span>
+                    <span class="agency-badge" :class="sourceType(a)==='언론기사' ? 'badge-news' : badgeClass(col.key)" x-text="a['기관']"></span>
                     <span class="pri-badge"
                       :class="a['우선순위']==='상' ? 'pri-high' : a['우선순위']==='하' ? 'pri-low' : 'pri-mid'"
                       x-text="a['우선순위'] || '중'"></span>
@@ -599,7 +620,7 @@
             <template x-for="a in displayedArticles" :key="a._uid">
               <div class="art-card">
                 <div class="art-card-top">
-                  <span class="agency-badge" :class="badgeClass(a._cat)" x-text="a['기관']"></span>
+                  <span class="agency-badge" :class="sourceType(a)==='언론기사' ? 'badge-news' : badgeClass(a._cat)" x-text="a['기관']"></span>
                   <span class="pri-badge"
                     :class="a['우선순위']==='상' ? 'pri-high' : a['우선순위']==='하' ? 'pri-low' : 'pri-mid'"
                     x-text="a['우선순위'] || '중'"></span>
@@ -704,6 +725,7 @@
       today: new Date().toLocaleDateString('ko-KR',{year:'numeric',month:'long',day:'numeric',weekday:'short'}),
       periodLabel: periodLabel(),
       activeCategory: '전체',
+      articleType: '전체',
       searchQuery: '',
       activeKeywords: [],
       priorityFilter: '',
@@ -721,17 +743,23 @@
       generatingUid: null,   // PPT 생성 중인 _uid
 
       get kanbanCols() {
-        return ['데이터','페이먼트','AML'].map(cat => ({
-          key: cat,
-          label: cat,
-          articles: (this.allArticles[cat] || []).map((a, i) => ({ ...a, _idx: i, _cat: cat, _uid: `${cat}-${i}` })),
-        }));
+        return ['데이터','페이먼트','AML'].map(cat => {
+          let arts = (this.allArticles[cat] || []).map((a, i) => ({ ...a, _idx: i, _cat: cat, _uid: `${cat}-${i}` }));
+          if (this.articleType !== '전체') {
+            arts = arts.filter(a => this.sourceType(a) === this.articleType);
+          }
+          return { key: cat, label: cat, articles: arts };
+        });
       },
 
       get totalCount() {
         return (this.allArticles['데이터']?.length || 0)
              + (this.allArticles['페이먼트']?.length || 0)
              + (this.allArticles['AML']?.length || 0);
+      },
+
+      get filteredTotalCount() {
+        return this.kanbanCols.reduce((s, col) => s + col.articles.length, 0);
       },
 
       get currentKeywords() { return KEYWORD_MAP[this.activeCategory] || []; },
@@ -755,6 +783,9 @@
 
       get displayedArticles() {
         let list = this.currentArticles;
+        if (this.articleType !== '전체') {
+          list = list.filter(a => this.sourceType(a) === this.articleType);
+        }
         if (this.activeKeywords.length > 0) {
           list = list.filter(a =>
             this.activeKeywords.some(kw => (a['제목'] + a['내용']).includes(kw))
@@ -775,6 +806,11 @@
         );
       },
 
+      sourceType(a) {
+        if (a['구분']) return a['구분'];
+        return a['기관'] === '네이버뉴스' ? '언론기사' : '보도자료';
+      },
+
       badgeClass(cat) {
         if (cat === '페이먼트') return 'badge-pay';
         if (cat === 'AML') return 'badge-aml';
@@ -793,6 +829,7 @@
         this.priorityFilter = '';
         this.searchQuery = '';
         this.pptReadyUid = null;
+        this.articleType = '전체';
       },
 
       toggleKeyword(kw) {

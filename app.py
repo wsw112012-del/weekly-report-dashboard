@@ -124,7 +124,7 @@ def parse_collected(report_type: str) -> list[dict]:
     blocks   = re.split(r"={5} 보도자료 \d+ ={5}", text)
     for block in blocks[1:]:
         item = {}
-        for field in ("기관", "날짜", "제목", "내용", "링크"):
+        for field in ("기관", "날짜", "제목", "내용", "링크", "구분"):
             m = re.search(rf"^{field}: (.+)", block, re.MULTILINE)
             item[field] = m.group(1).strip() if m else ""
         item["우선순위"] = get_priority(item)

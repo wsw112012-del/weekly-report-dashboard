@@ -117,6 +117,38 @@ UA = (
 )
 _DIR = os.path.dirname(os.path.abspath(__file__))
 
+# 언론사 도메인 → 한국어 이름 매핑
+OUTLET_MAP = {
+    'chosun.com': '조선일보', 'joongang.co.kr': '중앙일보', 'joins.com': '중앙일보',
+    'donga.com': '동아일보', 'hankyung.com': '한국경제', 'mk.co.kr': '매일경제',
+    'sedaily.com': '서울경제', 'etnews.com': '전자신문', 'zdnet.co.kr': 'ZDNet',
+    'dt.co.kr': '디지털타임스', 'newsis.com': '뉴시스', 'yonhapnews.co.kr': '연합뉴스',
+    'yna.co.kr': '연합뉴스', 'newspim.com': '뉴스핌', 'edaily.co.kr': '이데일리',
+    'news1.kr': '뉴스1', 'hani.co.kr': '한겨레', 'khan.co.kr': '경향신문',
+    'fnnews.com': '파이낸셜뉴스', 'inews24.com': '아이뉴스24', 'bloter.net': '블로터',
+    'ddaily.co.kr': '디지털데일리', 'thebell.co.kr': '더벨', 'mt.co.kr': '머니투데이',
+    'moneys.mt.co.kr': '머니S', 'bizwatch.co.kr': '비즈워치', 'wowtv.co.kr': '한국경제TV',
+    'jtbc.co.kr': 'JTBC', 'sbs.co.kr': 'SBS', 'kbs.co.kr': 'KBS',
+    'mbc.co.kr': 'MBC', 'ytn.co.kr': 'YTN', 'imaeil.com': '매일신문',
+    'busan.com': '부산일보', 'heraldcorp.com': '헤럴드경제', 'news.naver.com': '네이버뉴스',
+    'naver.com': '네이버뉴스',
+}
+
+
+def extract_outlet(url: str) -> str:
+    """URL 도메인에서 언론사명 추출"""
+    try:
+        domain = urllib.parse.urlparse(url).netloc.lower()
+        if domain.startswith('www.'):
+            domain = domain[4:]
+        for key, name in OUTLET_MAP.items():
+            if key in domain:
+                return name
+        parts = domain.split('.')
+        return parts[0].upper() if parts else '언론기사'
+    except Exception:
+        return '언론기사'
+
 
 # ── 날짜 유틸 ──────────────────────────────────────────────────────────────────
 
@@ -205,12 +237,13 @@ def scrape_korea_page(page_index: int, start_date: str, end_date: str,
             url = ''
         if title and agency:
             articles.append({
-                'title':    title,
-                'lead':     lead,
-                'date_str': date_str,
-                'agency':   agency,
-                'news_id':  news_id,
-                'url':      url,
+                'title':       title,
+                'lead':        lead,
+                'date_str':    date_str,
+                'agency':      agency,
+                'news_id':     news_id,
+                'url':         url,
+                'source_type': '보도자료',
             })
     return articles, html
 
@@ -306,12 +339,13 @@ def scrape_naver_news(report_type: str) -> list[dict]:
             date_str = parsed_d.strftime('%Y-%m-%d') if parsed_d else pub_raw[:10]
 
             all_items.append({
-                'title':    title,
-                'lead':     desc,
-                'date_str': date_str,
-                'agency':   '네이버뉴스',
-                'news_id':  f'naver_{abs(hash(link))}',
-                'url':      link,
+                'title':       title,
+                'lead':        desc,
+                'date_str':    date_str,
+                'agency':      extract_outlet(link),
+                'news_id':     f'naver_{abs(hash(link))}',
+                'url':         link,
+                'source_type': '언론기사',
             })
         time.sleep(1)
 
@@ -371,12 +405,13 @@ def scrape_kofiu_press() -> list[dict]:
         else:
             url = KOFIU_PRESS_URL
         articles.append({
-            'title':    title_text,
-            'lead':     title_text,
-            'date_str': parsed_d.strftime('%Y-%m-%d') if parsed_d else date_text,
-            'agency':   '금융정보분석원',
-            'news_id':  f'kofiu_press_{abs(hash(title_text))}',
-            'url':      url,
+            'title':       title_text,
+            'lead':        title_text,
+            'date_str':    parsed_d.strftime('%Y-%m-%d') if parsed_d else date_text,
+            'agency':      '금융정보분석원',
+            'news_id':     f'kofiu_press_{abs(hash(title_text))}',
+            'url':         url,
+            'source_type': '보도자료',
         })
 
     print(f"  [kofiu] 보도자료 {len(articles)}건")
@@ -426,12 +461,13 @@ def scrape_kofiu_sanctions() -> list[dict]:
         else:
             url = KOFIU_SANCTION_URL
         articles.append({
-            'title':    f'[제재] {title_text}',
-            'lead':     f'금융정보분석원 제재 공개: {title_text} — 자금세탁방지법 위반',
-            'date_str': parsed_d.strftime('%Y-%m-%d') if parsed_d else date_text,
-            'agency':   '금융정보분석원',
-            'news_id':  f'kofiu_sanc_{abs(hash(title_text))}',
-            'url':      url,
+            'title':       f'[제재] {title_text}',
+            'lead':        f'금융정보분석원 제재 공개: {title_text} — 자금세탁방지법 위반',
+            'date_str':    parsed_d.strftime('%Y-%m-%d') if parsed_d else date_text,
+            'agency':      '금융정보분석원',
+            'news_id':     f'kofiu_sanc_{abs(hash(title_text))}',
+            'url':         url,
+            'source_type': '보도자료',
         })
 
     print(f"  [kofiu] 제재 공개안 {len(articles)}건")
@@ -534,6 +570,7 @@ def save_to_file(articles: list[dict], report_type: str) -> None:
             f"제목: {a['title']}",
             f"내용: {a['lead']}",
             f"링크: {a.get('url', '')}",
+            f"구분: {a.get('source_type', '보도자료')}",
             "",
         ]
 
@@ -552,11 +589,12 @@ def upload_to_supabase(articles: list[dict], report_type: str) -> None:
     rows = []
     for a in articles:
         rows.append({
-            "기관": a.get("agency", a.get("기관", "")),
-            "날짜": a.get("date_str", a.get("날짜", "")),
-            "제목": a.get("title",  a.get("제목", "")),
-            "내용": a.get("lead",   a.get("내용", "")),
-            "링크": a.get("url",    a.get("링크", "")),
+            "기관": a.get("agency",       a.get("기관", "")),
+            "날짜": a.get("date_str",     a.get("날짜", "")),
+            "제목": a.get("title",        a.get("제목", "")),
+            "내용": a.get("lead",         a.get("내용", "")),
+            "링크": a.get("url",          a.get("링크", "")),
+            "구분": a.get("source_type",  a.get("구분", "보도자료")),
         })
     payload = json.dumps({
         "type": report_type,
