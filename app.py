@@ -12,6 +12,7 @@ import re
 import subprocess
 import sys
 import tempfile
+import urllib.parse
 import webbrowser
 import zipfile
 from datetime import date, datetime
@@ -38,6 +39,9 @@ _DEFAULT_PPT_PATH = Path(r"C:\Users\쿠콘_우승우\Desktop\업무\00. '26 쿠�
 BASE_PPT_PATH = Path(os.environ.get("PPT_OUTPUT_DIR", str(_DEFAULT_PPT_PATH)))
 
 AUTO_COLLECT_TYPE: str | None = os.environ.get("AUTO_COLLECT_TYPE")
+
+SUPABASE_URL: str = os.environ.get("SUPABASE_URL", "")
+SUPABASE_KEY: str = os.environ.get("SUPABASE_KEY", "")
 
 WEEKDAY_KO = ['월', '화', '수', '목', '금', '토', '일']
 
@@ -83,7 +87,35 @@ def get_priority(article: dict) -> str:
     return "중"
 
 
+def _parse_from_supabase(report_type: str) -> list[dict] | None:
+    """Supabase에서 기사 목록 로드. 실패 시 None 반환"""
+    if not SUPABASE_URL or not SUPABASE_KEY:
+        return None
+    try:
+        import urllib.request, json
+        url = f"{SUPABASE_URL}/rest/v1/articles?type=eq.{urllib.parse.quote(report_type)}&select=data"
+        req = urllib.request.Request(url, headers={
+            "apikey": SUPABASE_KEY,
+            "Authorization": f"Bearer {SUPABASE_KEY}",
+        })
+        with urllib.request.urlopen(req, timeout=5) as resp:
+            rows = json.loads(resp.read())
+        if not rows:
+            return None
+        articles = rows[0].get("data", [])
+        for a in articles:
+            a["우선순위"] = get_priority(a)
+        return articles
+    except Exception:
+        return None
+
+
 def parse_collected(report_type: str) -> list[dict]:
+    # Supabase 우선, 실패 시 로컬 txt fallback
+    from_db = _parse_from_supabase(report_type)
+    if from_db is not None:
+        return from_db
+
     path = collected_path(report_type)
     if not path.exists():
         return []

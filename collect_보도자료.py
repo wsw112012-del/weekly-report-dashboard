@@ -99,6 +99,10 @@ NAVER_CLIENT_ID     = os.environ.get("NAVER_CLIENT_ID", "")
 NAVER_CLIENT_SECRET = os.environ.get("NAVER_CLIENT_SECRET", "")
 NAVER_NEWS_URL      = "https://openapi.naver.com/v1/search/news.json"
 
+# ── Supabase ────────────────────────────────────────────────────────────────────
+SUPABASE_URL = os.environ.get("SUPABASE_URL", "")
+SUPABASE_KEY = os.environ.get("SUPABASE_KEY", "")
+
 # 유형별 Naver 검색 키워드 (정부 공식 보도자료 보완용)
 NAVER_QUERIES = {
     '데이터': ['AI기본법', '개인정보보호', '마이데이터', '데이터규제', '인공지능법'],
@@ -539,6 +543,44 @@ def save_to_file(articles: list[dict], report_type: str) -> None:
     print(f"저장 완료: {output_file}")
 
 
+def upload_to_supabase(articles: list[dict], report_type: str) -> None:
+    """수집된 기사를 Supabase에 upsert"""
+    if not SUPABASE_URL or not SUPABASE_KEY:
+        return
+    import json, urllib.request
+    # save_to_file의 agency/date_str 키를 parse_collected 형식으로 변환
+    rows = []
+    for a in articles:
+        rows.append({
+            "기관": a.get("agency", a.get("기관", "")),
+            "날짜": a.get("date_str", a.get("날짜", "")),
+            "제목": a.get("title",  a.get("제목", "")),
+            "내용": a.get("lead",   a.get("내용", "")),
+            "링크": a.get("url",    a.get("링크", "")),
+        })
+    payload = json.dumps({
+        "type": report_type,
+        "data": rows,
+        "updated_at": date.today().isoformat(),
+    }).encode("utf-8")
+    req = urllib.request.Request(
+        f"{SUPABASE_URL}/rest/v1/articles",
+        data=payload,
+        headers={
+            "apikey": SUPABASE_KEY,
+            "Authorization": f"Bearer {SUPABASE_KEY}",
+            "Content-Type": "application/json",
+            "Prefer": "resolution=merge-duplicates",
+        },
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            print(f"Supabase 업로드 완료 ({report_type}): {len(rows)}건 → status {resp.status}")
+    except Exception as e:
+        print(f"Supabase 업로드 실패: {e}")
+
+
 # ── 메인 실행 ──────────────────────────────────────────────────────────────────
 
 if __name__ == '__main__':
@@ -581,3 +623,4 @@ if __name__ == '__main__':
     print(f"중복 제거 후: {len(unique)}건")
 
     save_to_file(unique, report_type)
+    upload_to_supabase(unique, report_type)
