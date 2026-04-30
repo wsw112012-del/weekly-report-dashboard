@@ -7,6 +7,7 @@ app.py — 주간보고 파이프라인 대시보드
 import asyncio
 import glob
 import io
+import json
 import os
 import re
 import subprocess
@@ -30,10 +31,11 @@ from fastapi import FastAPI
 from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse, FileResponse
 from pydantic import BaseModel
 
-BASE_DIR    = Path(__file__).parent
-TEMPLATES   = BASE_DIR / "templates"
-MAKE_REPORT = BASE_DIR / "make_report.py"
-COLLECT_SCR = BASE_DIR / "collect_보도자료.py"
+BASE_DIR     = Path(__file__).parent
+TEMPLATES    = BASE_DIR / "templates"
+MAKE_REPORT  = BASE_DIR / "make_report.py"
+COLLECT_SCR  = BASE_DIR / "collect_보도자료.py"
+HISTORY_FILE = BASE_DIR / "history.json"
 
 _DEFAULT_PPT_PATH = Path(r"C:\Users\쿠콘_우승우\Desktop\업무\00. '26 쿠콘전략실\08. 주간보고\데이터전략센터\주간보고")
 BASE_PPT_PATH = Path(os.environ.get("PPT_OUTPUT_DIR", str(_DEFAULT_PPT_PATH)))
@@ -515,21 +517,34 @@ GEMINI_API_KEY: str = os.environ.get("GEMINI_API_KEY", "")
 
 
 def _llm_format_article(agency: str, title: str, date_disp: str, body: str, lead: str) -> str:
-    """Gemini API로 CLAUDE.md 작성 규칙에 맞는 ◆/•/- 초안 생성"""
-    import google.generativeai as genai
-    genai.configure(api_key=GEMINI_API_KEY)
-    model = genai.GenerativeModel("gemini-1.5-flash")
+    """Gemini REST API로 CLAUDE.md 작성 규칙에 맞는 ◆/•/- 초안 생성 (gRPC 대신 REST 사용)"""
+    import requests as _req, ssl as _ssl
+    from requests.adapters import HTTPAdapter
+    from urllib3.util.ssl_ import create_urllib3_context
+
+    class _LaxSSL(HTTPAdapter):
+        def init_poolmanager(self, *a, **kw):
+            ctx = create_urllib3_context()
+            ctx.check_hostname = False
+            ctx.verify_mode = _ssl.CERT_NONE
+            kw["ssl_context"] = ctx
+            super().init_poolmanager(*a, **kw)
+
+    session = _req.Session()
+    session.verify = False
+    session.mount("https://", _LaxSSL())
 
     src = body or lead
-    prompt = f"""아래 보도자료를 주어진 형식에 맞춰 요약해줘. 형식 외 설명은 출력하지 마.
+    prompt = f"""아래 보도자료를 정해진 형식으로 요약해줘. 형식 외 설명·머리말·꼬리말은 절대 출력하지 마.
 
+[입력]
 기관: {agency}
 날짜: {date_disp}
 제목: {title}
 본문:
 {src[:3000]}
 
-출력 형식:
+[출력 형식 — 들여쓰기 포함 정확히 따를 것]
 ◆ {agency} | 「정책/사안명」  {date_disp}
   - 핵심 1줄 요약
 
@@ -538,18 +553,45 @@ def _llm_format_article(agency: str, title: str, date_disp: str, body: str, lead
       - 구체적 변경사항 2
       - 구체적 변경사항 3
 
-    • 향후 방향 (해당 시에만)
+    • 향후 방향
       - 세부 내용
 
-작성 원칙:
-- 정책/사안명은 반드시 「」로 감싼다
-- 한 줄 요약은 제목 복사 금지, 정책 변경 핵심을 직접 표현
-- bullet은 시행일·적용 대상·신설 항목 등 구체적 변경사항 위주로 3개 이상
-- 배경·기대효과·인사말 등 부연 내용 생략
-- "향후 방향" 소제목은 해당 내용이 없으면 아예 생략"""
+[작성 규칙 — 반드시 준수]
+◆ 제목 줄:
+- 정책/사안명은 반드시 「」 꺾쇠 괄호로 감싼다 (예: 「개인정보 처리방침 작성지침」 개정)
+- 보도자료 원문 제목을 그대로 쓰지 말고 핵심 명칭으로 축약한다
+- 말줄임표(...) 사용 금지 — 완결된 명칭으로 기재
+- 날짜는 입력값({date_disp})을 그대로 사용
 
-    resp = model.generate_content(prompt)
-    return resp.text.strip()
+- 한 줄 요약:
+- 제목·부제목을 그대로 복사하지 않는다
+- 정책 변경의 핵심을 개조식 1줄로 직접 요약 (예: - 처리방침 작성지침 개정 — 생성형 AI 서비스 기준 신설)
+
+• 주요 내용 세부 항목:
+- 소제목은 반드시 "주요 내용"으로 표기 ("변경 내용" 등 다른 명칭 금지)
+- 한 줄 요약과 동일한 내용을 반복하지 않는다
+- 신설 항목·시행일·적용 대상·의무 사항 등 구체적 변경사항을 3개 이상 나열
+- 배경 설명·기대효과·인사말 등 부연 내용 생략
+- 세부 항목(-) 앞에 bullet(•)이나 - 기호를 중복으로 붙이지 않는다
+
+• 향후 방향:
+- 명확한 향후 방향이 본문에 있을 때만 포함, 없으면 섹션 자체를 생략
+
+전체 분량은 PPT 1장에 맞게 간결하게 유지한다."""
+
+    # gemini-2.0-flash 우선, 429 시 gemini-flash-latest 로 폴백
+    for model_id in ("gemini-2.0-flash", "gemini-flash-latest"):
+        url = (
+            f"https://generativelanguage.googleapis.com/v1beta/models/"
+            f"{model_id}:generateContent?key={GEMINI_API_KEY}"
+        )
+        payload = {"contents": [{"parts": [{"text": prompt}]}]}
+        r = session.post(url, json=payload, timeout=30)
+        if r.status_code == 429:
+            continue  # rate limit → 다음 모델 시도
+        r.raise_for_status()
+        return r.json()["candidates"][0]["content"]["parts"][0]["text"].strip()
+    raise RuntimeError("Gemini API 요청 한도 초과 — 잠시 후 다시 시도해주세요")
 
 
 def auto_format_article(article: dict) -> str:
@@ -709,10 +751,45 @@ class GenerateRequest(BaseModel):
     content: str
 
 
+def _save_history(content: str, ppt_path: str, category: str) -> None:
+    """PPT 생성 완료 이력을 history.json에 저장 (최신순)"""
+    title_m = re.search(r'◆[^\|]+\|\s*「?(.+?)」?\s{2,}', content)
+    date_m  = re.search(r"'(\d{2}\.\d+\.\d+\([가-힣]\))", content)
+    title   = title_m.group(1).strip() if title_m else content.split('\n')[0][:60]
+    article_date = date_m.group(1) if date_m else ''
+    entry = {
+        "id": int(datetime.now().timestamp()),
+        "ppt_created_at": date.today().isoformat(),
+        "article_date": article_date,
+        "title": title,
+        "summary": content[:400],
+        "ppt_path": ppt_path,
+        "category": category,
+    }
+    history: list = []
+    if HISTORY_FILE.exists():
+        try:
+            history = json.loads(HISTORY_FILE.read_text(encoding='utf-8'))
+        except Exception:
+            history = []
+    history.insert(0, entry)
+    HISTORY_FILE.write_text(json.dumps(history, ensure_ascii=False, indent=2), encoding='utf-8')
+
+
+@app.get("/api/history")
+async def get_history():
+    """PPT 생성 이력 반환"""
+    if not HISTORY_FILE.exists():
+        return JSONResponse([])
+    try:
+        return JSONResponse(json.loads(HISTORY_FILE.read_text(encoding='utf-8')))
+    except Exception:
+        return JSONResponse([])
+
+
 @app.post("/api/generate/{report_type}")
 async def generate_ppt(report_type: str, req: GenerateRequest):
     """CONTENT 교체 후 make_report.py 실행 — tempfile로 race condition 방지 [C-3 fix]"""
-    import tempfile
     src     = MAKE_REPORT.read_text(encoding="utf-8")
     new_src = re.sub(
         r"(# ── 여기에 보고 내용을 붙여넣으세요 ─+\n)CONTENT = \"\"\".*?\"\"\"",
@@ -738,6 +815,8 @@ async def generate_ppt(report_type: str, req: GenerateRequest):
             except OSError:
                 pass
     ppt = latest_ppt(report_type)
+    if result.returncode == 0 and ppt:
+        _save_history(req.content, ppt, report_type)
     return JSONResponse({
         "ok":       result.returncode == 0,
         "log":      result.stdout + result.stderr,

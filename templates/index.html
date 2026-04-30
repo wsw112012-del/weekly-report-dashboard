@@ -64,32 +64,24 @@
     .hdr-spacer { flex: 1; }
     .hdr-date { font-size: 11px; color: var(--t3); margin-right: 8px; }
 
-    /* 헤더 쿠코니 캐릭터 */
-    .hdr-kukoni-wrap {
+    /* 로그 패널 쿠코니 캐릭터 */
+    .log-kukoni-wrap {
       position: relative; flex-shrink: 0;
-      width: 52px; height: 72px; /* 헤더 바닥에서 살짝 삐져 나옴 */
-      margin-bottom: -8px;
-      display: flex; align-items: flex-end; justify-content: center;
+      border-top: 1px solid var(--bd);
+      background: #fff;
+      display: flex; align-items: center; justify-content: center;
+      padding: 8px 0 4px;
     }
-    .hdr-kukoni-video {
-      height: 72px; width: auto; object-fit: contain;
-      transform-origin: bottom center;
-      transition: filter .3s;
+    .log-kukoni-wrap video {
+      height: 120px; width: auto; object-fit: contain;
+      background: #ffffff;
+      mix-blend-mode: multiply;
+      filter: brightness(1.08) contrast(0.95);
     }
-    /* 뱃살 만지기 애니메이션 (수집 중) */
-    .hdr-kukoni-video.collecting {
-      animation: belly-poke .5s ease-in-out infinite alternate;
-    }
-    @keyframes belly-poke {
-      0%   { transform: rotate(-6deg) scale(1.0) translateX(-2px); }
-      30%  { transform: rotate(0deg)  scale(1.07) translateX(0px); }
-      60%  { transform: rotate(5deg)  scale(1.04) translateX(2px); }
-      100% { transform: rotate(-3deg) scale(1.08) translateX(-1px); }
-    }
-    .hdr-kukoni-bubble {
-      position: absolute; top: 0; left: 54px;
+    .log-kukoni-bubble {
+      position: absolute; top: 10px; right: 8px;
       background: #fff; border: 1.5px solid var(--accent-lt);
-      border-radius: 10px 10px 10px 0;
+      border-radius: 10px 10px 0 10px;
       padding: 3px 9px; font-size: 10px; font-weight: 600; color: var(--accent);
       white-space: nowrap; box-shadow: var(--sh-sm);
       animation: pop .25s ease;
@@ -121,49 +113,45 @@
 
     /* ── SIDEBAR ── */
     .sidebar {
-      width: 220px; flex-shrink: 0;
+      width: 140px; flex-shrink: 0;
       background: var(--sidebar-bg);
       border-right: 1px solid var(--bd);
-      overflow-y: auto; padding: 16px 12px;
+      padding: 16px 8px;
       display: flex; flex-direction: column; gap: 4px;
     }
-    .sidebar::-webkit-scrollbar { width: 3px; }
-    .sidebar::-webkit-scrollbar-thumb { background: var(--bd); border-radius: 2px; }
-
-    .sb-section-label {
-      font-size: 10px; font-weight: 700; color: var(--t3);
-      letter-spacing: .6px; text-transform: uppercase;
-      padding: 10px 8px 4px;
-    }
-    .sb-divider { height: 1px; background: var(--bd); margin: 8px 0; }
-
-    /* 카테고리 메뉴 */
-    .cat-item {
-      display: flex; align-items: center; justify-content: space-between;
-      padding: 8px 10px; border-radius: 8px;
-      cursor: pointer; font-size: 13px; font-weight: 500; color: var(--t2);
+    .nav-item {
+      display: flex; align-items: center; gap: 10px;
+      padding: 10px 12px; border-radius: 8px;
+      cursor: pointer; font-size: 13px; font-weight: 600; color: var(--t2);
       transition: all .15s; border: 1px solid transparent;
+      user-select: none;
     }
-    .cat-item:hover { background: #f1f5f9; color: var(--t1); }
-    .cat-item.active {
-      background: var(--accent-lt); color: var(--accent);
-      border-color: rgba(37,99,235,.2); font-weight: 700;
-    }
-    .cat-item.active.pay { background: var(--pay-lt); color: var(--pay-color); border-color: rgba(15,118,110,.2); }
-    .cat-item.active.aml { background: var(--aml-lt);  color: var(--aml-color); border-color: rgba(185,28,28,.2); }
-    .cat-count {
-      font-size: 10px; font-weight: 700;
-      padding: 1px 7px; border-radius: 10px;
-      background: rgba(0,0,0,.06); color: var(--t3);
-    }
-    .cat-item.active .cat-count { background: rgba(37,99,235,.15); color: var(--accent); }
-    .cat-item.active.pay .cat-count { background: rgba(15,118,110,.15); color: var(--pay-color); }
-    .cat-item.active.aml .cat-count { background: rgba(185,28,28,.15); color: var(--aml-color); }
+    .nav-item:hover { background: #f1f5f9; color: var(--t1); }
+    .nav-item.active { background: var(--accent-lt); color: var(--accent); border-color: rgba(37,99,235,.2); }
+    .nav-icon { font-size: 18px; flex-shrink: 0; }
+    .nav-label { font-size: 13px; font-weight: 600; }
 
-    /* 키워드 chip */
+    /* 메인 검색창 */
+    .main-search-wrap { display: flex; justify-content: center; margin: 14px 0 8px; }
+    .main-search {
+      width: 420px; display: flex; align-items: center; gap: 8px;
+      border: 1px solid var(--bd); border-radius: 8px;
+      padding: 0 12px; height: 36px; background: #fff;
+      transition: border-color .18s, box-shadow .18s;
+    }
+    .main-search:focus-within { border-color: var(--accent2); box-shadow: 0 0 0 2px rgba(37,99,235,.1); }
+    .main-search input {
+      flex: 1; border: none; outline: none; background: transparent;
+      font-size: 13px; font-family: inherit; color: var(--t1);
+    }
+    .main-search input::placeholder { color: var(--t3); }
+    .main-search-icon { font-size: 13px; color: var(--t3); flex-shrink: 0; }
+
+    /* 키워드 chip 바 (메인) */
+    .main-kw-bar { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px; margin-bottom: 12px; }
     .kw-chip {
       display: inline-flex; align-items: center;
-      padding: 3px 10px; border-radius: 20px; margin: 2px 2px 0 0;
+      padding: 3px 10px; border-radius: 20px;
       border: 1px solid var(--bd); background: #f1f5f9;
       color: var(--t2); font-size: 11px; font-weight: 500;
       cursor: pointer; transition: all .15s; white-space: nowrap;
@@ -172,33 +160,25 @@
     .kw-chip.active          { background: var(--accent-lt); border-color: var(--accent2); color: var(--accent); font-weight: 600; }
     .kw-chip.active.pay-chip { background: var(--pay-lt); border-color: var(--pay-color); color: var(--pay-color); }
     .kw-chip.active.aml-chip { background: var(--aml-lt); border-color: var(--aml-color); color: var(--aml-color); }
-    .kw-wrap { display: flex; flex-wrap: wrap; padding: 2px 0 6px; }
 
-    /* 우선순위 */
-    .pri-wrap { display: flex; gap: 5px; padding: 4px 0; }
-    .pri-btn {
-      flex: 1; padding: 5px 0; border-radius: 6px;
-      border: 1px solid var(--bd); background: #f1f5f9;
-      font-size: 11px; font-weight: 700; cursor: pointer; transition: all .15s; text-align: center;
+    /* 통합 필터 행 */
+    .filter-bar {
+      display: flex; align-items: center; gap: 6px;
+      margin-bottom: 12px; flex-wrap: wrap;
     }
-    .pri-btn:hover { filter: brightness(.95); }
+    .filter-divider { width: 1px; height: 18px; background: var(--bd); margin: 0 4px; }
+    .filter-count { font-size: 11px; color: var(--t3); margin-left: auto; }
+
+    /* 우선순위 버튼 (필터 바용) */
+    .pri-btn {
+      padding: 4px 12px; border-radius: 20px; border: 1px solid var(--bd);
+      font-size: 11px; font-weight: 700; cursor: pointer; transition: all .15s;
+      background: #f1f5f9; color: var(--t2); white-space: nowrap;
+    }
+    .pri-btn:hover { border-color: var(--bd2); background: #e2e8f0; }
     .pri-btn.active-high { background: #fef2f2; border-color: #fca5a5; color: #b91c1c; }
     .pri-btn.active-mid  { background: #fffbeb; border-color: #fcd34d; color: #92400e; }
     .pri-btn.active-low  { background: #f1f5f9; border-color: #94a3b8; color: #475569; }
-
-    /* 검색 */
-    .sb-search {
-      position: relative; margin: 4px 0;
-    }
-    .sb-search input {
-      width: 100%; height: 32px; padding: 0 10px 0 28px;
-      border: 1px solid var(--bd); border-radius: 7px;
-      background: #f8faff; color: var(--t1); font-size: 12px; font-family: inherit;
-      transition: all .18s;
-    }
-    .sb-search input:focus { outline: none; border-color: var(--accent2); box-shadow: 0 0 0 2px rgba(37,99,235,.1); }
-    .sb-search input::placeholder { color: var(--t3); }
-    .sb-search-icon { position: absolute; left: 8px; top: 50%; transform: translateY(-50%); font-size: 12px; pointer-events: none; }
 
     /* ── MAIN ── */
     .main { flex: 1; overflow-y: auto; padding: 20px 24px; }
@@ -272,7 +252,7 @@
     .src-btn.active-all   { background: #f8faff; border-color: #475569; color: #475569; }
 
     .row-title {
-      font-size: 13px; font-weight: 700; color: var(--t1); flex: 1;
+      font-size: 14px; font-weight: 700; color: var(--t1); flex: 1;
       white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     }
     .cat-tag {
@@ -299,7 +279,7 @@
     .row-bottom {
       display: flex; align-items: center; gap: 8px; margin-top: 2px;
     }
-    .row-date { font-size: 11px; color: var(--t3); flex: 1; }
+    .row-date { font-size: 12px; color: var(--t3); flex: 1; }
 
     .row-btn {
       padding: 5px 12px; border-radius: 6px; border: 1px solid var(--bd);
@@ -434,7 +414,7 @@
 
     /* ── 칸반 (전체 탭) ── */
     .kanban-wrap {
-      display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; align-items: start;
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; align-items: stretch;
     }
     .kanban-col {
       background: #f8faff; border: 1px solid var(--bd);
@@ -464,29 +444,50 @@
     .art-card:hover { background: #f0f6ff; }
     .art-card-top { display: flex; align-items: center; gap: 6px; }
     .art-card-title {
-      font-size: 12px; font-weight: 700; color: var(--t1); line-height: 1.45;
+      font-size: 14px; font-weight: 700; color: var(--t1); line-height: 1.45;
       display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
     }
     .art-card-lead {
-      font-size: 11px; color: var(--t2); line-height: 1.55;
+      font-size: 12px; color: var(--t2); line-height: 1.55;
       display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
     }
     .art-card-foot {
       display: flex; align-items: center; gap: 6px; margin-top: 2px; flex-wrap: wrap;
     }
-    .art-card-date { font-size: 10px; color: var(--t3); flex: 1; }
+    .art-card-date { font-size: 12px; color: var(--t3); flex: 1; }
     .art-card-btns { display: flex; gap: 5px; }
 
     /* ── 카드 그리드 (개별 탭) ── */
     .card-grid {
-      display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; align-items: start;
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;
     }
     .card-grid .art-card {
       border: 1px solid var(--bd); border-radius: 10px;
-      box-shadow: var(--sh-sm);
+      box-shadow: var(--sh-sm); height: 100%;
     }
     .card-grid .art-card:last-child { border-bottom: 1px solid var(--bd); }
     .card-grid .art-card:hover { box-shadow: var(--sh); border-color: var(--bd2); background: var(--bg-card); }
+
+    /* ── HISTORY ── */
+    .history-wrap { padding: 4px 0; }
+    .history-title { font-size: 15px; font-weight: 700; margin-bottom: 16px; color: var(--t1); }
+    .history-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    .history-table th {
+      background: #f1f5f9; padding: 10px 14px; text-align: left;
+      border-bottom: 2px solid var(--bd); font-weight: 700; color: var(--t2); white-space: nowrap;
+    }
+    .history-table td {
+      padding: 10px 14px; border-bottom: 1px solid var(--bd);
+      color: var(--t2); vertical-align: top;
+    }
+    .history-table tr:hover td { background: #f8faff; }
+    .history-summary {
+      max-width: 400px; white-space: pre-wrap; font-size: 11px;
+      color: var(--t3); line-height: 1.6; max-height: 80px; overflow: hidden;
+    }
+    .history-empty {
+      text-align: center; padding: 48px; color: var(--t3); font-size: 13px;
+    }
 
     [x-cloak] { display: none !important; }
   </style>
@@ -499,18 +500,6 @@
     <div class="hdr-logo">
       <div class="hdr-badge">WR</div>
       <span class="hdr-title">쿠콘 보도자료/언론기사 모니터링</span>
-    </div>
-
-    <!-- 쿠코니 캐릭터 (제목 옆) -->
-    <div class="hdr-kukoni-wrap">
-      <video x-ref="kukoni" class="hdr-kukoni-video" :class="collecting ? 'collecting' : ''"
-        src="/static/kukoni.mp4"
-        autoplay loop muted playsinline
-        x-effect="collecting ? $refs.kukoni.play() : $refs.kukoni.pause()">
-      </video>
-      <template x-if="collecting">
-        <div class="hdr-kukoni-bubble" x-text="kukoniMsg"></div>
-      </template>
     </div>
 
     <div class="hdr-spacer"></div>
@@ -530,194 +519,205 @@
 
     <!-- ── SIDEBAR ── -->
     <aside class="sidebar">
-      <div class="sb-section-label">카테고리</div>
-
-      <!-- 전체 -->
-      <div class="cat-item" :class="activeCategory === '전체' ? 'active' : ''"
-           @click="switchCategory('전체')">
-        <span>전체</span>
-        <span class="cat-count" x-text="totalCount"></span>
+      <div class="nav-item" :class="currentPage === 'home' ? 'active' : ''"
+           @click="currentPage = 'home'">
+        <span class="nav-icon">🏠</span>
+        <span class="nav-label">HOME</span>
       </div>
-      <!-- 데이터 -->
-      <div class="cat-item" :class="activeCategory === '데이터' ? 'active' : ''"
-           @click="switchCategory('데이터')">
-        <span>데이터</span>
-        <span class="cat-count" x-text="allArticles['데이터'].length"></span>
-      </div>
-      <!-- 페이먼트 -->
-      <div class="cat-item" :class="activeCategory === '페이먼트' ? 'active pay' : ''"
-           @click="switchCategory('페이먼트')">
-        <span>페이먼트</span>
-        <span class="cat-count" x-text="allArticles['페이먼트'].length"></span>
-      </div>
-      <!-- AML -->
-      <div class="cat-item" :class="activeCategory === 'AML' ? 'active aml' : ''"
-           @click="switchCategory('AML')">
-        <span>AML</span>
-        <span class="cat-count" x-text="allArticles['AML'].length"></span>
-      </div>
-
-      <div class="sb-divider"></div>
-
-      <!-- 검색 -->
-      <div class="sb-search">
-        <span class="sb-search-icon">🔍</span>
-        <input type="text" x-model="searchQuery" placeholder="기사 검색..." />
-      </div>
-
-      <div class="sb-divider"></div>
-
-      <!-- 키워드 필터 -->
-      <div class="sb-section-label">키워드 필터</div>
-      <div class="kw-wrap">
-        <template x-for="kw in currentKeywords" :key="kw">
-          <button class="kw-chip"
-            :class="[activeKeywords.includes(kw) ? 'active' : '', currentChipClass]"
-            @click="toggleKeyword(kw)"
-            x-text="kw"></button>
-        </template>
-      </div>
-
-      <div class="sb-divider"></div>
-
-      <!-- 우선순위 필터 -->
-      <div class="sb-section-label">우선순위</div>
-      <div class="pri-wrap">
-        <button class="pri-btn" :class="priorityFilter === '상' ? 'active-high' : ''"
-          @click="togglePriority('상')">상</button>
-        <button class="pri-btn" :class="priorityFilter === '중' ? 'active-mid' : ''"
-          @click="togglePriority('중')">중</button>
-        <button class="pri-btn" :class="priorityFilter === '하' ? 'active-low' : ''"
-          @click="togglePriority('하')">하</button>
+      <div class="nav-item" :class="currentPage === 'history' ? 'active' : ''"
+           @click="currentPage = 'history'; loadHistory()">
+        <span class="nav-icon">📚</span>
+        <span class="nav-label">HISTORY</span>
       </div>
     </aside>
 
     <!-- ── MAIN ── -->
     <main class="main">
 
-      <!-- 수집 기간 -->
-      <div class="period-label">
-        수집 대상 기간: <strong x-text="periodLabel"></strong>
-      </div>
+      <!-- ══ HOME ══ -->
+      <template x-if="currentPage === 'home'">
+        <div>
 
-      <!-- 통계 박스 4개: 전체 → 데이터 → 페이먼트 → AML -->
-      <div class="stat-grid">
-        <div class="stat-box" :class="activeCategory === '전체' ? 'active-all' : ''"
-             @click="switchCategory('전체')">
-          <div class="stat-label">전체</div>
-          <div><span class="stat-num" x-text="totalCount"></span><span class="stat-unit">건</span></div>
-        </div>
-        <div class="stat-box" :class="activeCategory === '데이터' ? 'active-data' : ''"
-             @click="switchCategory('데이터')">
-          <div class="stat-label">데이터</div>
-          <div><span class="stat-num" x-text="allArticles['데이터'].length"></span><span class="stat-unit">건</span></div>
-        </div>
-        <div class="stat-box" :class="activeCategory === '페이먼트' ? 'active-pay' : ''"
-             @click="switchCategory('페이먼트')">
-          <div class="stat-label">페이먼트</div>
-          <div><span class="stat-num" x-text="allArticles['페이먼트'].length"></span><span class="stat-unit">건</span></div>
-        </div>
-        <div class="stat-box" :class="activeCategory === 'AML' ? 'active-aml' : ''"
-             @click="switchCategory('AML')">
-          <div class="stat-label">AML</div>
-          <div><span class="stat-num" x-text="allArticles['AML'].length"></span><span class="stat-unit">건</span></div>
-        </div>
-      </div>
+          <!-- 수집 기간 -->
+          <div class="period-label">
+            수집 대상 기간: <strong x-text="periodLabel"></strong>
+          </div>
 
-      <!-- 기사 헤더 -->
-      <div class="list-header">
-        <span class="list-title" x-text="activeCategory + ' 보도자료'"></span>
-        <div class="source-filter">
-          <button class="src-btn" :class="articleType === '전체' ? 'active-all' : ''"
-            @click="articleType = '전체'">전체</button>
-          <button class="src-btn" :class="articleType === '보도자료' ? 'active-press' : ''"
-            @click="articleType = '보도자료'">📋 보도자료</button>
-          <button class="src-btn" :class="articleType === '언론기사' ? 'active-news' : ''"
-            @click="articleType = '언론기사'">📰 언론기사</button>
-        </div>
-        <span class="list-count" x-text="activeCategory === '전체' ? `${filteredTotalCount}건` : `${displayedArticles.length}건`"></span>
-      </div>
+          <!-- 통계 박스 4개: 전체 → 데이터 → 페이먼트 → AML -->
+          <div class="stat-grid">
+            <div class="stat-box" :class="activeCategory === '전체' ? 'active-all' : ''"
+                 @click="switchCategory('전체')">
+              <div class="stat-label">전체</div>
+              <div><span class="stat-num" x-text="totalCount"></span><span class="stat-unit">건</span></div>
+            </div>
+            <div class="stat-box" :class="activeCategory === '데이터' ? 'active-data' : ''"
+                 @click="switchCategory('데이터')">
+              <div class="stat-label">데이터</div>
+              <div><span class="stat-num" x-text="allArticles['데이터'].length"></span><span class="stat-unit">건</span></div>
+            </div>
+            <div class="stat-box" :class="activeCategory === '페이먼트' ? 'active-pay' : ''"
+                 @click="switchCategory('페이먼트')">
+              <div class="stat-label">페이먼트</div>
+              <div><span class="stat-num" x-text="allArticles['페이먼트'].length"></span><span class="stat-unit">건</span></div>
+            </div>
+            <div class="stat-box" :class="activeCategory === 'AML' ? 'active-aml' : ''"
+                 @click="switchCategory('AML')">
+              <div class="stat-label">AML</div>
+              <div><span class="stat-num" x-text="allArticles['AML'].length"></span><span class="stat-unit">건</span></div>
+            </div>
+          </div>
 
-      <!-- ── 전체 탭: 3컬럼 칸반 (데이터 | 페이먼트 | AML) ── -->
-      <template x-if="activeCategory === '전체'">
-        <div class="kanban-wrap">
-          <template x-for="col in kanbanCols" :key="col.key">
-            <div class="kanban-col">
-              <div class="kanban-col-header">
-                <span class="kanban-col-title" :class="'kc-' + col.key" x-text="col.label"></span>
-                <span class="kanban-col-count" x-text="col.articles.length + '건'"></span>
-              </div>
-              <template x-if="col.articles.length === 0">
-                <div class="empty-col">수집된 기사가 없습니다</div>
-              </template>
-              <template x-for="a in col.articles" :key="a._uid">
-                <div class="art-card">
-                  <div class="art-card-top">
-                    <span class="agency-badge" :class="sourceType(a)==='언론기사' ? 'badge-news' : badgeClass(col.key)" x-text="a['기관']"></span>
-                    <span class="pri-badge"
-                      :class="a['우선순위']==='상' ? 'pri-high' : a['우선순위']==='하' ? 'pri-low' : 'pri-mid'"
-                      x-text="a['우선순위'] || '중'"></span>
+          <!-- 검색창 (중앙) -->
+          <div class="main-search-wrap">
+            <div class="main-search">
+              <span class="main-search-icon">🔍</span>
+              <input type="text" x-model="searchQuery" placeholder="기사 검색..." />
+            </div>
+          </div>
+
+          <!-- 키워드 chip 바 -->
+          <div class="main-kw-bar">
+            <template x-for="kw in currentKeywords" :key="kw">
+              <button class="kw-chip"
+                :class="[activeKeywords.includes(kw) ? 'active' : '', currentChipClass]"
+                @click="toggleKeyword(kw)"
+                x-text="kw"></button>
+            </template>
+          </div>
+
+          <!-- 통합 필터 행: 구분 | 우선순위 | 건수 -->
+          <div class="filter-bar">
+            <button class="src-btn" :class="articleType === '전체' ? 'active-all' : ''"
+              @click="articleType = '전체'">전체</button>
+            <button class="src-btn" :class="articleType === '보도자료' ? 'active-press' : ''"
+              @click="articleType = '보도자료'">📋 보도자료</button>
+            <button class="src-btn" :class="articleType === '언론기사' ? 'active-news' : ''"
+              @click="articleType = '언론기사'">📰 언론기사</button>
+            <div class="filter-divider"></div>
+            <button class="pri-btn" :class="priorityFilter === '상' ? 'active-high' : ''"
+              @click="togglePriority('상')">상</button>
+            <button class="pri-btn" :class="priorityFilter === '중' ? 'active-mid' : ''"
+              @click="togglePriority('중')">중</button>
+            <button class="pri-btn" :class="priorityFilter === '하' ? 'active-low' : ''"
+              @click="togglePriority('하')">하</button>
+            <span class="filter-count"
+              x-text="(activeCategory === '전체' ? filteredTotalCount : displayedArticles.length) + '건'"></span>
+          </div>
+
+          <!-- ── 전체 탭: 3컬럼 칸반 (데이터 | 페이먼트 | AML) ── -->
+          <template x-if="activeCategory === '전체'">
+            <div class="kanban-wrap">
+              <template x-for="col in kanbanCols" :key="col.key">
+                <div class="kanban-col">
+                  <div class="kanban-col-header">
+                    <span class="kanban-col-title" :class="'kc-' + col.key" x-text="col.label"></span>
+                    <span class="kanban-col-count" x-text="col.articles.length + '건'"></span>
                   </div>
-                  <div class="art-card-title" x-html="highlight(a['제목'])"></div>
-                  <div class="art-card-lead" x-html="highlight(a['내용'])"></div>
-                  <div class="art-card-foot">
-                    <span class="art-card-date" x-text="a['날짜']"></span>
-                    <div class="art-card-btns">
-                      <a x-show="a['링크']" :href="a['링크']" target="_blank" rel="noopener noreferrer"
-                         @click.stop class="link-btn">원문</a>
-                      <button class="row-btn" :disabled="formatting"
-                        @click="formatSingle(a._idx, col.key)">
-                        <span x-text="(formattingIdx === a._uid && formatting) ? '...' : '요약'"></span>
-                      </button>
+                  <template x-if="col.articles.length === 0">
+                    <div class="empty-col">수집된 기사가 없습니다</div>
+                  </template>
+                  <template x-for="a in col.articles" :key="a._uid">
+                    <div class="art-card">
+                      <div class="art-card-top">
+                        <span class="agency-badge" :class="sourceType(a)==='언론기사' ? 'badge-news' : badgeClass(col.key)" x-text="a['기관']"></span>
+                        <span class="pri-badge"
+                          :class="a['우선순위']==='상' ? 'pri-high' : a['우선순위']==='하' ? 'pri-low' : 'pri-mid'"
+                          x-text="a['우선순위'] || '중'"></span>
+                      </div>
+                      <div class="art-card-title" x-html="highlight(a['제목'])"></div>
+                      <div class="art-card-lead" x-html="highlight(a['내용'])"></div>
+                      <div class="art-card-foot">
+                        <span class="art-card-date" x-text="a['날짜']"></span>
+                        <div class="art-card-btns">
+                          <a x-show="a['링크']" :href="a['링크']" target="_blank" rel="noopener noreferrer"
+                             @click.stop class="link-btn">원문</a>
+                          <button class="row-btn" :disabled="formatting"
+                            @click="formatSingle(a._idx, col.key)">
+                            <span x-text="(formattingIdx === a._uid && formatting) ? '...' : '요약'"></span>
+                          </button>
+                        </div>
+                      </div>
                     </div>
-                  </div>
+                  </template>
                 </div>
               </template>
             </div>
           </template>
+
+          <!-- ── 개별 탭 (데이터/페이먼트/AML): 3×N 카드 그리드 ── -->
+          <template x-if="activeCategory !== '전체'">
+            <div>
+              <template x-if="currentArticles.length === 0">
+                <div class="empty-list">수집된 보도자료가 없습니다 — 수집 시작 버튼을 눌러주세요</div>
+              </template>
+              <template x-if="displayedArticles.length === 0 && currentArticles.length > 0">
+                <div class="empty-list">조건에 맞는 보도자료가 없습니다</div>
+              </template>
+              <div class="card-grid">
+                <template x-for="a in displayedArticles" :key="a._uid">
+                  <div class="art-card">
+                    <div class="art-card-top">
+                      <span class="agency-badge" :class="sourceType(a)==='언론기사' ? 'badge-news' : badgeClass(a._cat)" x-text="a['기관']"></span>
+                      <span class="pri-badge"
+                        :class="a['우선순위']==='상' ? 'pri-high' : a['우선순위']==='하' ? 'pri-low' : 'pri-mid'"
+                        x-text="a['우선순위'] || '중'"></span>
+                    </div>
+                    <div class="art-card-title" x-html="highlight(a['제목'])"></div>
+                    <div class="art-card-lead" x-html="highlight(a['내용'])"></div>
+                    <div class="art-card-foot">
+                      <span class="art-card-date" x-text="a['날짜']"></span>
+                      <div class="art-card-btns">
+                        <a x-show="a['링크']" :href="a['링크']" target="_blank" rel="noopener noreferrer"
+                           @click.stop class="link-btn">원문</a>
+                        <button class="row-btn" :disabled="formatting"
+                          @click="formatSingle(a._idx, a._cat)">
+                          <span x-text="(formattingIdx === a._uid && formatting) ? '요약 중...' : '요약하기'"></span>
+                        </button>
+                        <button class="row-btn ppt-btn" :disabled="generating || pptReadyUid !== a._uid"
+                          @click="generatePPTFor(a._uid)">
+                          <span x-text="(generatingUid === a._uid && generating) ? '생성 중...' : 'PPT'"></span>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </template>
+              </div>
+            </div>
+          </template>
+
+        </div><!-- /HOME -->
+      </template>
+
+      <!-- ══ HISTORY ══ -->
+      <template x-if="currentPage === 'history'">
+        <div class="history-wrap">
+          <div class="history-title">📋 PPT 생성 이력</div>
+          <table class="history-table">
+            <thead>
+              <tr>
+                <th>PPT 작성일자</th>
+                <th>보도자료 일자</th>
+                <th>제목</th>
+                <th>요약 내용</th>
+              </tr>
+            </thead>
+            <tbody>
+              <template x-if="historyItems.length === 0">
+                <tr><td colspan="4" class="history-empty">PPT 생성 이력이 없습니다</td></tr>
+              </template>
+              <template x-for="h in historyItems" :key="h.id">
+                <tr>
+                  <td x-text="h.ppt_created_at" style="white-space:nowrap"></td>
+                  <td x-text="h.article_date" style="white-space:nowrap"></td>
+                  <td x-text="h.title" style="min-width:160px"></td>
+                  <td class="history-summary" x-text="h.summary"></td>
+                </tr>
+              </template>
+            </tbody>
+          </table>
         </div>
       </template>
 
-      <!-- ── 개별 탭 (데이터/페이먼트/AML): 3×N 카드 그리드 ── -->
-      <template x-if="activeCategory !== '전체'">
-        <div>
-          <template x-if="currentArticles.length === 0">
-            <div class="empty-list">수집된 보도자료가 없습니다 — 수집 시작 버튼을 눌러주세요</div>
-          </template>
-          <template x-if="displayedArticles.length === 0 && currentArticles.length > 0">
-            <div class="empty-list">조건에 맞는 보도자료가 없습니다</div>
-          </template>
-          <div class="card-grid">
-            <template x-for="a in displayedArticles" :key="a._uid">
-              <div class="art-card">
-                <div class="art-card-top">
-                  <span class="agency-badge" :class="sourceType(a)==='언론기사' ? 'badge-news' : badgeClass(a._cat)" x-text="a['기관']"></span>
-                  <span class="pri-badge"
-                    :class="a['우선순위']==='상' ? 'pri-high' : a['우선순위']==='하' ? 'pri-low' : 'pri-mid'"
-                    x-text="a['우선순위'] || '중'"></span>
-                </div>
-                <div class="art-card-title" x-html="highlight(a['제목'])"></div>
-                <div class="art-card-lead" x-html="highlight(a['내용'])"></div>
-                <div class="art-card-foot">
-                  <span class="art-card-date" x-text="a['날짜']"></span>
-                  <div class="art-card-btns">
-                    <a x-show="a['링크']" :href="a['링크']" target="_blank" rel="noopener noreferrer"
-                       @click.stop class="link-btn">원문</a>
-                    <button class="row-btn" :disabled="formatting"
-                      @click="formatSingle(a._idx, a._cat)">
-                      <span x-text="(formattingIdx === a._uid && formatting) ? '요약 중...' : '요약하기'"></span>
-                    </button>
-                    <button class="row-btn ppt-btn" :disabled="generating || pptReadyUid !== a._uid"
-                      @click="generatePPTFor(a._uid)">
-                      <span x-text="(generatingUid === a._uid && generating) ? '생성 중...' : 'PPT'"></span>
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </template>
-          </div>
-        </div>
-      </template>
     </main>
 
     <!-- ── LOG PANEL ── -->
@@ -731,7 +731,7 @@
       x-transition:leave-end="opacity-0 translate-x-4">
       <div class="log-header">
         <div class="log-dot" :class="collecting ? 'live' : ''"></div>
-        <span class="log-title">수집 로그</span>
+        <span class="log-title">로그</span>
         <button class="log-clear" @click="logs = []">지우기</button>
       </div>
       <div class="log-body" id="logbox">
@@ -742,6 +742,18 @@
           <div class="log-line"
             :class="l.startsWith('━━') ? 'log-section' : l.startsWith('✓') ? 'log-ok' : ''"
             x-text="l"></div>
+        </template>
+      </div>
+
+      <!-- 쿠코니 캐릭터 -->
+      <div class="log-kukoni-wrap">
+        <video x-ref="kukoni"
+          src="/static/kukoni.mp4"
+          loop muted playsinline
+          x-effect="if(collecting || formatting){ $refs.kukoni.play(); } else { $refs.kukoni.pause(); $refs.kukoni.currentTime=0; }">
+        </video>
+        <template x-if="collecting">
+          <div class="log-kukoni-bubble" x-text="kukoniMsg"></div>
         </template>
       </div>
     </aside>
@@ -804,6 +816,8 @@
     return {
       today: new Date().toLocaleDateString('ko-KR',{year:'numeric',month:'long',day:'numeric',weekday:'short'}),
       periodLabel: periodLabel(),
+      currentPage: 'home',
+      historyItems: [],
       activeCategory: '전체',
       articleType: '전체',
       searchQuery: '',
@@ -946,6 +960,12 @@
           const data = await fetch('/api/articles/all').then(r => r.json());
           this.allArticles = { '데이터': data['데이터'] || [], '페이먼트': data['페이먼트'] || [], 'AML': data['AML'] || [] };
         } catch(_) {}
+      },
+
+      async loadHistory() {
+        try {
+          this.historyItems = await fetch('/api/history').then(r => r.json());
+        } catch(_) { this.historyItems = []; }
       },
 
       async startCollect(type) {

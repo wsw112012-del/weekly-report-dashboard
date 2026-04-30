@@ -17,10 +17,12 @@ import os
 import sys
 import re
 import time
-import subprocess
 import urllib.parse
+import urllib3
 from datetime import date, timedelta
 from pathlib import Path
+
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 try:
     from dotenv import load_dotenv
@@ -169,17 +171,41 @@ def parse_date(s: str):
     return None
 
 
-# ── curl 유틸 ──────────────────────────────────────────────────────────────────
+# ── HTTP 유틸 ─────────────────────────────────────────────────────────────────
 
-def _curl(url: str, extra_args: list[str] | None = None) -> str | None:
-    cmd = ['curl', '-sk', '--tlsv1.2', '-A', UA,
-           '--max-time', '30', '--retry', '3', '--retry-delay', '2', url]
-    if extra_args:
-        cmd[1:1] = extra_args
-    result = subprocess.run(cmd, capture_output=True, timeout=120)
-    if result.returncode != 0:
+import ssl as _ssl
+import requests as _requests
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
+from urllib3.util.ssl_ import create_urllib3_context
+
+class _LaxSSLAdapter(HTTPAdapter):
+    """TLS 검증 우회 + UNEXPECTED_EOF 대응 어댑터"""
+    def init_poolmanager(self, *args, **kwargs):
+        ctx = create_urllib3_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = _ssl.CERT_NONE
+        ctx.set_ciphers('DEFAULT:@SECLEVEL=1')
+        kwargs['ssl_context'] = ctx
+        super().init_poolmanager(*args, **kwargs)
+
+_SESSION = _requests.Session()
+_SESSION.verify = False
+_SESSION.headers.update({'User-Agent': UA})
+_adapter = _LaxSSLAdapter(max_retries=Retry(total=3, backoff_factor=2,
+                                             status_forcelist=[429, 500, 502, 503]))
+_SESSION.mount('https://', _adapter)
+_SESSION.mount('http://', _adapter)
+
+
+def _get(url: str, headers: dict | None = None, timeout: int = 30) -> str | None:
+    try:
+        r = _SESSION.get(url, headers=headers, timeout=timeout)
+        r.raise_for_status()
+        return r.text
+    except Exception as e:
+        print(f"    [요청 오류] {type(e).__name__}: {str(e)[:120]}")
         return None
-    return result.stdout.decode('utf-8', errors='replace')
 
 
 # ── korea.kr 스크래핑 ──────────────────────────────────────────────────────────
@@ -201,9 +227,9 @@ def scrape_korea_page(page_index: int, start_date: str, end_date: str,
         'repCode':   '',
     }
     url  = KOREA_KR_URL + '?' + urllib.parse.urlencode(params)
-    html = _curl(url)
+    html = _get(url)
     if html is None:
-        raise RuntimeError(f"curl 실패 (검색어: {search_word}, page {page_index})")
+        raise RuntimeError(f"요청 실패 (검색어: {search_word}, page {page_index})")
 
     soup = BeautifulSoup(html, 'lxml')
     articles: list[dict] = []
@@ -258,12 +284,17 @@ def scrape_korea_kr(report_type: str, max_pages: int = 5) -> list[dict]:
 
     for sw in search_words:
         print(f"  korea.kr 검색어: '{sw}'")
-        time.sleep(3)
+        time.sleep(5)
         try:
             arts, html = scrape_korea_page(1, start_date, end_date, sw)
         except RuntimeError as e:
-            print(f"    1페이지 실패: {e}")
-            continue
+            print(f"    1페이지 실패: {e} - 10초 후 재시도")
+            time.sleep(10)
+            try:
+                arts, html = scrape_korea_page(1, start_date, end_date, sw)
+            except RuntimeError as e2:
+                print(f"    재시도도 실패 (건너뜀): {e2}")
+                continue
         total = min(get_total_pages(html), max_pages)
         print(f"    {total}페이지 수집 예정")
         all_articles.extend(arts)
@@ -296,18 +327,16 @@ def scrape_naver_news(report_type: str) -> list[dict]:
         print(f"  [Naver] 검색어: '{query}'")
         encoded = urllib.parse.quote(query)
         url = f"{NAVER_NEWS_URL}?query={encoded}&display=20&sort=date"
-        cmd = [
-            'curl', '-sk', '--tlsv1.2', '--max-time', '15',
-            '-H', f'X-Naver-Client-Id: {NAVER_CLIENT_ID}',
-            '-H', f'X-Naver-Client-Secret: {NAVER_CLIENT_SECRET}',
-            url,
-        ]
         try:
-            r = subprocess.run(cmd, capture_output=True, timeout=20)
-            if r.returncode != 0:
+            import json
+            resp = _get(url, headers={
+                'X-Naver-Client-Id': NAVER_CLIENT_ID,
+                'X-Naver-Client-Secret': NAVER_CLIENT_SECRET,
+            }, timeout=15)
+            if resp is None:
                 print(f"    API 호출 실패")
                 continue
-            data = json.loads(r.stdout.decode('utf-8', errors='replace'))
+            data = json.loads(resp)
         except Exception as e:
             print(f"    파싱 오류: {e}")
             continue
@@ -360,7 +389,7 @@ def scrape_naver_news(report_type: str) -> list[dict]:
 def scrape_kofiu_press() -> list[dict]:
     """금융정보분석원 보도자료 수집"""
     print("  [kofiu] 보도자료 수집 중...")
-    html = _curl(KOFIU_PRESS_URL)
+    html = _get(KOFIU_PRESS_URL)
     if not html:
         print("  [kofiu] 보도자료 접속 실패")
         return []
@@ -423,7 +452,7 @@ def scrape_kofiu_press() -> list[dict]:
 def scrape_kofiu_sanctions() -> list[dict]:
     """금융정보분석원 제재 공개안 수집 (자금세탁방지 법령 위반)"""
     print("  [kofiu] 제재 공개안 수집 중...")
-    html = _curl(KOFIU_SANCTION_URL)
+    html = _get(KOFIU_SANCTION_URL)
     if not html:
         print("  [kofiu] 제재 페이지 접속 실패")
         return []
