@@ -491,10 +491,12 @@ def filter_by_agency(articles: list[dict], report_type: str) -> list[dict]:
     if not agencies:
         print("3차 기관 필터: 전체 기관 수집")
         return articles
-    # kofiu·네이버뉴스는 기관 필터 적용 안 함 (별도 수집처)
+    # kofiu·언론기사는 기관 필터 적용 안 함 (별도 수집처)
     filtered = [
         a for a in articles
-        if a['agency'] in agencies or a['agency'] in ('금융정보분석원', '네이버뉴스')
+        if a['agency'] in agencies
+        or a['agency'] == '금융정보분석원'
+        or a.get('source_type') == '언론기사'
     ]
     print(f"3차 기관 필터 후: {len(filtered)}건")
     return filtered
