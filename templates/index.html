@@ -365,6 +365,62 @@
     .result-err { padding: 10px 14px; border-radius: 8px; font-size: 12px; background: #fef2f2; border: 1px solid #fca5a5; color: #991b1b; margin-top: 12px; }
     .result-path { font-size: 10px; color: var(--t3); margin-top: 4px; word-break: break-all; }
 
+    /* ── 칸반 (전체 탭) ── */
+    .kanban-wrap {
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; align-items: start;
+    }
+    .kanban-col {
+      background: #f8faff; border: 1px solid var(--bd);
+      border-radius: 12px; padding: 0; overflow: hidden;
+    }
+    .kanban-col-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 10px 14px; font-size: 12px; font-weight: 700;
+      border-bottom: 1px solid var(--bd); background: var(--bg-card);
+    }
+    .kanban-col-title { letter-spacing: -.2px; }
+    .kc-데이터   { color: var(--accent); }
+    .kc-페이먼트 { color: var(--pay-color); }
+    .kc-AML      { color: var(--aml-color); }
+    .kanban-col-count { font-size: 10px; font-weight: 600; color: var(--t3); }
+    .empty-col {
+      padding: 24px 14px; font-size: 12px; color: var(--t3); text-align: center;
+    }
+
+    /* ── 카드 (공통) ── */
+    .art-card {
+      background: var(--bg-card); border-bottom: 1px solid var(--bd);
+      padding: 12px 14px; display: flex; flex-direction: column; gap: 6px;
+      transition: background .15s; cursor: default;
+    }
+    .art-card:last-child { border-bottom: none; }
+    .art-card:hover { background: #f0f6ff; }
+    .art-card-top { display: flex; align-items: center; gap: 6px; }
+    .art-card-title {
+      font-size: 12px; font-weight: 700; color: var(--t1); line-height: 1.45;
+      display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+    }
+    .art-card-lead {
+      font-size: 11px; color: var(--t2); line-height: 1.55;
+      display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+    }
+    .art-card-foot {
+      display: flex; align-items: center; gap: 6px; margin-top: 2px; flex-wrap: wrap;
+    }
+    .art-card-date { font-size: 10px; color: var(--t3); flex: 1; }
+    .art-card-btns { display: flex; gap: 5px; }
+
+    /* ── 카드 그리드 (개별 탭) ── */
+    .card-grid {
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; align-items: start;
+    }
+    .card-grid .art-card {
+      border: 1px solid var(--bd); border-radius: 10px;
+      box-shadow: var(--sh-sm);
+    }
+    .card-grid .art-card:last-child { border-bottom: 1px solid var(--bd); }
+    .card-grid .art-card:hover { box-shadow: var(--sh); border-color: var(--bd2); background: var(--bg-card); }
+
     [x-cloak] { display: none !important; }
   </style>
 </head>
@@ -460,8 +516,13 @@
         수집 대상 기간: <strong x-text="periodLabel"></strong>
       </div>
 
-      <!-- 통계 박스 4개 -->
+      <!-- 통계 박스 4개: 전체 → 데이터 → 페이먼트 → AML -->
       <div class="stat-grid">
+        <div class="stat-box" :class="activeCategory === '전체' ? 'active-all' : ''"
+             @click="switchCategory('전체')">
+          <div class="stat-label">전체</div>
+          <div><span class="stat-num" x-text="totalCount"></span><span class="stat-unit">건</span></div>
+        </div>
         <div class="stat-box" :class="activeCategory === '데이터' ? 'active-data' : ''"
              @click="switchCategory('데이터')">
           <div class="stat-label">데이터</div>
@@ -477,61 +538,94 @@
           <div class="stat-label">AML</div>
           <div><span class="stat-num" x-text="allArticles['AML'].length"></span><span class="stat-unit">건</span></div>
         </div>
-        <div class="stat-box" :class="activeCategory === '전체' ? 'active-all' : ''"
-             @click="switchCategory('전체')">
-          <div class="stat-label">전체</div>
-          <div><span class="stat-num" x-text="totalCount"></span><span class="stat-unit">건</span></div>
-        </div>
       </div>
 
-      <!-- 기사 리스트 헤더 -->
+      <!-- 기사 헤더 -->
       <div class="list-header">
         <span class="list-title" x-text="activeCategory + ' 보도자료'"></span>
-        <span class="list-count" x-text="`${displayedArticles.length}건 표시`"></span>
+        <span class="list-count" x-text="activeCategory === '전체' ? `${totalCount}건` : `${displayedArticles.length}건`"></span>
       </div>
 
-      <!-- 기사 리스트 -->
-      <div class="article-list">
-        <template x-if="currentArticles.length === 0">
-          <div class="empty-list">수집된 보도자료가 없습니다 — 수집 시작 버튼을 눌러주세요</div>
-        </template>
-        <template x-if="displayedArticles.length === 0 && currentArticles.length > 0">
-          <div class="empty-list">조건에 맞는 보도자료가 없습니다</div>
-        </template>
-
-        <template x-for="a in displayedArticles" :key="a._uid">
-          <div class="article-row">
-            <!-- 상단: 기관뱃지 + 제목 + 카테고리태그 + 우선순위 -->
-            <div class="row-top">
-              <span class="agency-badge" :class="badgeClass(a._cat)" x-text="a['기관']"></span>
-              <span class="row-title" x-html="highlight(a['제목'])"></span>
-              <!-- 전체 보기 시 카테고리 태그 표시 -->
-              <template x-if="activeCategory === '전체'">
-                <span class="cat-tag" :class="tagClass(a._cat)" x-text="a._cat"></span>
+      <!-- ── 전체 탭: 3컬럼 칸반 (데이터 | 페이먼트 | AML) ── -->
+      <template x-if="activeCategory === '전체'">
+        <div class="kanban-wrap">
+          <template x-for="col in kanbanCols" :key="col.key">
+            <div class="kanban-col">
+              <div class="kanban-col-header">
+                <span class="kanban-col-title" :class="'kc-' + col.key" x-text="col.label"></span>
+                <span class="kanban-col-count" x-text="col.articles.length + '건'"></span>
+              </div>
+              <template x-if="col.articles.length === 0">
+                <div class="empty-col">수집된 기사가 없습니다</div>
               </template>
-              <span class="pri-badge"
-                :class="a['우선순위']==='상' ? 'pri-high' : a['우선순위']==='하' ? 'pri-low' : 'pri-mid'"
-                x-text="a['우선순위'] || '중'"></span>
+              <template x-for="a in col.articles" :key="a._uid">
+                <div class="art-card">
+                  <div class="art-card-top">
+                    <span class="agency-badge" :class="badgeClass(col.key)" x-text="a['기관']"></span>
+                    <span class="pri-badge"
+                      :class="a['우선순위']==='상' ? 'pri-high' : a['우선순위']==='하' ? 'pri-low' : 'pri-mid'"
+                      x-text="a['우선순위'] || '중'"></span>
+                  </div>
+                  <div class="art-card-title" x-html="highlight(a['제목'])"></div>
+                  <div class="art-card-lead" x-html="highlight(a['내용'])"></div>
+                  <div class="art-card-foot">
+                    <span class="art-card-date" x-text="a['날짜']"></span>
+                    <div class="art-card-btns">
+                      <a x-show="a['링크']" :href="a['링크']" target="_blank" rel="noopener noreferrer"
+                         @click.stop class="link-btn">원문</a>
+                      <button class="row-btn" :disabled="formatting"
+                        @click="formatSingle(a._idx, col.key)">
+                        <span x-text="(formattingIdx === a._uid && formatting) ? '...' : '요약'"></span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </template>
             </div>
-            <!-- 1줄 요약 -->
-            <div class="row-lead" x-html="highlight(a['내용'])"></div>
-            <!-- 하단: 날짜 + 버튼 -->
-            <div class="row-bottom">
-              <span class="row-date" x-text="'📅 ' + a['날짜']"></span>
-              <a x-show="a['링크']" :href="a['링크']" target="_blank" rel="noopener noreferrer"
-                 @click.stop class="link-btn">원문 ↗</a>
-              <button class="row-btn" :disabled="formatting"
-                @click="formatSingle(a._idx, a._cat)">
-                <span x-text="(formattingIdx === a._uid && formatting) ? '요약 중...' : '요약하기'"></span>
-              </button>
-              <button class="row-btn ppt-btn" :disabled="generating || !pptReadyUid || pptReadyUid !== a._uid"
-                @click="generatePPTFor(a._uid)">
-                <span x-text="(generatingUid === a._uid && generating) ? 'PPT 생성 중...' : 'PPT 생성'"></span>
-              </button>
-            </div>
+          </template>
+        </div>
+      </template>
+
+      <!-- ── 개별 탭 (데이터/페이먼트/AML): 3×N 카드 그리드 ── -->
+      <template x-if="activeCategory !== '전체'">
+        <div>
+          <template x-if="currentArticles.length === 0">
+            <div class="empty-list">수집된 보도자료가 없습니다 — 수집 시작 버튼을 눌러주세요</div>
+          </template>
+          <template x-if="displayedArticles.length === 0 && currentArticles.length > 0">
+            <div class="empty-list">조건에 맞는 보도자료가 없습니다</div>
+          </template>
+          <div class="card-grid">
+            <template x-for="a in displayedArticles" :key="a._uid">
+              <div class="art-card">
+                <div class="art-card-top">
+                  <span class="agency-badge" :class="badgeClass(a._cat)" x-text="a['기관']"></span>
+                  <span class="pri-badge"
+                    :class="a['우선순위']==='상' ? 'pri-high' : a['우선순위']==='하' ? 'pri-low' : 'pri-mid'"
+                    x-text="a['우선순위'] || '중'"></span>
+                </div>
+                <div class="art-card-title" x-html="highlight(a['제목'])"></div>
+                <div class="art-card-lead" x-html="highlight(a['내용'])"></div>
+                <div class="art-card-foot">
+                  <span class="art-card-date" x-text="a['날짜']"></span>
+                  <div class="art-card-btns">
+                    <a x-show="a['링크']" :href="a['링크']" target="_blank" rel="noopener noreferrer"
+                       @click.stop class="link-btn">원문</a>
+                    <button class="row-btn" :disabled="formatting"
+                      @click="formatSingle(a._idx, a._cat)">
+                      <span x-text="(formattingIdx === a._uid && formatting) ? '요약 중...' : '요약하기'"></span>
+                    </button>
+                    <button class="row-btn ppt-btn" :disabled="generating || pptReadyUid !== a._uid"
+                      @click="generatePPTFor(a._uid)">
+                      <span x-text="(generatingUid === a._uid && generating) ? '생성 중...' : 'PPT'"></span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </template>
           </div>
-        </template>
-      </div>
+        </div>
+      </template>
     </main>
 
     <!-- ── LOG PANEL ── -->
@@ -609,7 +703,7 @@
     return {
       today: new Date().toLocaleDateString('ko-KR',{year:'numeric',month:'long',day:'numeric',weekday:'short'}),
       periodLabel: periodLabel(),
-      activeCategory: '데이터',
+      activeCategory: '전체',
       searchQuery: '',
       activeKeywords: [],
       priorityFilter: '',
@@ -625,6 +719,14 @@
       formattingIdx: null,   // 현재 요약 중인 _uid
       pptReadyUid: null,     // PPT 생성 가능한 _uid
       generatingUid: null,   // PPT 생성 중인 _uid
+
+      get kanbanCols() {
+        return ['데이터','페이먼트','AML'].map(cat => ({
+          key: cat,
+          label: cat,
+          articles: (this.allArticles[cat] || []).map((a, i) => ({ ...a, _idx: i, _cat: cat, _uid: `${cat}-${i}` })),
+        }));
+      },
 
       get totalCount() {
         return (this.allArticles['데이터']?.length || 0)
