@@ -94,7 +94,10 @@ def _parse_from_supabase(report_type: str) -> list[dict] | None:
         return None
     try:
         import urllib.request, json
-        url = f"{SUPABASE_URL}/rest/v1/articles?type=eq.{urllib.parse.quote(report_type)}&select=data"
+        # updated_at 내림차순 정렬 + limit=1 → 항상 최신 수집분만 반환 [C-1 fix]
+        url = (f"{SUPABASE_URL}/rest/v1/articles"
+               f"?type=eq.{urllib.parse.quote(report_type)}"
+               f"&select=data&order=updated_at.desc&limit=1")
         req = urllib.request.Request(url, headers={
             "apikey": SUPABASE_KEY,
             "Authorization": f"Bearer {SUPABASE_KEY}",
@@ -107,7 +110,8 @@ def _parse_from_supabase(report_type: str) -> list[dict] | None:
         for a in articles:
             a["우선순위"] = get_priority(a)
         return articles
-    except Exception:
+    except Exception as e:
+        print(f"[WARN] Supabase 조회 실패 ({report_type}): {e}")  # [S-2 fix]
         return None
 
 
@@ -209,16 +213,6 @@ def _split_bullets(text: str) -> list[str]:
 
     return parts if parts else [_strip_prefix(clean)]
 
-
-def _is_useful_lead(lead: str) -> bool:
-    """lead가 형식화에 쓸 수 있는 요약문인지 판단"""
-    s = lead.strip()
-    if not s or s.startswith('...'):
-        return False
-    # 법령 조문 패턴 → 원문 조각이므로 요약 불가
-    if re.search(r'제\d+조|[②③④⑤]|제\d+항', s):
-        return False
-    return True
 
 
 _UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124.0 Safari/537.36"
@@ -703,7 +697,7 @@ async def format_articles(report_type: str, req: FormatRequest):
     """선택된 기사 인덱스를 받아 ◆/•/- 형식 텍스트로 변환 (URL에서 본문 fetch 포함)"""
     articles = parse_collected(report_type)
     selected = [articles[i] for i in req.indices if 0 <= i < len(articles)]
-    loop = asyncio.get_event_loop()
+    loop = asyncio.get_running_loop()  # [C-2 fix] deprecated get_event_loop() 대체
     content = await loop.run_in_executor(
         None,
         lambda: "\n\n".join(auto_format_article(a) for a in selected),
@@ -717,7 +711,8 @@ class GenerateRequest(BaseModel):
 
 @app.post("/api/generate/{report_type}")
 async def generate_ppt(report_type: str, req: GenerateRequest):
-    """CONTENT 교체 후 make_report.py 실행"""
+    """CONTENT 교체 후 make_report.py 실행 — tempfile로 race condition 방지 [C-3 fix]"""
+    import tempfile
     src     = MAKE_REPORT.read_text(encoding="utf-8")
     new_src = re.sub(
         r"(# ── 여기에 보고 내용을 붙여넣으세요 ─+\n)CONTENT = \"\"\".*?\"\"\"",
@@ -725,12 +720,23 @@ async def generate_ppt(report_type: str, req: GenerateRequest):
         src,
         flags=re.DOTALL,
     )
-    MAKE_REPORT.write_text(new_src, encoding="utf-8")
-
-    result = subprocess.run(
-        [sys.executable, str(MAKE_REPORT), report_type],
-        capture_output=True, text=True, cwd=str(BASE_DIR),
-    )
+    tmp_path = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            suffix=".py", delete=False, mode="w", encoding="utf-8"
+        ) as tmp:
+            tmp.write(new_src)
+            tmp_path = tmp.name
+        result = subprocess.run(
+            [sys.executable, tmp_path, report_type],
+            capture_output=True, text=True, cwd=str(BASE_DIR),
+        )
+    finally:
+        if tmp_path:
+            try:
+                os.unlink(tmp_path)
+            except OSError:
+                pass
     ppt = latest_ppt(report_type)
     return JSONResponse({
         "ok":       result.returncode == 0,

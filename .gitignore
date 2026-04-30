@@ -21,3 +21,12 @@ site_check*.txt
 
 # Logs
 *.log
+
+# 임시 분석 스크립트
+analyze*.py
+detailed_analysis.py
+final_analysis.py
+final_report.py
+
+# Claude 내부 폴더
+.claude/

@@ -322,7 +322,9 @@ def scrape_naver_news(report_type: str) -> list[dict]:
                 month_map = {'Jan':1,'Feb':2,'Mar':3,'Apr':4,'May':5,'Jun':6,
                              'Jul':7,'Aug':8,'Sep':9,'Oct':10,'Nov':11,'Dec':12}
                 try:
-                    parsed_d = date(int(m.group(3)), month_map.get(m.group(2), 0), int(m.group(1)))
+                    month = month_map.get(m.group(2))  # [Q-3 fix] 0 대신 None으로 skip
+                    if month:
+                        parsed_d = date(int(m.group(3)), month, int(m.group(1)))
                 except Exception:
                     pass
 

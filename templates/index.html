@@ -811,7 +811,7 @@
       priorityFilter: '',
       allArticles: { '데이터':[], '페이먼트':[], 'AML':[] },
       collecting: false,
-      showLog: true,
+      showLog: false,
       kukoniMsg: '보도자료 수집 중!',
       formatting: false,
       generating: false,
@@ -875,7 +875,6 @@
 
       get currentArticles() {
         if (this.activeCategory === '전체') {
-          let uid = 0;
           return ['데이터','페이먼트','AML'].flatMap(cat =>
             (this.allArticles[cat] || []).map((a, i) => ({ ...a, _idx: i, _cat: cat, _uid: `${cat}-${i}` }))
           );
@@ -951,6 +950,7 @@
 
       async startCollect(type) {
         this.collecting = true;
+        this.showLog = true;  // [S-1] 수집 시작 시 로그 패널 자동 열기
         const KUKONI_MSGS = [
           '보도자료 수집 중!', '열심히 찾는 중!', '잠깐만요~', '거의 다 됐어요!',
           '뉴스 탐색 중!', '데이터 수집 중!', '꼼꼼히 확인 중!',
