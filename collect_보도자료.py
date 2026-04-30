@@ -192,7 +192,7 @@ class _LaxSSLAdapter(HTTPAdapter):
 _SESSION = _requests.Session()
 _SESSION.verify = False
 _SESSION.headers.update({'User-Agent': UA})
-_adapter = _LaxSSLAdapter(max_retries=Retry(total=3, backoff_factor=2,
+_adapter = _LaxSSLAdapter(max_retries=Retry(total=1, backoff_factor=0,
                                              status_forcelist=[429, 500, 502, 503]))
 _SESSION.mount('https://', _adapter)
 _SESSION.mount('http://', _adapter)
@@ -288,13 +288,8 @@ def scrape_korea_kr(report_type: str, max_pages: int = 5) -> list[dict]:
         try:
             arts, html = scrape_korea_page(1, start_date, end_date, sw)
         except RuntimeError as e:
-            print(f"    1페이지 실패: {e} - 10초 후 재시도")
-            time.sleep(10)
-            try:
-                arts, html = scrape_korea_page(1, start_date, end_date, sw)
-            except RuntimeError as e2:
-                print(f"    재시도도 실패 (건너뜀): {e2}")
-                continue
+            print(f"    [korea.kr 접근 불가 - 회사 네트워크 제한, 건너뜀]")
+            continue
         total = min(get_total_pages(html), max_pages)
         print(f"    {total}페이지 수집 예정")
         all_articles.extend(arts)

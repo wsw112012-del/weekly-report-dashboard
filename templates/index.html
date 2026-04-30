@@ -470,7 +470,33 @@
 
     /* ── HISTORY ── */
     .history-wrap { padding: 4px 0; }
-    .history-title { font-size: 15px; font-weight: 700; margin-bottom: 16px; color: var(--t1); }
+
+    /* 통계 카드 */
+    .hist-stats { display: flex; gap: 10px; margin-bottom: 16px; flex-wrap: wrap; }
+    .hist-stat-card {
+      flex: 1; min-width: 100px; padding: 14px 18px; border-radius: 10px;
+      border: 1.5px solid var(--bd); background: #fff; cursor: pointer;
+      transition: all .15s; text-align: center;
+    }
+    .hist-stat-card:hover { border-color: var(--bd2); background: #f8faff; }
+    .hist-stat-card.active { border-color: var(--accent); background: var(--accent-lt); }
+    .hist-stat-card.active .hist-stat-label { color: var(--accent); font-weight: 700; }
+    .hist-stat-card.active .hist-stat-num { color: var(--accent); }
+    .hist-stat-num { font-size: 22px; font-weight: 800; color: var(--t1); line-height: 1.2; }
+    .hist-stat-label { font-size: 11px; color: var(--t3); margin-top: 4px; font-weight: 600; }
+
+    /* 검색 */
+    .hist-search-wrap { margin-bottom: 14px; }
+    .hist-search {
+      display: flex; align-items: center; gap: 8px;
+      border: 1px solid var(--bd); border-radius: 8px;
+      padding: 0 14px; height: 38px; background: #fff; width: 100%;
+      box-sizing: border-box;
+    }
+    .hist-search:focus-within { border-color: var(--accent2); }
+    .hist-search input { flex: 1; border: none; outline: none; font-size: 13px; background: transparent; }
+
+    /* 테이블 */
     .history-table { width: 100%; border-collapse: collapse; font-size: 12px; }
     .history-table th {
       background: #f1f5f9; padding: 10px 14px; text-align: left;
@@ -494,6 +520,7 @@
     .history-empty {
       text-align: center; padding: 48px; color: var(--t3); font-size: 13px;
     }
+    .hist-result-count { font-size: 11px; color: var(--t3); margin-bottom: 8px; text-align: right; }
 
     [x-cloak] { display: none !important; }
   </style>
@@ -579,16 +606,6 @@
               <span class="main-search-icon">🔍</span>
               <input type="text" x-model="searchQuery" placeholder="기사 검색..." />
             </div>
-          </div>
-
-          <!-- 키워드 chip 바 -->
-          <div class="main-kw-bar">
-            <template x-for="kw in currentKeywords" :key="kw">
-              <button class="kw-chip"
-                :class="[activeKeywords.includes(kw) ? 'active' : '', currentChipClass]"
-                @click="toggleKeyword(kw)"
-                x-text="kw"></button>
-            </template>
           </div>
 
           <!-- 통합 필터 행: 구분 | 우선순위 | 건수 -->
@@ -697,32 +714,67 @@
       <!-- ══ HISTORY ══ -->
       <template x-if="currentPage === 'history'">
         <div class="history-wrap">
-          <div class="history-title">📋 PPT 생성 이력</div>
+
+          <!-- 통계 카드 -->
+          <div class="hist-stats">
+            <template x-for="cat in ['전체','데이터','페이먼트','AML']" :key="cat">
+              <div class="hist-stat-card"
+                   :class="historyCat === cat ? 'active' : ''"
+                   @click="historyCat = cat; historySearch = ''">
+                <div class="hist-stat-num" x-text="historyStatCount(cat)"></div>
+                <div class="hist-stat-label" x-text="cat === '전체' ? '전체' : cat + ' 카테고리'"></div>
+              </div>
+            </template>
+          </div>
+
+          <!-- 검색창 -->
+          <div class="hist-search-wrap">
+            <div class="hist-search">
+              <span style="color:var(--t3);font-size:14px">🔍</span>
+              <input type="text" x-model="historySearch"
+                     placeholder="제목·요약 내용으로 검색..."/>
+              <template x-if="historySearch">
+                <span @click="historySearch=''" style="cursor:pointer;color:var(--t3);font-size:12px">✕</span>
+              </template>
+            </div>
+          </div>
+
+          <!-- 건수 -->
+          <div class="hist-result-count">
+            <span x-text="filteredHistory.length + '건'"></span>
+          </div>
+
+          <!-- 테이블 -->
           <table class="history-table">
             <thead>
               <tr>
                 <th>PPT 작성일자</th>
                 <th>보도자료 일자</th>
+                <th>카테고리</th>
                 <th>제목</th>
                 <th>요약 내용</th>
                 <th>주간보고 작성본</th>
               </tr>
             </thead>
             <tbody>
-              <template x-if="historyItems.length === 0">
-                <tr><td colspan="5" class="history-empty">PPT 생성 이력이 없습니다</td></tr>
+              <template x-if="filteredHistory.length === 0">
+                <tr><td colspan="6" class="history-empty">PPT 생성 이력이 없습니다</td></tr>
               </template>
-              <template x-for="h in historyItems" :key="h.id">
+              <template x-for="h in filteredHistory" :key="h.id">
                 <tr>
                   <td x-text="h.ppt_created_at" style="white-space:nowrap"></td>
                   <td x-text="h.article_date" style="white-space:nowrap"></td>
+                  <td style="white-space:nowrap">
+                    <span x-text="h.category || '-'"
+                          :style="h.category==='데이터' ? 'color:var(--accent);font-weight:600'
+                                : h.category==='페이먼트' ? 'color:var(--pay-color);font-weight:600'
+                                : h.category==='AML' ? 'color:var(--aml-color);font-weight:600' : ''">
+                    </span>
+                  </td>
                   <td x-text="h.title" style="min-width:160px"></td>
                   <td class="history-summary" x-text="h.summary"></td>
                   <td style="white-space:nowrap;text-align:center">
-                    <a :href="'/api/ppt/' + h.id" download
-                       class="ppt-dl-btn">
-                      📥 PPT 열기
-                    </a>
+                    <a :href="'/api/ppt/' + h.id" download class="ppt-dl-btn">📥 PPT 열기</a>
                   </td>
                 </tr>
               </template>
@@ -831,6 +883,8 @@
       periodLabel: periodLabel(),
       currentPage: 'home',
       historyItems: [],
+      historyCat: '전체',
+      historySearch: '',
       activeCategory: '전체',
       articleType: '전체',
       searchQuery: '',
@@ -979,6 +1033,26 @@
         try {
           this.historyItems = await fetch('/api/history').then(r => r.json());
         } catch(_) { this.historyItems = []; }
+      },
+
+      get filteredHistory() {
+        let items = this.historyItems;
+        if (this.historyCat !== '전체') {
+          items = items.filter(h => h.category === this.historyCat);
+        }
+        const q = this.historySearch.trim().toLowerCase();
+        if (q) {
+          items = items.filter(h =>
+            (h.title || '').toLowerCase().includes(q) ||
+            (h.summary || '').toLowerCase().includes(q)
+          );
+        }
+        return items;
+      },
+
+      historyStatCount(cat) {
+        if (cat === '전체') return this.historyItems.length;
+        return this.historyItems.filter(h => h.category === cat).length;
       },
 
       async startCollect(type) {
