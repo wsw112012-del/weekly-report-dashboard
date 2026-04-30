@@ -34,7 +34,8 @@ TEMPLATES   = BASE_DIR / "templates"
 MAKE_REPORT = BASE_DIR / "make_report.py"
 COLLECT_SCR = BASE_DIR / "collect_보도자료.py"
 
-BASE_PPT_PATH = Path(r"C:\Users\쿠콘_우승우\Desktop\업무\00. '26 쿠콘전략실\08. 주간보고\데이터전략센터\주간보고")
+_DEFAULT_PPT_PATH = Path(r"C:\Users\쿠콘_우승우\Desktop\업무\00. '26 쿠콘전략실\08. 주간보고\데이터전략센터\주간보고")
+BASE_PPT_PATH = Path(os.environ.get("PPT_OUTPUT_DIR", str(_DEFAULT_PPT_PATH)))
 
 AUTO_COLLECT_TYPE: str | None = os.environ.get("AUTO_COLLECT_TYPE")
 
@@ -51,9 +52,12 @@ def collected_path(report_type: str) -> Path:
 
 def latest_ppt(report_type: str) -> str | None:
     today = date.today().strftime("%Y%m%d")
-    folder = BASE_PPT_PATH / today
-    files  = glob.glob(str(folder / "*.pptx"))
-    return max(files, key=os.path.getmtime) if files else None
+    # Render 환경: BASE_DIR/output 에 저장
+    for folder in [BASE_PPT_PATH / today, BASE_DIR / "output"]:
+        files = glob.glob(str(folder / "*.pptx"))
+        if files:
+            return max(files, key=os.path.getmtime)
+    return None
 
 
 _PRIORITY_HIGH = [
@@ -696,27 +700,33 @@ if __name__ == "__main__":
     import threading
     import uvicorn
 
+    PORT = int(os.environ.get("PORT", 8765))
+    IS_RENDER = os.environ.get("RENDER") == "true"
+
     report_type = sys.argv[1] if len(sys.argv) > 1 else None
     if report_type and report_type in ("데이터", "페이먼트", "AML"):
         os.environ["AUTO_COLLECT_TYPE"] = report_type
         AUTO_COLLECT_TYPE = report_type
 
-    # 포트가 이미 사용 중이면 브라우저만 열지 않고 수집만 실행
-    def _port_in_use(port: int) -> bool:
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-            return s.connect_ex(("localhost", port)) == 0
-
-    already_running = _port_in_use(8765)
-
-    if already_running:
-        print(f"서버가 이미 실행 중입니다: http://localhost:8765")
-        if report_type:
-            print(f"→ '{report_type}' 보도자료 자동 수집을 시작합니다.")
-            import subprocess
-            subprocess.run([sys.executable, "collect_보도자료.py", report_type])
+    if IS_RENDER:
+        # Render: 브라우저 열기 없이 0.0.0.0 바인딩
+        print(f"Render 환경 감지 — 서버 시작: 0.0.0.0:{PORT}")
+        uvicorn.run(app, host="0.0.0.0", port=PORT, reload=False)
     else:
-        threading.Timer(1.2, lambda: webbrowser.open("http://localhost:8765")).start()
-        print(f"서버 시작: http://localhost:8765")
-        if report_type:
-            print(f"→ '{report_type}' 보도자료 자동 수집을 시작합니다.")
-        uvicorn.run(app, host="localhost", port=8765, reload=False)
+        def _port_in_use(port: int) -> bool:
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                return s.connect_ex(("localhost", port)) == 0
+
+        already_running = _port_in_use(PORT)
+
+        if already_running:
+            print(f"서버가 이미 실행 중입니다: http://localhost:{PORT}")
+            if report_type:
+                print(f"→ '{report_type}' 보도자료 자동 수집을 시작합니다.")
+                subprocess.run([sys.executable, "collect_보도자료.py", report_type])
+        else:
+            threading.Timer(1.2, lambda: webbrowser.open(f"http://localhost:{PORT}")).start()
+            print(f"서버 시작: http://localhost:{PORT}")
+            if report_type:
+                print(f"→ '{report_type}' 보도자료 자동 수집을 시작합니다.")
+            uvicorn.run(app, host="0.0.0.0", port=PORT, reload=False)
