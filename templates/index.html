@@ -578,6 +578,164 @@
     .policy-list-header .list-count { font-size: 11px; color: var(--t3); }
     .policy-article-row { cursor: pointer; }
     .policy-notice { font-size: 11px; color: var(--t3); margin-left: 8px; }
+
+    /* ── 법규/정책 관리 시스템 ── */
+    /* 서브탭 */
+    .policy-subtabs {
+      display: flex; gap: 6px; margin-bottom: 18px;
+      border-bottom: 2px solid var(--bd); padding-bottom: 0;
+    }
+    .policy-subtab {
+      padding: 8px 18px; border-radius: 6px 6px 0 0; border: 1px solid transparent;
+      background: none; font-size: 13px; font-weight: 600; color: var(--t3);
+      cursor: pointer; transition: all .15s; margin-bottom: -2px;
+    }
+    .policy-subtab:hover { color: var(--t2); background: #f1f5f9; }
+    .policy-subtab.active {
+      color: var(--accent); background: #fff;
+      border-color: var(--bd); border-bottom-color: #fff;
+    }
+
+    /* 통계 카드 */
+    .policy-stat-grid {
+      display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; margin-bottom: 20px;
+    }
+    @media(max-width:900px) { .policy-stat-grid { grid-template-columns: repeat(3, 1fr); } }
+    .policy-stat-card {
+      background: #fff; border: 1.5px solid var(--bd); border-radius: 10px;
+      padding: 14px 16px; text-align: center;
+      transition: box-shadow .15s;
+    }
+    .policy-stat-card.impact-high   { border-color: #fca5a5; background: #fff5f5; }
+    .policy-stat-card.status-active { border-color: #86efac; background: #f0fdf4; }
+    .policy-stat-card.status-pending{ border-color: #c4b5fd; background: #faf5ff; }
+    .policy-stat-card.status-tracking{ border-color: #93c5fd; background: #eff6ff; }
+    .policy-stat-label { font-size: 11px; color: var(--t3); font-weight: 600; margin-bottom: 6px; }
+    .policy-stat-num   { font-size: 28px; font-weight: 800; color: var(--t1); line-height: 1; }
+
+    /* 섹션 제목 */
+    .policy-section-title {
+      font-size: 13px; font-weight: 700; color: var(--t1);
+      margin-bottom: 10px; padding-left: 2px;
+    }
+    .policy-empty {
+      padding: 24px; text-align: center; font-size: 12px; color: var(--t3);
+      border: 1px dashed var(--bd); border-radius: 8px;
+      background: #fafbff; margin-bottom: 12px;
+    }
+
+    /* D-day 알림 카드 */
+    .policy-alert-card {
+      display: flex; align-items: flex-start; gap: 14px;
+      padding: 12px 14px; border-radius: 8px; border: 1.5px solid;
+      margin-bottom: 8px; background: #fff;
+    }
+    .policy-dday {
+      font-size: 15px; font-weight: 800; min-width: 52px;
+      text-align: center; flex-shrink: 0; padding-top: 2px;
+    }
+    .policy-alert-body { flex: 1; min-width: 0; }
+    .policy-alert-name { font-size: 13px; font-weight: 700; color: var(--t1); margin-bottom: 2px; }
+    .policy-alert-meta { font-size: 11px; color: var(--t3); margin-bottom: 2px; }
+    .policy-alert-action { font-size: 11px; color: var(--t2); }
+
+    /* DB 필터 바 */
+    .policy-db-bar {
+      display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+      margin-bottom: 14px;
+    }
+    .policy-select {
+      padding: 5px 10px; border-radius: 6px; border: 1px solid var(--bd);
+      font-size: 12px; color: var(--t2); background: #fff; cursor: pointer;
+      font-family: inherit;
+    }
+    .policy-select:focus { outline: none; border-color: var(--accent2); }
+    .policy-search-input {
+      padding: 5px 12px; border-radius: 6px; border: 1px solid var(--bd);
+      font-size: 12px; color: var(--t1); background: #fff; flex: 1; min-width: 120px;
+      font-family: inherit;
+    }
+    .policy-search-input:focus { outline: none; border-color: var(--accent2); }
+
+    /* 정책 아이템 카드 */
+    .policy-item-card {
+      background: #fff; border: 1px solid var(--bd); border-radius: 10px;
+      padding: 14px 16px; margin-bottom: 10px; box-shadow: var(--sh-sm);
+      transition: box-shadow .15s;
+    }
+    .policy-item-card:hover { box-shadow: var(--sh); border-color: var(--bd2); }
+    .policy-item-top {
+      display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-bottom: 6px;
+    }
+    .policy-item-name {
+      font-size: 14px; font-weight: 700; color: var(--t1); flex: 1; min-width: 0;
+    }
+    .policy-dday-sm {
+      font-size: 11px; font-weight: 800; padding: 2px 8px; border-radius: 20px;
+      flex-shrink: 0;
+    }
+    .policy-item-meta {
+      font-size: 11px; color: var(--t3); margin-bottom: 6px;
+    }
+    .policy-item-content {
+      font-size: 12px; color: var(--t2); line-height: 1.6; margin-bottom: 6px;
+    }
+    .policy-item-action {
+      font-size: 11px; color: var(--t2); background: #f8faff;
+      border: 1px solid var(--bd); border-radius: 6px;
+      padding: 6px 10px; margin-bottom: 8px; line-height: 1.5;
+      display: flex; gap: 8px;
+    }
+    .policy-item-foot {
+      display: flex; align-items: center; gap: 8px; margin-top: 6px;
+    }
+    .policy-toggle-wrap {
+      display: flex; align-items: center; gap: 5px;
+      font-size: 11px; color: var(--t2); cursor: pointer; flex: 1;
+    }
+    .policy-toggle-wrap input { cursor: pointer; }
+
+    /* 배지 */
+    .policy-badge {
+      font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 10px;
+      white-space: nowrap; flex-shrink: 0; border: 1px solid transparent;
+    }
+    .policy-badge-type { background: var(--accent-lt); color: var(--accent); border-color: rgba(37,99,235,.2); }
+    .policy-badge-area { background: #f1f5f9; color: var(--t2); border-color: var(--bd); }
+
+    /* 캘린더 */
+    .policy-cal-group-title {
+      font-size: 12px; font-weight: 700; margin: 14px 0 6px;
+      padding: 6px 12px; border-radius: 6px; border-left: 4px solid;
+      background: #fafbff;
+    }
+    .policy-cal-item {
+      display: flex; align-items: flex-start; gap: 12px;
+      padding: 10px 12px; border-radius: 8px; border: 1px solid var(--bd);
+      background: #fff; margin-bottom: 6px;
+    }
+    .policy-cal-dday { font-size: 13px; font-weight: 800; min-width: 48px; text-align: center; flex-shrink: 0; }
+    .policy-cal-label {
+      font-size: 10px; font-weight: 700; color: var(--t3); min-width: 36px;
+      text-align: center; flex-shrink: 0; padding-top: 2px;
+    }
+    .policy-cal-body { flex: 1; min-width: 0; }
+    .policy-cal-name { font-size: 13px; font-weight: 700; color: var(--t1); margin-bottom: 2px; }
+    .policy-cal-meta { font-size: 11px; color: var(--t3); margin-bottom: 2px; }
+    .policy-cal-action { font-size: 11px; color: var(--t2); }
+
+    /* 폼 */
+    .policy-form-label {
+      display: block; font-size: 11px; font-weight: 600; color: var(--t2);
+      margin-bottom: 4px;
+    }
+    .policy-form-input {
+      width: 100%; padding: 7px 10px; border-radius: 6px; border: 1px solid var(--bd);
+      font-size: 12px; font-family: inherit; color: var(--t1); background: #fff;
+      box-sizing: border-box;
+    }
+    .policy-form-input:focus { outline: none; border-color: var(--accent2); box-shadow: 0 0 0 2px rgba(37,99,235,.1); }
+    textarea.policy-form-input { resize: vertical; min-height: 60px; }
   </style>
 </head>
 
@@ -847,93 +1005,167 @@
       <template x-if="currentPage === 'policy'">
         <div class="policy-wrap">
 
-          <!-- 컨트롤 바 -->
-          <div class="policy-controls">
-            <div class="policy-chips">
-              <template x-for="cat in ['전체','데이터','페이먼트','AML']" :key="cat">
-                <button class="kw-chip"
-                  :class="policyCat === cat ? 'active' : ''"
-                  @click="policyCat = cat"
-                  x-text="cat">
-                </button>
-              </template>
-            </div>
-            <div class="policy-year-select">
-              <button class="pri-btn" @click="policyYear > 2024 ? policyYear-- : null" :disabled="policyYear <= 2024">◀</button>
-              <span class="policy-year-label" x-text="policyYear + '년'"></span>
-              <button class="pri-btn" @click="policyYear < currentYear ? policyYear++ : null" :disabled="policyYear >= currentYear">▶</button>
-            </div>
-            <span class="filter-count" x-text="filteredPolicyArticles.length + '건'"></span>
-            <template x-if="policyYear < currentYear">
-              <span class="policy-notice">※ 과거 연도는 현재 수집된 데이터 범위 내에서만 표시됩니다</span>
-            </template>
+          <!-- 서브탭 -->
+          <div class="policy-subtabs">
+            <button class="policy-subtab" :class="policyTab==='dashboard' ? 'active' : ''" @click="policyTab='dashboard'">📊 대시보드</button>
+            <button class="policy-subtab" :class="policyTab==='db' ? 'active' : ''" @click="policyTab='db'">📋 정책 DB</button>
+            <button class="policy-subtab" :class="policyTab==='calendar' ? 'active' : ''" @click="policyTab='calendar'">📅 대응 캘린더</button>
           </div>
 
-          <!-- 간트 타임라인 -->
-          <div class="gantt-card">
-            <div class="gantt-header">
-              <div class="gantt-row-label"></div>
-              <template x-for="m in 12" :key="m">
-                <div class="gantt-month-cell" x-text="m + '월'"></div>
+          <!-- ── 대시보드 ── -->
+          <template x-if="policyTab==='dashboard'">
+            <div>
+              <!-- 요약 카드 -->
+              <div class="policy-stat-grid">
+                <div class="policy-stat-card">
+                  <div class="policy-stat-label">전체 정책</div>
+                  <div class="policy-stat-num" x-text="policyItems.length"></div>
+                </div>
+                <div class="policy-stat-card impact-high">
+                  <div class="policy-stat-label">영향도 높음</div>
+                  <div class="policy-stat-num" x-text="policyItems.filter(p=>p['영향도']==='높음').length"></div>
+                </div>
+                <div class="policy-stat-card status-active">
+                  <div class="policy-stat-label">시행 중</div>
+                  <div class="policy-stat-num" x-text="policyItems.filter(p=>p['상태']==='시행중').length"></div>
+                </div>
+                <div class="policy-stat-card status-pending">
+                  <div class="policy-stat-label">입법예정·계류</div>
+                  <div class="policy-stat-num" x-text="policyItems.filter(p=>['계류중','입법예정'].includes(p['상태'])).length"></div>
+                </div>
+                <div class="policy-stat-card status-tracking">
+                  <div class="policy-stat-label">트래킹 중</div>
+                  <div class="policy-stat-num" x-text="policyItems.filter(p=>p['트래킹여부']==='Y').length"></div>
+                </div>
+              </div>
+
+              <!-- D-day 알림 -->
+              <div class="policy-section-title">📢 시행일 임박 알림 (180일 이내)</div>
+              <template x-if="policyDdayAlerts.length === 0">
+                <div class="policy-empty">향후 180일 내 시행 예정 정책이 없습니다.</div>
+              </template>
+              <template x-for="item in policyDdayAlerts" :key="item.id">
+                <div class="policy-alert-card" :style="'border-color:' + item.color + ';background:' + item.color + '11'">
+                  <span class="policy-dday" :style="'color:' + item.color" x-text="item.dday"></span>
+                  <div class="policy-alert-body">
+                    <div class="policy-alert-name" x-text="item['정책명']"></div>
+                    <div class="policy-alert-meta" x-text="item['시행일'] + ' · ' + item['주무부처']"></div>
+                    <div class="policy-alert-action" x-text="(item['쿠콘액션']||'').slice(0,100)"></div>
+                  </div>
+                </div>
+              </template>
+
+              <!-- 내부 대응 기한 -->
+              <div class="policy-section-title" style="margin-top:20px">⏰ 내부 대응 기한 (90일 이내)</div>
+              <template x-if="policyDeadlineAlerts.length === 0">
+                <div class="policy-empty">90일 내 대응 기한이 없습니다.</div>
+              </template>
+              <template x-for="item in policyDeadlineAlerts" :key="item.id + '_dl'">
+                <div class="policy-alert-card" :style="'border-color:' + item.color + ';background:' + item.color + '11'">
+                  <span class="policy-dday" :style="'color:' + item.color" x-text="item.dday"></span>
+                  <div class="policy-alert-body">
+                    <div class="policy-alert-name" x-text="item['정책명']"></div>
+                    <div class="policy-alert-meta" x-text="'담당: ' + (item['담당부서']||'')"></div>
+                  </div>
+                </div>
               </template>
             </div>
-            <template x-for="row in ganttRows" :key="row.key">
-              <div class="gantt-row">
-                <div class="gantt-row-label">
-                  <span class="gantt-label-text" :style="'color:' + row.color" x-text="row.label"></span>
+          </template>
+
+          <!-- ── 정책 DB ── -->
+          <template x-if="policyTab==='db'">
+            <div>
+              <!-- 필터 + 추가 버튼 -->
+              <div class="policy-db-bar">
+                <select class="policy-select" x-model="policyFilterArea">
+                  <option value="">사업영역 전체</option>
+                  <template x-for="a in policyAreas" :key="a"><option :value="a" x-text="a"></option></template>
+                </select>
+                <select class="policy-select" x-model="policyFilterImpact">
+                  <option value="">영향도 전체</option>
+                  <option value="높음">높음</option>
+                  <option value="중간">중간</option>
+                  <option value="낮음">낮음</option>
+                </select>
+                <select class="policy-select" x-model="policyFilterStatus">
+                  <option value="">상태 전체</option>
+                  <option value="시행중">시행중</option>
+                  <option value="시행예정">시행예정</option>
+                  <option value="계류중">계류중</option>
+                  <option value="입법예정">입법예정</option>
+                  <option value="모니터링">모니터링</option>
+                </select>
+                <input class="policy-search-input" type="text" placeholder="정책명 검색" x-model="policySearchKw">
+                <span class="filter-count" x-text="filteredPolicyItems.length + '건'"></span>
+                <button class="btn-ppt" style="margin-left:auto" @click="openPolicyForm(null)">+ 신규 추가</button>
+              </div>
+
+              <!-- 정책 목록 -->
+              <template x-for="p in filteredPolicyItems" :key="p.id">
+                <div class="policy-item-card">
+                  <div class="policy-item-top">
+                    <span class="policy-badge policy-badge-type" x-text="p['구분']"></span>
+                    <span class="policy-badge" :style="policyImpactStyle(p['영향도'])" x-text="p['영향도']"></span>
+                    <span class="policy-badge" :style="policyStatusStyle(p['상태'])" x-text="p['상태']"></span>
+                    <span class="policy-badge policy-badge-area" x-text="p['사업영역']"></span>
+                    <span class="policy-item-name" x-text="p['정책명']"></span>
+                    <span class="policy-dday-sm" x-show="p['시행일'] && p['상태']!=='시행중'"
+                      :style="'color:' + policyDdayColor(p['시행일'])"
+                      x-text="policyDdayLabel(p['시행일'])"></span>
+                  </div>
+                  <div class="policy-item-meta">
+                    <span x-text="p['주무부처']"></span> ·
+                    <span x-text="'담당: ' + (p['담당부서']||'-')"></span> ·
+                    <span x-text="'공포: ' + (p['공포일']||'-')"></span> ·
+                    <span x-text="'시행: ' + (p['시행일']||'-')"></span>
+                  </div>
+                  <div class="policy-item-content" x-text="p['핵심내용']"></div>
+                  <div class="policy-item-action" x-show="p['쿠콘액션']">
+                    <span style="font-weight:600;color:var(--accent)">쿠콘액션</span>
+                    <span x-text="p['쿠콘액션']"></span>
+                  </div>
+                  <div class="policy-item-foot">
+                    <label class="policy-toggle-wrap">
+                      <input type="checkbox" :checked="p['트래킹여부']==='Y'"
+                        @change="toggleTracking(p)"> 트래킹
+                    </label>
+                    <a x-show="p['출처URL']" :href="p['출처URL']" target="_blank" class="link-btn">원문</a>
+                    <button class="row-btn" @click="openPolicyForm(p)">수정</button>
+                    <button class="row-btn" style="color:#dc2626" @click="deletePolicy(p.id)">삭제</button>
+                  </div>
                 </div>
-                <template x-for="m in 12" :key="m">
-                  <div class="gantt-cell">
-                    <template x-for="a in ganttCell(row.key, m)" :key="a._uid">
-                      <div class="gantt-pill"
-                        :style="'background:' + row.color"
-                        :title="a['날짜'] + ' ' + a['기관'] + ' — ' + a['제목']"
-                        @click="openPolicyDetail(a)"
-                        x-text="a['기관'].slice(0,5)">
+              </template>
+            </div>
+          </template>
+
+          <!-- ── 대응 캘린더 ── -->
+          <template x-if="policyTab==='calendar'">
+            <div>
+              <div class="policy-empty" x-show="policyCalendarItems.length===0">
+                트래킹 중인 정책 중 날짜가 설정된 항목이 없습니다.
+              </div>
+              <template x-for="group in policyCalendarGroups" :key="group.name">
+                <template x-if="group.items.length > 0">
+                  <div>
+                    <div class="policy-cal-group-title" :style="'color:' + group.color + ';border-color:' + group.color + '44'"
+                         x-text="group.name + ' (' + group.items.length + '건)'"></div>
+                    <template x-for="item in group.items" :key="item.key">
+                      <div class="policy-cal-item">
+                        <div class="policy-cal-dday" :style="'color:' + group.color" x-text="item.dday"></div>
+                        <div class="policy-cal-label" x-text="item.label"></div>
+                        <div class="policy-cal-body">
+                          <div class="policy-cal-name" x-text="item['정책명']"></div>
+                          <div class="policy-cal-meta" x-text="item['주무부처'] + ' · 담당: ' + (item['담당부서']||'-') + ' · ' + item.date"></div>
+                          <div class="policy-cal-action" x-text="(item['쿠콘액션']||'').slice(0,120)"></div>
+                        </div>
+                        <span class="policy-badge" :style="policyImpactStyle(item['영향도'])" x-text="item['영향도']"></span>
                       </div>
                     </template>
                   </div>
                 </template>
-              </div>
-            </template>
-            <template x-if="filteredPolicyArticles.length === 0 && !policyLoading">
-              <div class="history-empty">수집된 법규/정책 기사가 없습니다</div>
-            </template>
-            <template x-if="policyLoading">
-              <div class="history-empty">불러오는 중...</div>
-            </template>
-          </div>
-
-          <!-- 하단 목록 -->
-          <div class="policy-list-header">
-            <span class="list-title">법규·정책 기사 목록</span>
-            <span class="list-count" x-text="filteredPolicyArticles.length + '건'"></span>
-          </div>
-          <div class="article-list">
-            <template x-if="filteredPolicyArticles.length === 0 && !policyLoading">
-              <div class="empty-list">조건에 맞는 기사가 없습니다</div>
-            </template>
-            <template x-for="a in filteredPolicyArticles" :key="a._uid">
-              <div class="article-row policy-article-row" @click="openPolicyDetail(a)">
-                <div class="row-top">
-                  <span class="agency-badge" :class="badgeClass(a._cat)" x-text="a['기관']"></span>
-                  <span class="pri-badge"
-                    :class="a._cat==='데이터' ? 'pri-high' : a._cat==='페이먼트' ? '' : 'pri-low'"
-                    :style="a._cat==='페이먼트' ? 'background:var(--pay-lt);color:var(--pay-color)' : ''"
-                    x-text="a._cat"></span>
-                  <span class="row-title" x-text="a['제목']"></span>
-                </div>
-                <div class="row-lead" x-text="a['내용']"></div>
-                <div class="row-bottom">
-                  <span class="row-date" x-text="a['날짜']"></span>
-                  <a x-show="a['링크']" :href="a['링크']" target="_blank" rel="noopener noreferrer"
-                     @click.stop class="link-btn">원문</a>
-                  <button class="row-btn" :disabled="formatting"
-                    @click.stop="formatSingle(a._idx, a._cat)">요약하기</button>
-                </div>
-              </div>
-            </template>
-          </div>
+              </template>
+            </div>
+          </template>
 
         </div>
       </template>
@@ -1009,36 +1241,98 @@
     </div>
   </div>
 
-  <!-- ── 법규/정책 상세 모달 ── -->
-  <div class="modal-backdrop" x-show="showPolicyDetail" x-cloak @click.self="showPolicyDetail = false">
-    <div class="modal" x-show="policyDetailItem">
+  <!-- ── 정책 추가/수정 모달 ── -->
+  <div class="modal-backdrop" x-show="showPolicyForm" x-cloak @click.self="showPolicyForm=false">
+    <div class="modal" style="max-width:640px;max-height:90vh;overflow-y:auto">
       <div class="modal-header">
-        <span class="modal-title" x-text="policyDetailItem?.['제목'] || ''"></span>
-        <button class="modal-close" @click="showPolicyDetail = false">✕</button>
+        <span class="modal-title" x-text="policyFormData.id ? '정책 수정' : '신규 정책 추가'"></span>
+        <button class="modal-close" @click="showPolicyForm=false">✕</button>
       </div>
-      <div class="modal-body" style="gap:8px;display:flex;flex-direction:column">
-        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-          <span class="agency-badge" :class="badgeClass(policyDetailItem?._cat)"
-                x-text="policyDetailItem?.['기관'] || ''"></span>
-          <span class="pri-badge"
-                :class="policyDetailItem?._cat==='데이터' ? 'pri-high' : policyDetailItem?._cat==='AML' ? 'pri-low' : ''"
-                :style="policyDetailItem?._cat==='페이먼트' ? 'background:var(--pay-lt);color:var(--pay-color)' : ''"
-                x-text="policyDetailItem?._cat || ''"></span>
-          <span class="row-date" x-text="policyDetailItem?.['날짜'] || ''"></span>
+      <div class="modal-body" style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <div style="grid-column:1/-1">
+          <label class="policy-form-label">정책명 *</label>
+          <input class="policy-form-input" x-model="policyFormData['정책명']" placeholder="정책명">
         </div>
-        <p style="font-size:13px;color:var(--t2);line-height:1.7"
-           x-text="policyDetailItem?.['내용'] || ''"></p>
-        <a x-show="policyDetailItem?.['링크']" :href="policyDetailItem?.['링크'] || ''"
-           target="_blank" rel="noopener noreferrer"
-           class="link-btn" style="align-self:flex-start">원문 보기</a>
+        <div>
+          <label class="policy-form-label">구분</label>
+          <select class="policy-form-input" x-model="policyFormData['구분']">
+            <option>법률</option><option>시행령</option><option>규정</option>
+            <option>가이드라인</option><option>업무계획</option>
+          </select>
+        </div>
+        <div>
+          <label class="policy-form-label">주무부처</label>
+          <input class="policy-form-input" x-model="policyFormData['주무부처']">
+        </div>
+        <div>
+          <label class="policy-form-label">사업영역</label>
+          <select class="policy-form-input" x-model="policyFormData['사업영역']">
+            <option>PG/결제</option><option>마이데이터</option><option>AML/KYC</option>
+            <option>개인정보</option><option>가상자산</option><option>스크래핑</option><option>기타</option>
+          </select>
+        </div>
+        <div>
+          <label class="policy-form-label">영향도</label>
+          <select class="policy-form-input" x-model="policyFormData['영향도']">
+            <option>높음</option><option>중간</option><option>낮음</option>
+          </select>
+        </div>
+        <div>
+          <label class="policy-form-label">상태</label>
+          <select class="policy-form-input" x-model="policyFormData['상태']">
+            <option>시행중</option><option>시행예정</option><option>계류중</option>
+            <option>입법예정</option><option>모니터링</option>
+          </select>
+        </div>
+        <div>
+          <label class="policy-form-label">공포일 (YYYY-MM-DD)</label>
+          <input class="policy-form-input" x-model="policyFormData['공포일']" placeholder="2026-01-01">
+        </div>
+        <div>
+          <label class="policy-form-label">시행일 (YYYY-MM-DD)</label>
+          <input class="policy-form-input" x-model="policyFormData['시행일']" placeholder="2026-01-01">
+        </div>
+        <div style="grid-column:1/-1">
+          <label class="policy-form-label">핵심내용</label>
+          <textarea class="policy-form-input" rows="3" x-model="policyFormData['핵심내용']"></textarea>
+        </div>
+        <div style="grid-column:1/-1">
+          <label class="policy-form-label">쿠콘 액션</label>
+          <textarea class="policy-form-input" rows="3" x-model="policyFormData['쿠콘액션']"></textarea>
+        </div>
+        <div>
+          <label class="policy-form-label">담당부서</label>
+          <input class="policy-form-input" x-model="policyFormData['담당부서']">
+        </div>
+        <div>
+          <label class="policy-form-label">내부 대응 기한</label>
+          <input class="policy-form-input" x-model="policyFormData['내부대응기한']" placeholder="2026-01-01">
+        </div>
+        <div>
+          <label class="policy-form-label">모니터링 주기</label>
+          <select class="policy-form-input" x-model="policyFormData['모니터링주기']">
+            <option>주간</option><option>월간</option><option>분기</option><option>연간</option>
+          </select>
+        </div>
+        <div>
+          <label class="policy-form-label">트래킹 여부</label>
+          <select class="policy-form-input" x-model="policyFormData['트래킹여부']">
+            <option>Y</option><option>N</option>
+          </select>
+        </div>
+        <div style="grid-column:1/-1">
+          <label class="policy-form-label">출처 URL</label>
+          <input class="policy-form-input" x-model="policyFormData['출처URL']">
+        </div>
+        <div style="grid-column:1/-1">
+          <label class="policy-form-label">비고</label>
+          <input class="policy-form-input" x-model="policyFormData['비고']">
+        </div>
       </div>
       <div class="modal-footer">
-        <button class="btn-ppt" :disabled="formatting"
-          @click="formatSingle(policyDetailItem?._idx, policyDetailItem?._cat); showPolicyDetail=false">
-          요약하기
-        </button>
+        <button class="btn-ppt" @click="savePolicyForm()">저장</button>
         <div class="modal-footer-spacer"></div>
-        <button class="btn-cancel" @click="showPolicyDetail = false">닫기</button>
+        <button class="btn-cancel" @click="showPolicyForm=false">취소</button>
       </div>
     </div>
   </div>
@@ -1095,13 +1389,14 @@
       generatingUid: null,
 
       // 법규/정책 탭
-      currentYear: new Date().getFullYear(),
-      policyYear: new Date().getFullYear(),
-      policyCat: '전체',
-      policyArticles: [],
-      policyLoading: false,
-      showPolicyDetail: false,
-      policyDetailItem: null,
+      policyTab: 'dashboard',
+      policyItems: [],
+      policyFilterArea: '',
+      policyFilterImpact: '',
+      policyFilterStatus: '',
+      policySearchKw: '',
+      showPolicyForm: false,
+      policyFormData: {},
 
       _applyFilters(list) {
         if (this.articleType !== '전체') {
@@ -1215,57 +1510,127 @@
         return t;
       },
 
-      // 법규/정책: 간트 행 정의
-      get ganttRows() {
-        const all = [
-          { key: '데이터',   label: '데이터',   color: '#1e40af' },
-          { key: '페이먼트', label: '페이먼트', color: '#0f766e' },
-          { key: 'AML',      label: 'AML',      color: '#b91c1c' },
-        ];
-        if (this.policyCat === '전체') return all;
-        return all.filter(r => r.key === this.policyCat);
+      // 법규/정책 computed
+      get policyAreas() {
+        return [...new Set(this.policyItems.map(p => p['사업영역']).filter(Boolean))].sort();
       },
-
-      get filteredPolicyArticles() {
-        let list = this.policyArticles.map((a, i) => ({
-          ...a, _uid: `policy-${a._cat}-${a._idx}-${i}`,
-        }));
-        if (this.policyCat !== '전체') {
-          list = list.filter(a => a._cat === this.policyCat);
-        }
-        return list;
-      },
-
-      ganttCell(catKey, month) {
-        return this.filteredPolicyArticles.filter(a => {
-          if (a._cat !== catKey) return false;
-          const parts = (a['날짜'] || '').split('-');
-          return parts.length >= 2 && parseInt(parts[1], 10) === month;
+      get filteredPolicyItems() {
+        return this.policyItems.filter(p => {
+          if (this.policyFilterArea   && p['사업영역'] !== this.policyFilterArea)   return false;
+          if (this.policyFilterImpact && p['영향도']   !== this.policyFilterImpact) return false;
+          if (this.policyFilterStatus && p['상태']     !== this.policyFilterStatus) return false;
+          if (this.policySearchKw && !(p['정책명']||'').includes(this.policySearchKw)) return false;
+          return true;
         });
       },
-
-      async loadPolicy() {
-        this.policyLoading = true;
-        try {
-          this.policyArticles = await fetch(`/api/policy?year=${this.policyYear}`).then(r => r.json());
-        } catch(_) {
-          this.policyArticles = [];
-        } finally {
-          this.policyLoading = false;
+      get policyDdayAlerts() {
+        const alerts = [];
+        for (const p of this.policyItems) {
+          const eff = p['시행일'];
+          if (!eff || p['상태'] === '시행중') continue;
+          const n = this._daysUntil(eff);
+          if (n !== null && n >= 0 && n <= 180) {
+            alerts.push({ ...p, _n: n, dday: n === 0 ? 'D-day' : `D-${n}`, color: n <= 30 ? '#dc2626' : n <= 90 ? '#d97706' : '#16a34a' });
+          }
         }
+        return alerts.sort((a,b) => a._n - b._n);
+      },
+      get policyDeadlineAlerts() {
+        const alerts = [];
+        for (const p of this.policyItems) {
+          const dl = p['내부대응기한'];
+          if (!dl) continue;
+          const n = this._daysUntil(dl);
+          if (n !== null && n >= 0 && n <= 90) {
+            alerts.push({ ...p, _n: n, dday: n === 0 ? 'D-day' : `D-${n}`, color: n <= 14 ? '#dc2626' : '#d97706' });
+          }
+        }
+        return alerts.sort((a,b) => a._n - b._n);
+      },
+      get policyCalendarItems() {
+        const items = [];
+        for (const p of this.policyItems.filter(p => p['트래킹여부']==='Y')) {
+          for (const [field, label] of [['시행일','시행일'],['내부대응기한','내부기한']]) {
+            const val = p[field];
+            if (!val) continue;
+            const n = this._daysUntil(val);
+            if (n !== null) items.push({ ...p, _n: n, date: val, label, key: p.id + '_' + field, dday: n < 0 ? `D+${Math.abs(n)}` : n === 0 ? 'D-day' : `D-${n}` });
+          }
+        }
+        return items.sort((a,b) => a._n - b._n);
+      },
+      get policyCalendarGroups() {
+        const all = this.policyCalendarItems;
+        return [
+          { name: '이미 지남',  color: '#6b7280', items: all.filter(x => x._n < 0) },
+          { name: '30일 이내',  color: '#dc2626', items: all.filter(x => x._n >= 0 && x._n <= 30) },
+          { name: '31~90일',    color: '#d97706', items: all.filter(x => x._n > 30 && x._n <= 90) },
+          { name: '91~180일',   color: '#2563eb', items: all.filter(x => x._n > 90 && x._n <= 180) },
+          { name: '180일 이후', color: '#16a34a', items: all.filter(x => x._n > 180) },
+        ];
       },
 
-      openPolicyDetail(article) {
-        this.policyDetailItem = article;
-        this.showPolicyDetail = true;
+      // 법규/정책 메서드
+      _daysUntil(dateStr) {
+        try {
+          const d = new Date(dateStr); const t = new Date();
+          t.setHours(0,0,0,0); d.setHours(0,0,0,0);
+          return Math.round((d - t) / 86400000);
+        } catch { return null; }
+      },
+      policyDdayLabel(dateStr) {
+        const n = this._daysUntil(dateStr);
+        if (n === null) return '';
+        if (n < 0) return `D+${Math.abs(n)}`;
+        if (n === 0) return 'D-day';
+        return `D-${n}`;
+      },
+      policyDdayColor(dateStr) {
+        const n = this._daysUntil(dateStr);
+        if (n === null) return '#6b7280';
+        return n <= 30 ? '#dc2626' : n <= 90 ? '#d97706' : '#16a34a';
+      },
+      policyImpactStyle(val) {
+        const c = val==='높음' ? '#dc2626' : val==='중간' ? '#d97706' : '#16a34a';
+        return `background:${c}22;color:${c};border:1px solid ${c}44`;
+      },
+      policyStatusStyle(val) {
+        const c = {'시행중':'#16a34a','시행예정':'#dc2626','계류중':'#7c3aed','입법예정':'#7c3aed','모니터링':'#6b7280'}[val] || '#6b7280';
+        return `background:${c}22;color:${c};border:1px solid ${c}44`;
+      },
+      async loadPolicy() {
+        try { this.policyItems = await fetch('/api/policydb').then(r => r.json()); }
+        catch(_) { this.policyItems = []; }
+      },
+      openPolicyForm(p) {
+        this.policyFormData = p ? { ...p } : { 구분:'법률', 영향도:'높음', 상태:'시행예정', 사업영역:'PG/결제', 모니터링주기:'월간', 트래킹여부:'Y' };
+        this.showPolicyForm = true;
+      },
+      async savePolicyForm() {
+        const d = this.policyFormData;
+        if (!d['정책명']) { alert('정책명은 필수입니다.'); return; }
+        if (d.id) {
+          await fetch(`/api/policydb/${d.id}`, { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify(d) });
+        } else {
+          await fetch('/api/policydb', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(d) });
+        }
+        this.showPolicyForm = false;
+        await this.loadPolicy();
+      },
+      async toggleTracking(p) {
+        p['트래킹여부'] = p['트래킹여부'] === 'Y' ? 'N' : 'Y';
+        await fetch(`/api/policydb/${p.id}`, { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify(p) });
+        await this.loadPolicy();
+      },
+      async deletePolicy(id) {
+        if (!confirm('삭제하시겠습니까?')) return;
+        await fetch(`/api/policydb/${id}`, { method:'DELETE' });
+        await this.loadPolicy();
       },
 
       async init() {
         await this.loadAll();
         setInterval(() => this.loadAll(), 10000);
-        this.$watch('policyYear', () => {
-          if (this.currentPage === 'policy') this.loadPolicy();
-        });
       },
 
       async loadAll() {

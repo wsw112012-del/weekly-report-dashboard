@@ -56,7 +56,7 @@ except ImportError:
 
 from bs4 import BeautifulSoup
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse, FileResponse
 from pydantic import BaseModel
 
@@ -709,23 +709,67 @@ async def get_articles(report_type: str):
     return JSONResponse(parse_collected(report_type))
 
 
-@app.get("/api/policy")
-async def get_policy(year: int = None):
-    """법령 개정·시행 관련 기사만 필터링해 반환 (연도별)"""
-    if year is None:
-        year = date.today().year
-    year_prefix = str(year)
-    result = []
-    for cat in CATEGORIES:
-        for a in parse_collected(cat):
-            title_lead = a.get("제목", "") + a.get("내용", "")
-            if not any(kw in title_lead for kw in _PRIORITY_HIGH):
-                continue
-            if not a.get("날짜", "").startswith(year_prefix):
-                continue
-            result.append({**a, "category": cat})
-    result.sort(key=lambda x: x.get("날짜", ""))
-    return JSONResponse(result)
+_POLICY_COLUMNS = [
+    "id","정책명","구분","주무부처","사업영역","영향도",
+    "공포일","시행일","상태","핵심내용","쿠콘액션",
+    "담당부서","내부대응기한","모니터링주기","출처URL","트래킹여부","비고"
+]
+
+_POLICY_DEFAULT = [
+    {"id":"P001","정책명":"전자금융거래법 개정 (PG 정산자금 외부관리)","구분":"법률","주무부처":"금융위원회","사업영역":"PG/결제","영향도":"높음","공포일":"2025-12-16","시행일":"2026-12-17","상태":"시행예정","핵심내용":"PG업자 정산자금 전액 외부관리 의무화(예치/신탁/보증보험). 자본금 요건 상향.","쿠콘액션":"① 정산자금 외부관리 이행 현황 점검\n② 자본금 요건 충족 여부 확인","담당부서":"전략팀/재무팀","내부대응기한":"2026-11-17","모니터링주기":"월간","출처URL":"https://www.fsc.go.kr","트래킹여부":"Y","비고":""},
+    {"id":"P002","정책명":"PG업자 정산자금 외부관리 가이드라인","구분":"가이드라인","주무부처":"금융감독원","사업영역":"PG/결제","영향도":"높음","공포일":"2025-09-17","시행일":"2026-01-01","상태":"시행중","핵심내용":"정산자금 매일 산정. 60% 이상 신탁/지급보증보험 외부관리.","쿠콘액션":"이행 현황 점검 및 내부 보고체계 구축","담당부서":"전략팀","내부대응기한":"2026-03-31","모니터링주기":"분기","출처URL":"https://www.fss.or.kr","트래킹여부":"Y","비고":""},
+    {"id":"P003","정책명":"개인정보보호법 개정 (전송요구권)","구분":"법률","주무부처":"개인정보보호위원회","사업영역":"마이데이터","영향도":"높음","공포일":"2025-04-01","시행일":"2025-10-02","상태":"시행중","핵심내용":"개인정보 전송요구권 도입(제35조의2). 보건의료/통신/에너지 분야부터 단계 적용.","쿠콘액션":"전송요구 처리 절차 수립, API 연동 준비","담당부서":"전략팀/개발팀","내부대응기한":"2026-06-30","모니터링주기":"월간","출처URL":"https://www.pipc.go.kr","트래킹여부":"Y","비고":""},
+    {"id":"P004","정책명":"특정금융거래정보법 (특금법)","구분":"법률","주무부처":"금융정보분석원","사업영역":"AML/KYC","영향도":"높음","공포일":"","시행일":"","상태":"시행중","핵심내용":"VASP 신고 의무, AML/CFT, 트래블룰(건당 100만원 이상 가상자산 출고 시 정보전달) 시행 중","쿠콘액션":"트래블룰 시스템 운영 점검, KYC 프로세스 강도 확인 (분기)","담당부서":"AML팀","내부대응기한":"","모니터링주기":"분기","출처URL":"","트래킹여부":"Y","비고":""},
+    {"id":"P005","정책명":"가상자산 이용자 보호법","구분":"법률","주무부처":"금융위원회","사업영역":"가상자산","영향도":"높음","공포일":"2024-01-01","시행일":"2024-07-19","상태":"시행중","핵심내용":"이용자 예치금 분리 보관, 불공정거래 금지, 사업자 배상책임","쿠콘액션":"스테이블코인 결제 인프라 연동 시 이용자보호 요건 충족 여부 확인","담당부서":"전략팀","내부대응기한":"","모니터링주기":"분기","출처URL":"","트래킹여부":"Y","비고":""},
+    {"id":"P006","정책명":"디지털자산기본법 (2단계 입법)","구분":"법률","주무부처":"금융위원회","사업영역":"가상자산","영향도":"높음","공포일":"","시행일":"","상태":"계류중","핵심내용":"스테이블코인 발행주체 요건, 거래소 지배구조 등. 정무위 소위 계류 중 (2026.4 기준)","쿠콘액션":"입법 동향 주간 모니터링, 발행주체·준비금 요건 확정 즉시 사업모델 검토","담당부서":"전략팀","내부대응기한":"","모니터링주기":"주간","출처URL":"","트래킹여부":"Y","비고":""},
+]
+
+
+def _policy_db_load() -> list[dict]:
+    """Supabase policy_db 테이블 로드. 없으면 기본 데이터 반환."""
+    rows = _supabase_request("GET", "policy_db?order=id.asc&limit=500")
+    if rows:
+        return rows
+    return _POLICY_DEFAULT
+
+
+def _policy_db_seed():
+    """Supabase가 비어 있으면 기본 데이터 삽입"""
+    rows = _supabase_request("GET", "policy_db?limit=1")
+    if rows is not None and len(rows) == 0:
+        for row in _POLICY_DEFAULT:
+            _supabase_request("POST", "policy_db", row)
+
+
+@app.get("/api/policydb")
+async def get_policydb():
+    return JSONResponse(_policy_db_load())
+
+
+@app.post("/api/policydb")
+async def create_policy(req: Request):
+    body = await req.json()
+    # id 자동 생성
+    existing = _policy_db_load()
+    nums = [int(r["id"][1:]) for r in existing if r.get("id","").startswith("P") and r["id"][1:].isdigit()]
+    new_num = max(nums, default=0) + 1
+    body["id"] = f"P{new_num:03d}"
+    result = _supabase_request("POST", "policy_db", body)
+    return JSONResponse(body if result is None else (result[0] if isinstance(result, list) else result))
+
+
+@app.put("/api/policydb/{policy_id}")
+async def update_policy(policy_id: str, req: Request):
+    body = await req.json()
+    body["id"] = policy_id
+    result = _supabase_request("PATCH", f"policy_db?id=eq.{policy_id}", body)
+    return JSONResponse({"ok": True})
+
+
+@app.delete("/api/policydb/{policy_id}")
+async def delete_policy(policy_id: str):
+    _supabase_request("DELETE", f"policy_db?id=eq.{policy_id}")
+    return JSONResponse({"ok": True})
 
 
 @app.get("/api/stream/{report_type}")
