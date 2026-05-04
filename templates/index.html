@@ -132,6 +132,68 @@
     .nav-icon { font-size: 18px; flex-shrink: 0; }
     .nav-label { font-size: 13px; font-weight: 600; }
 
+    /* 사이드바 서브메뉴 */
+    .nav-sub-group { display: flex; flex-direction: column; gap: 2px; padding-left: 8px; }
+    .nav-sub-item {
+      display: flex; align-items: center; gap: 8px;
+      padding: 7px 10px; border-radius: 7px;
+      cursor: pointer; font-size: 12px; font-weight: 600; color: var(--t3);
+      transition: all .15s; border: 1px solid transparent;
+      user-select: none;
+    }
+    .nav-sub-item:hover { background: #f1f5f9; color: var(--t1); }
+    .nav-sub-item.active { color: var(--accent); background: var(--accent-lt); border-color: rgba(37,99,235,.15); }
+    .nav-sub-item.active.sub-pay { color: var(--pay-color); background: var(--pay-lt); border-color: rgba(15,118,110,.15); }
+    .nav-sub-item.active.sub-aml { color: var(--aml-color); background: var(--aml-lt); border-color: rgba(185,28,28,.15); }
+    .nav-sub-dot {
+      width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0;
+    }
+    .dot-data { background: var(--accent); }
+    .dot-pay  { background: var(--pay-color); }
+    .dot-aml  { background: var(--aml-color); }
+    .nav-sub-count { font-size: 10px; margin-left: auto; font-weight: 700; opacity: .7; }
+
+    /* 아티클 전체 목록 페이지 */
+    .articles-page { padding: 0; }
+    .articles-page-header {
+      display: flex; align-items: center; gap: 10px; margin-bottom: 16px;
+    }
+    .articles-back-btn {
+      padding: 6px 12px; border-radius: 7px; border: 1px solid var(--bd);
+      background: #fff; font-size: 12px; font-weight: 600; color: var(--t2);
+      cursor: pointer; transition: all .15s; display: flex; align-items: center; gap: 4px;
+    }
+    .articles-back-btn:hover { background: #f1f5f9; border-color: var(--bd2); }
+    .articles-page-title { font-size: 16px; font-weight: 800; color: var(--t1); }
+    .articles-type-tabs {
+      display: flex; gap: 4px; margin-bottom: 14px;
+    }
+    .articles-type-tab {
+      padding: 7px 18px; border-radius: 8px; border: 1.5px solid var(--bd);
+      background: #fff; font-size: 12px; font-weight: 700; color: var(--t3);
+      cursor: pointer; transition: all .15s;
+    }
+    .articles-type-tab:hover { border-color: var(--bd2); color: var(--t2); }
+    .articles-type-tab.active {
+      background: var(--accent-lt); border-color: var(--accent2); color: var(--accent);
+    }
+    .articles-type-tab.active.tab-news { background: #f3e8ff; border-color: #7c3aed; color: #6d28d9; }
+    .articles-filter-bar {
+      display: flex; align-items: center; gap: 6px; margin-bottom: 14px; flex-wrap: wrap;
+    }
+    .articles-search {
+      display: flex; align-items: center; gap: 6px;
+      border: 1px solid var(--bd); border-radius: 7px;
+      padding: 0 10px; height: 32px; background: #fff; flex: 1; min-width: 160px;
+      transition: border-color .15s;
+    }
+    .articles-search:focus-within { border-color: var(--accent2); }
+    .articles-search input {
+      flex: 1; border: none; outline: none; background: transparent;
+      font-size: 12px; font-family: inherit; color: var(--t1);
+    }
+    .articles-count { font-size: 11px; color: var(--t3); margin-left: auto; white-space: nowrap; }
+
     /* 메인 검색창 */
     .main-search-wrap { display: flex; justify-content: center; margin: 14px 0 8px; }
     .main-search {
@@ -1170,11 +1232,29 @@
 
     <!-- ── SIDEBAR ── -->
     <aside class="sidebar">
-      <div class="nav-item" :class="currentPage === 'home' ? 'active' : ''"
+      <div class="nav-item" :class="(currentPage === 'home' || currentPage === 'articles') ? 'active' : ''"
            @click="currentPage = 'home'">
         <span class="nav-icon">🏠</span>
         <span class="nav-label">HOME</span>
       </div>
+      <!-- HOME 서브메뉴 -->
+      <template x-if="currentPage === 'home' || currentPage === 'articles'">
+        <div class="nav-sub-group">
+          <template x-for="cat in ['데이터','페이먼트','AML']" :key="cat">
+            <div class="nav-sub-item"
+                 :class="[
+                   currentPage==='articles' && articlesCategory===cat ? 'active' : '',
+                   cat==='페이먼트' ? 'sub-pay' : cat==='AML' ? 'sub-aml' : ''
+                 ]"
+                 @click="openArticlesPage(cat)">
+              <span class="nav-sub-dot"
+                    :class="cat==='데이터' ? 'dot-data' : cat==='페이먼트' ? 'dot-pay' : 'dot-aml'"></span>
+              <span x-text="cat"></span>
+              <span class="nav-sub-count" x-text="(allArticles[cat]||[]).length"></span>
+            </div>
+          </template>
+        </div>
+      </template>
       <div class="nav-item" :class="currentPage === 'history' ? 'active' : ''"
            @click="currentPage = 'history'; loadHistory()">
         <span class="nav-icon">📚</span>
@@ -1404,7 +1484,7 @@
                   </div>
                 </template>
                 <template x-if="col.articles.length > 5">
-                  <button class="home-more-btn" @click="switchCategory(col.key)">
+                  <button class="home-more-btn" @click="openArticlesPage(col.key)">
                     + <span x-text="col.articles.length - 5"></span>건 더 보기
                   </button>
                 </template>
@@ -1413,6 +1493,93 @@
           </div>
 
         </div><!-- /HOME -->
+      </template>
+
+      <!-- ══ ARTICLES (카테고리 전체 목록) ══ -->
+      <template x-if="currentPage === 'articles'">
+        <div class="articles-page">
+
+          <!-- 헤더 -->
+          <div class="articles-page-header">
+            <button class="articles-back-btn" @click="currentPage = 'home'">← HOME</button>
+            <span class="articles-page-title"
+                  :style="articlesCategory==='페이먼트' ? 'color:var(--pay-color)'
+                        : articlesCategory==='AML'      ? 'color:var(--aml-color)'
+                        : 'color:var(--accent)'"
+                  x-text="articlesCategory + ' 보도자료 · 언론기사'"></span>
+          </div>
+
+          <!-- 타입 탭 -->
+          <div class="articles-type-tabs">
+            <button class="articles-type-tab" :class="articlesTypeFilter==='전체' ? 'active' : ''"
+                    @click="articlesTypeFilter='전체'">
+              전체 <span x-text="articlesPageItems('전체').length + '건'"></span>
+            </button>
+            <button class="articles-type-tab" :class="articlesTypeFilter==='보도자료' ? 'active' : ''"
+                    @click="articlesTypeFilter='보도자료'">
+              보도자료 <span x-text="articlesPageItems('보도자료').length + '건'"></span>
+            </button>
+            <button class="articles-type-tab tab-news" :class="articlesTypeFilter==='언론기사' ? 'active tab-news' : ''"
+                    @click="articlesTypeFilter='언론기사'">
+              언론기사 <span x-text="articlesPageItems('언론기사').length + '건'"></span>
+            </button>
+          </div>
+
+          <!-- 필터 바 -->
+          <div class="articles-filter-bar">
+            <button class="pri-btn" :class="articlesPriFilter==='' ? 'active-mid' : ''"
+                    @click="articlesPriFilter=''">전체</button>
+            <button class="pri-btn" :class="articlesPriFilter==='상' ? 'active-high' : ''"
+                    @click="articlesPriFilter='상'">상</button>
+            <button class="pri-btn" :class="articlesPriFilter==='중' ? 'active-mid' : ''"
+                    @click="articlesPriFilter='중'">중</button>
+            <button class="pri-btn" :class="articlesPriFilter==='하' ? 'active-low' : ''"
+                    @click="articlesPriFilter='하'">하</button>
+            <div class="articles-search">
+              <span style="font-size:12px;color:var(--t3)">🔍</span>
+              <input type="text" x-model="articlesSearchQ" placeholder="기사 검색..." />
+              <template x-if="articlesSearchQ">
+                <span @click="articlesSearchQ=''" style="cursor:pointer;color:var(--t3);font-size:11px">✕</span>
+              </template>
+            </div>
+            <span class="articles-count" x-text="articlesFiltered.length + '건'"></span>
+          </div>
+
+          <!-- 기사 목록 -->
+          <template x-if="articlesFiltered.length === 0">
+            <div class="empty-list">수집된 기사가 없습니다</div>
+          </template>
+          <div class="article-list">
+            <template x-for="a in articlesFiltered" :key="a._uid">
+              <div class="article-row">
+                <div class="row-top">
+                  <span class="cal-type-badge"
+                        :class="sourceType(a)==='언론기사' ? 'cal-type-언론기사' : 'cal-type-보도자료'"
+                        x-text="sourceType(a)"></span>
+                  <span class="agency-badge"
+                        :class="articlesCategory==='데이터' ? 'badge-data'
+                              : articlesCategory==='페이먼트' ? 'badge-pay' : 'badge-aml'"
+                        x-text="a['기관']"></span>
+                  <span class="pri-badge"
+                        :class="a['우선순위']==='상' ? 'pri-high' : a['우선순위']==='하' ? 'pri-low' : 'pri-mid'"
+                        x-text="a['우선순위'] || '중'"></span>
+                  <span class="row-date" x-text="a['날짜']"></span>
+                </div>
+                <div class="row-title" x-html="highlightQ(a['제목'], articlesSearchQ)"></div>
+                <div class="row-lead" x-html="highlightQ(a['내용'], articlesSearchQ)"></div>
+                <div class="row-bottom">
+                  <a x-show="a['링크']" :href="a['링크']" target="_blank"
+                     rel="noopener noreferrer" class="link-btn">원문</a>
+                  <button class="row-btn" :disabled="formatting"
+                          @click="formatSingle(a._idx, articlesCategory)">
+                    <span x-text="(formattingIdx===a._uid && formatting) ? '...' : '요약'"></span>
+                  </button>
+                </div>
+              </div>
+            </template>
+          </div>
+
+        </div>
       </template>
 
       <!-- ══ HISTORY ══ -->
@@ -2017,6 +2184,12 @@
       pptReadyUid: null,
       generatingUid: null,
 
+      // 아티클 전체 목록 페이지
+      articlesCategory: '데이터',
+      articlesTypeFilter: '전체',
+      articlesPriFilter: '',
+      articlesSearchQ: '',
+
       // 법규/정책 탭
       policyTab: 'dashboard',
       policyItems: [],
@@ -2192,6 +2365,36 @@
         if (cat === '페이먼트') return 'tag-pay';
         if (cat === 'AML') return 'tag-aml';
         return 'tag-data';
+      },
+
+      openArticlesPage(cat) {
+        this.articlesCategory = cat;
+        this.articlesTypeFilter = '전체';
+        this.articlesPriFilter = '';
+        this.articlesSearchQ = '';
+        this.currentPage = 'articles';
+      },
+
+      articlesPageItems(typeFilter) {
+        return (this.allArticles[this.articlesCategory] || [])
+          .map((a, i) => ({ ...a, _idx: i, _cat: this.articlesCategory, _uid: `${this.articlesCategory}-${i}` }))
+          .filter(a => typeFilter === '전체' || this.sourceType(a) === typeFilter);
+      },
+
+      get articlesFiltered() {
+        let items = this.articlesPageItems(this.articlesTypeFilter);
+        if (this.articlesPriFilter) items = items.filter(a => a['우선순위'] === this.articlesPriFilter);
+        const q = this.articlesSearchQ.trim().toLowerCase();
+        if (q) items = items.filter(a =>
+          (a['제목']||'').toLowerCase().includes(q) || (a['내용']||'').toLowerCase().includes(q)
+        );
+        return items;
+      },
+
+      highlightQ(text, q) {
+        if (!q || !text) return text || '';
+        const escaped = q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        return text.replace(new RegExp(escaped, 'gi'), m => `<mark>${m}</mark>`);
       },
 
       switchCategory(key) {
