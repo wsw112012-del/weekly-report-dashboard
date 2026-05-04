@@ -745,6 +745,142 @@
     .policy-cal-meta { font-size: 11px; color: var(--t3); margin-bottom: 2px; }
     .policy-cal-action { font-size: 11px; color: var(--t2); }
 
+    /* ── 대응 캘린더 (2분할 레이아웃) ── */
+    .cal-layout {
+      display: flex; gap: 18px; align-items: flex-start; min-height: 480px;
+    }
+    /* 왼쪽: 달력 */
+    .cal-left {
+      width: 300px; flex-shrink: 0;
+      background: #fff; border: 1px solid var(--bd); border-radius: 12px;
+      overflow: hidden; box-shadow: var(--sh-sm);
+    }
+    .cal-nav {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 12px 14px; border-bottom: 1px solid var(--bd);
+      background: #fff;
+    }
+    .cal-nav-btn {
+      width: 28px; height: 28px; border-radius: 6px;
+      border: 1px solid var(--bd); background: #f8faff;
+      color: var(--t2); font-size: 15px; font-weight: 700;
+      cursor: pointer; display: flex; align-items: center; justify-content: center;
+      transition: all .15s; padding: 0;
+    }
+    .cal-nav-btn:hover { background: var(--accent-lt); color: var(--accent); border-color: var(--accent2); }
+    .cal-nav-title { font-size: 14px; font-weight: 700; color: var(--t1); }
+
+    .cal-grid {
+      display: grid; grid-template-columns: repeat(7, 1fr);
+      padding: 8px 6px 6px;
+    }
+    .cal-weekday {
+      text-align: center; font-size: 10px; font-weight: 700;
+      color: var(--t3); padding: 4px 0 8px;
+    }
+    .cal-weekday:first-child { color: #ef4444; }
+    .cal-weekday:last-child  { color: #3b82f6; }
+
+    .cal-day {
+      display: flex; flex-direction: column; align-items: center;
+      padding: 4px 2px; border-radius: 8px; cursor: pointer;
+      transition: background .12s; min-height: 40px; position: relative;
+    }
+    .cal-day:hover:not(.cal-day-empty) { background: #f1f5f9; }
+    .cal-day.cal-day-empty { cursor: default; }
+    .cal-day-num {
+      font-size: 12px; font-weight: 500; color: var(--t2); line-height: 1.6;
+    }
+    .cal-day:nth-child(7n+1) .cal-day-num { color: #ef4444; }
+    .cal-day:nth-child(7n)   .cal-day-num { color: #3b82f6; }
+    .cal-day.cal-day-today .cal-day-num {
+      background: var(--accent2); color: #fff;
+      width: 24px; height: 24px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .cal-day.cal-day-selected:not(.cal-day-today) .cal-day-num {
+      background: var(--accent-lt); color: var(--accent);
+      width: 24px; height: 24px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center; font-weight: 700;
+    }
+    .cal-dots {
+      display: flex; gap: 2px; flex-wrap: wrap; justify-content: center;
+      max-width: 28px; margin-top: 2px;
+    }
+    .cal-dot {
+      width: 5px; height: 5px; border-radius: 50%; background: var(--accent2); flex-shrink: 0;
+    }
+    .cal-dot.dot-pay { background: var(--pay-color); }
+    .cal-dot.dot-aml { background: var(--aml-color); }
+    .cal-dot.dot-policy { background: #7c3aed; }
+
+    .cal-today-btn {
+      display: block; width: 100%; padding: 11px;
+      background: #f8faff; border: none; border-top: 1px solid var(--bd);
+      font-size: 12px; font-weight: 600; color: var(--t2);
+      cursor: pointer; transition: all .15s; text-align: center;
+    }
+    .cal-today-btn:hover { background: var(--accent-lt); color: var(--accent); }
+
+    /* 오른쪽: 필터 + 목록 */
+    .cal-right {
+      flex: 1; min-width: 0;
+      display: flex; flex-direction: column; gap: 12px;
+    }
+    .cal-filter-bar {
+      display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+      background: #fff; border: 1px solid var(--bd); border-radius: 10px;
+      padding: 10px 14px;
+    }
+    .cal-cat-chips { display: flex; gap: 5px; flex-wrap: wrap; }
+    .cal-date-header {
+      font-size: 13px; font-weight: 700; color: var(--t1);
+      padding: 2px 0;
+    }
+    .cal-date-count { font-size: 11px; color: var(--t3); margin-left: 6px; }
+    .cal-items-wrap {
+      display: flex; flex-direction: column; gap: 8px;
+    }
+    .cal-item-card {
+      background: #fff; border: 1px solid var(--bd); border-radius: 10px;
+      padding: 12px 14px; box-shadow: var(--sh-sm);
+      transition: box-shadow .15s, border-color .15s;
+    }
+    .cal-item-card:hover { box-shadow: var(--sh); border-color: var(--bd2); }
+    .cal-item-top {
+      display: flex; align-items: center; gap: 7px; margin-bottom: 6px; flex-wrap: wrap;
+    }
+    .cal-type-badge {
+      font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 4px;
+      color: #fff; flex-shrink: 0;
+    }
+    .cal-type-시행  { background: #16a34a; }
+    .cal-type-공포  { background: #7c3aed; }
+    .cal-type-보도  { background: var(--accent2); }
+    .cal-org-badge {
+      font-size: 10px; font-weight: 600; padding: 2px 8px; border-radius: 4px;
+      background: #f1f5f9; color: var(--t2); flex-shrink: 0;
+    }
+    .cal-item-title {
+      font-size: 13px; font-weight: 700; color: var(--t1);
+      line-height: 1.45; margin-bottom: 5px;
+    }
+    .cal-item-summary {
+      font-size: 11px; color: var(--t2); line-height: 1.6;
+      display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+      margin-bottom: 6px;
+    }
+    .cal-item-foot {
+      display: flex; align-items: center; gap: 8px;
+    }
+    .cal-status-badge {
+      font-size: 10px; font-weight: 600; padding: 2px 8px; border-radius: 10px;
+    }
+    .cal-empty {
+      padding: 48px; text-align: center; font-size: 13px; color: var(--t3);
+      background: #fafbff; border: 1px dashed var(--bd); border-radius: 10px;
+    }
+
     /* 폼 */
     .policy-form-label {
       display: block; font-size: 11px; font-weight: 600; color: var(--t2);
@@ -1221,31 +1357,105 @@
 
           <!-- ── 대응 캘린더 ── -->
           <template x-if="policyTab==='calendar'">
-            <div>
-              <div class="policy-empty" x-show="policyCalendarItems.length===0">
-                트래킹 중인 정책 중 날짜가 설정된 항목이 없습니다.
-              </div>
-              <template x-for="group in policyCalendarGroups" :key="group.name">
-                <template x-if="group.items.length > 0">
-                  <div>
-                    <div class="policy-cal-group-title" :style="'color:' + group.color + ';border-color:' + group.color + '44'"
-                         x-text="group.name + ' (' + group.items.length + '건)'"></div>
-                    <template x-for="item in group.items" :key="item.key">
-                      <div class="policy-cal-item">
-                        <div class="policy-cal-dday" :style="'color:' + group.color" x-text="item.dday"></div>
-                        <div class="policy-cal-label" x-text="item.label"></div>
-                        <div class="policy-cal-body">
-                          <div class="policy-cal-name" x-text="item['정책명']"></div>
-                          <div class="policy-cal-meta" x-text="item['주무부처'] + ' · 담당: ' + (item['담당부서']||'-') + ' · ' + item.date"></div>
-                          <div class="policy-cal-action" x-text="(item['쿠콘액션']||'').slice(0,120)"></div>
+            <div class="cal-layout">
+
+              <!-- ▌왼쪽: 달력 -->
+              <div class="cal-left">
+                <!-- 월 네비게이션 -->
+                <div class="cal-nav">
+                  <button class="cal-nav-btn" @click="calPrevMonth()">‹</button>
+                  <span class="cal-nav-title">
+                    <span x-text="calMonth + '월'"></span>
+                    <span x-text="' ' + calYear + '년'" style="color:var(--t3);font-size:12px;font-weight:600"></span>
+                  </span>
+                  <button class="cal-nav-btn" @click="calNextMonth()">›</button>
+                </div>
+
+                <!-- 요일 헤더 + 날짜 그리드 -->
+                <div class="cal-grid">
+                  <template x-for="wd in ['일','월','화','수','목','금','토']" :key="wd">
+                    <div class="cal-weekday" x-text="wd"></div>
+                  </template>
+                  <template x-for="(cell, idx) in calDays" :key="idx">
+                    <div class="cal-day"
+                      :class="{
+                        'cal-day-empty':    !cell,
+                        'cal-day-today':     cell && cell.dateStr === _calTodayStr(),
+                        'cal-day-selected':  cell && cell.dateStr === calSelectedDate
+                      }"
+                      @click="cell && (calSelectedDate = cell.dateStr)">
+                      <span class="cal-day-num" x-text="cell ? cell.d : ''"></span>
+                      <template x-if="cell && calMonthEventDates.has(cell.dateStr)">
+                        <div class="cal-dots">
+                          <span class="cal-dot"></span>
                         </div>
-                        <span class="policy-badge" :style="policyImpactStyle(item['영향도'])" x-text="item['영향도']"></span>
-                      </div>
+                      </template>
+                    </div>
+                  </template>
+                </div>
+
+                <!-- 오늘 버튼 -->
+                <button class="cal-today-btn" @click="calGoToday()">오늘 일정 보기</button>
+              </div>
+
+              <!-- ▌오른쪽: 필터 + 목록 -->
+              <div class="cal-right">
+
+                <!-- 필터 바 -->
+                <div class="cal-filter-bar">
+                  <select class="policy-select" x-model="calFilterOrg">
+                    <option value="">기관 전체</option>
+                    <template x-for="org in calOrgList" :key="org">
+                      <option :value="org" x-text="org"></option>
                     </template>
+                  </select>
+                  <div class="cal-cat-chips">
+                    <button class="kw-chip" :class="calFilterCat==='' ? 'active' : ''" @click="calFilterCat=''">전체</button>
+                    <button class="kw-chip" :class="calFilterCat==='데이터' ? 'active' : ''" @click="calFilterCat='데이터'">데이터</button>
+                    <button class="kw-chip pay-chip" :class="calFilterCat==='페이먼트' ? 'active pay-chip' : ''" @click="calFilterCat='페이먼트'">페이먼트</button>
+                    <button class="kw-chip aml-chip" :class="calFilterCat==='AML' ? 'active aml-chip' : ''" @click="calFilterCat='AML'">AML</button>
                   </div>
-                </template>
-              </template>
-            </div>
+                </div>
+
+                <!-- 선택일 헤더 -->
+                <div>
+                  <span class="cal-date-header" x-text="calSelectedDate ? calSelectedDate + ' 입법/정책 일정' : '날짜를 선택하세요'"></span>
+                  <span class="cal-date-count" x-text="calSelectedItems.length + '건'"></span>
+                </div>
+
+                <!-- 일정 목록 -->
+                <div class="cal-items-wrap">
+                  <template x-if="calSelectedItems.length === 0">
+                    <div class="cal-empty">
+                      <div style="font-size:20px;margin-bottom:8px">📭</div>
+                      <div x-text="calSelectedDate ? '해당 날짜에 입법/정책 일정이 없습니다.' : '달력에서 날짜를 선택해주세요.'"></div>
+                    </div>
+                  </template>
+                  <template x-for="(item, i) in calSelectedItems" :key="i">
+                    <div class="cal-item-card">
+                      <div class="cal-item-top">
+                        <span class="cal-type-badge" :class="'cal-type-' + item.eventType" x-text="item.eventType"></span>
+                        <span class="cal-org-badge" x-text="item.org"></span>
+                        <span class="policy-badge"
+                          :style="item.cat==='AML' ? 'background:var(--aml-lt);color:var(--aml-color);border:1px solid rgba(185,28,28,.2)'
+                                : item.cat==='페이먼트' ? 'background:var(--pay-lt);color:var(--pay-color);border:1px solid rgba(15,118,110,.2)'
+                                : 'background:var(--accent-lt);color:var(--accent);border:1px solid rgba(37,99,235,.2)'"
+                          x-text="item.cat"></span>
+                        <template x-if="item.status">
+                          <span class="cal-status-badge" :style="policyStatusStyle(item.status)" x-text="item.status"></span>
+                        </template>
+                      </div>
+                      <div class="cal-item-title" x-text="item.title"></div>
+                      <div class="cal-item-summary" x-text="item.summary" x-show="item.summary"></div>
+                      <div class="cal-item-foot">
+                        <a x-show="item.link" :href="item.link" target="_blank" class="link-btn">원문</a>
+                      </div>
+                    </div>
+                  </template>
+                </div>
+
+              </div><!-- /cal-right -->
+            </div><!-- /cal-layout -->
           </template>
 
         </div>
@@ -1480,6 +1690,16 @@
       showPolicyForm: false,
       policyFormData: {},
 
+      // 대응 캘린더
+      calYear:  new Date().getFullYear(),
+      calMonth: new Date().getMonth() + 1,
+      calSelectedDate: (() => {
+        const n = new Date();
+        return `${n.getFullYear()}-${String(n.getMonth()+1).padStart(2,'0')}-${String(n.getDate()).padStart(2,'0')}`;
+      })(),
+      calFilterOrg: '',
+      calFilterCat: '',
+
       _applyFilters(list) {
         if (this.articleType !== '전체') {
           list = list.filter(a => this.sourceType(a) === this.articleType);
@@ -1590,6 +1810,98 @@
           t = t.replace(new RegExp(esc,'gi'), m => `<mark>${m}</mark>`);
         });
         return t;
+      },
+
+      // ── 대응 캘린더 computed + methods ──
+      _calLegKw: ['개정','시행','제정','법률','법안','입법','고시','훈령','규제','의무화','제도','금지','처벌','과태료'],
+
+      _calTodayStr() {
+        const n = new Date();
+        return `${n.getFullYear()}-${String(n.getMonth()+1).padStart(2,'0')}-${String(n.getDate()).padStart(2,'0')}`;
+      },
+      _areaToCat(area) {
+        const MAP = { 'AML/KYC':'AML','PG/결제':'페이먼트','스크래핑':'페이먼트','가상자산':'페이먼트' };
+        return MAP[area] || '데이터';
+      },
+      calPrevMonth() {
+        if (this.calMonth === 1) { this.calYear--; this.calMonth = 12; }
+        else this.calMonth--;
+      },
+      calNextMonth() {
+        if (this.calMonth === 12) { this.calYear++; this.calMonth = 1; }
+        else this.calMonth++;
+      },
+      calGoToday() {
+        const n = new Date();
+        this.calYear = n.getFullYear(); this.calMonth = n.getMonth() + 1;
+        this.calSelectedDate = this._calTodayStr();
+      },
+
+      get calDays() {
+        const firstDay = new Date(this.calYear, this.calMonth - 1, 1).getDay();
+        const daysInMonth = new Date(this.calYear, this.calMonth, 0).getDate();
+        const cells = [];
+        for (let i = 0; i < firstDay; i++) cells.push(null);
+        for (let d = 1; d <= daysInMonth; d++) {
+          const mm = String(this.calMonth).padStart(2,'0'), dd = String(d).padStart(2,'0');
+          cells.push({ d, dateStr: `${this.calYear}-${mm}-${dd}` });
+        }
+        return cells;
+      },
+
+      get calMonthEventDates() {
+        const set = new Set();
+        const prefix = `${this.calYear}-${String(this.calMonth).padStart(2,'0')}`;
+        for (const p of this.policyItems) {
+          if ((p['시행일']||'').startsWith(prefix)) set.add(p['시행일']);
+          if ((p['공포일']||'').startsWith(prefix)) set.add(p['공포일']);
+        }
+        for (const arts of Object.values(this.allArticles)) {
+          for (const a of arts) {
+            const d = a['날짜']||'';
+            if (!d.startsWith(prefix)) continue;
+            if (this._calLegKw.some(kw => (a['제목']||'').includes(kw))) set.add(d);
+          }
+        }
+        return set;
+      },
+
+      get calSelectedItems() {
+        const date = this.calSelectedDate;
+        if (!date) return [];
+        const items = [];
+        for (const p of this.policyItems) {
+          let eventType = null;
+          if (p['시행일'] === date) eventType = '시행';
+          else if (p['공포일'] === date) eventType = '공포';
+          if (!eventType) continue;
+          const cat = this._areaToCat(p['사업영역']);
+          if (this.calFilterCat && cat !== this.calFilterCat) continue;
+          if (this.calFilterOrg && p['주무부처'] !== this.calFilterOrg) continue;
+          items.push({ eventType, cat, org: p['주무부처']||'', title: p['정책명']||'', summary: p['핵심내용']||'', link: p['출처URL']||'', status: p['상태']||'' });
+        }
+        for (const [cat, arts] of Object.entries(this.allArticles)) {
+          for (const a of arts) {
+            if ((a['날짜']||'') !== date) continue;
+            if (!this._calLegKw.some(kw => (a['제목']||'').includes(kw))) continue;
+            if (this.calFilterCat && cat !== this.calFilterCat) continue;
+            if (this.calFilterOrg && a['기관'] !== this.calFilterOrg) continue;
+            items.push({ eventType: '보도', cat, org: a['기관']||'', title: a['제목']||'', summary: (a['내용']||'').slice(0,200), link: a['링크']||'', status: '' });
+          }
+        }
+        return items;
+      },
+
+      get calOrgList() {
+        const orgs = new Set();
+        for (const p of this.policyItems) { if (p['주무부처']) orgs.add(p['주무부처']); }
+        for (const arts of Object.values(this.allArticles)) {
+          for (const a of arts) {
+            const org = a['기관']||'';
+            if (org && org !== '네이버뉴스') orgs.add(org);
+          }
+        }
+        return [...orgs].sort();
       },
 
       // 법규/정책 computed
