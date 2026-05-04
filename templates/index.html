@@ -1050,6 +1050,27 @@
     }
     .home-more-btn:hover { background: var(--accent-lt); color: var(--accent); }
 
+    /* ── HOME 달력 + 오늘 보도자료 2분할 ── */
+    .home-cal-layout {
+      display: flex; gap: 18px; align-items: flex-start; margin-bottom: 16px;
+    }
+    .home-daily-right {
+      flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 10px;
+    }
+    .home-daily-header {
+      display: flex; align-items: center; gap: 8px;
+      padding: 10px 14px; background: #fff;
+      border: 1px solid var(--bd); border-radius: 10px;
+    }
+    .home-daily-date { font-size: 13px; font-weight: 700; color: var(--t1); flex: 1; }
+    .home-daily-group { display: flex; flex-direction: column; gap: 6px; }
+    .home-daily-cat-label {
+      font-size: 11px; font-weight: 700; padding: 3px 0 5px;
+      border-bottom: 1px solid var(--bd); margin-bottom: 2px;
+    }
+    .cal-type-보도자료 { background: var(--accent2); }
+    .cal-type-언론기사 { background: #6d28d9; }
+
     /* ── 정책DB 사업영역별 3열 그리드 ── */
     .policy-db-grid {
       display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px;
@@ -1243,48 +1264,73 @@
             </div>
           </div>
 
-          <!-- Featured 기사 + 키워드 칩 -->
-          <div class="home-main-layout">
-            <div class="home-feed">
-              <template x-if="featuredArticle">
-                <div class="home-featured-card" :style="`border-left-color: ${featuredBorderColor}`">
-                  <div class="art-card-top">
-                    <span class="agency-badge"
-                          :class="sourceType(featuredArticle)==='언론기사' ? 'badge-news' : badgeClass(featuredArticle._cat)"
-                          x-text="featuredArticle['기관']"></span>
-                    <span class="pri-badge"
-                          :class="featuredArticle['우선순위']==='상' ? 'pri-high' : featuredArticle['우선순위']==='하' ? 'pri-low' : 'pri-mid'"
-                          x-text="featuredArticle['우선순위'] || '중'"></span>
-                    <span class="cat-tag" :class="tagClass(featuredArticle._cat)" x-text="featuredArticle._cat"></span>
-                  </div>
-                  <div class="home-featured-title" x-html="highlight(featuredArticle['제목'])"></div>
-                  <div class="home-featured-lead" x-html="highlight(featuredArticle['내용'])"></div>
-                  <div class="art-card-foot">
-                    <span class="art-card-date" x-text="featuredArticle['날짜']"></span>
-                    <div class="art-card-btns">
-                      <a x-show="featuredArticle['링크']" :href="featuredArticle['링크']" target="_blank"
-                         rel="noopener noreferrer" @click.stop class="link-btn">원문</a>
-                      <button class="row-btn" :disabled="formatting"
-                        @click="formatSingle(featuredArticle._idx, featuredArticle._cat)">
-                        <span x-text="(formattingIdx === featuredArticle._uid && formatting) ? '요약 중...' : '요약하기'"></span>
-                      </button>
+          <!-- 달력 + 오늘 우선:상 보도자료 2분할 -->
+          <div class="home-cal-layout">
+
+            <!-- 왼쪽: 월간 달력 -->
+            <div class="cal-left">
+              <div class="cal-nav">
+                <button class="cal-nav-btn" @click="calPrevMonth()">‹</button>
+                <span class="cal-nav-title" x-text="`${calYear}년 ${calMonth}월`"></span>
+                <button class="cal-nav-btn" @click="calNextMonth()">›</button>
+              </div>
+              <div class="cal-grid">
+                <template x-for="d in ['일','월','화','수','목','금','토']" :key="d">
+                  <div class="cal-weekday" x-text="d"></div>
+                </template>
+                <template x-for="(cell, idx) in calDays" :key="idx">
+                  <div class="cal-day"
+                       :class="{
+                         'cal-day-empty':    cell === null,
+                         'cal-day-today':    cell !== null && cell.dateStr === _calTodayStr(),
+                         'cal-day-selected': cell !== null && cell.dateStr === calSelectedDate && cell.dateStr !== _calTodayStr()
+                       }"
+                       @click="cell !== null && (calSelectedDate = cell.dateStr)">
+                    <span class="cal-day-num" x-text="cell ? cell.d : ''"></span>
+                    <div class="cal-dots" x-show="cell !== null && homeCalDotDates.has(cell.dateStr)">
+                      <span class="cal-dot"></span>
                     </div>
                   </div>
-                </div>
-              </template>
-              <template x-if="!featuredArticle">
-                <div class="empty-list">수집된 보도자료가 없습니다 — 수집 시작 버튼을 눌러주세요</div>
-              </template>
-
-              <!-- 키워드 칩 -->
-              <div class="main-kw-bar" x-show="currentKeywords.length > 0">
-                <template x-for="kw in currentKeywords" :key="kw">
-                  <span class="kw-chip"
-                        :class="[activeKeywords.includes(kw) ? 'active' : '', currentChipClass]"
-                        @click="toggleKeyword(kw)" x-text="kw"></span>
                 </template>
               </div>
+              <button class="cal-today-btn" @click="calGoToday()">오늘 일정 보기</button>
             </div>
+
+            <!-- 오른쪽: 선택일 우선:상 기사 -->
+            <div class="home-daily-right">
+              <div class="home-daily-header">
+                <span class="home-daily-date" x-text="calSelectedDate + ' — 우선순위 상 보도자료'"></span>
+              </div>
+              <template x-if="homeDailyTopItems.length === 0">
+                <div class="cal-empty">선택한 날짜에 우선순위 상 기사가 없습니다</div>
+              </template>
+              <template x-for="group in homeDailyTopItems" :key="group.cat">
+                <div class="home-daily-group">
+                  <div class="home-daily-cat-label" :class="'kc-' + group.cat" x-text="group.cat"></div>
+                  <template x-for="a in group.items" :key="a._uid">
+                    <div class="cal-item-card">
+                      <div class="cal-item-top">
+                        <span class="cal-type-badge"
+                              :class="sourceType(a)==='언론기사' ? 'cal-type-언론기사' : 'cal-type-보도자료'"
+                              x-text="sourceType(a)"></span>
+                        <span class="cal-org-badge" x-text="a['기관']"></span>
+                      </div>
+                      <div class="cal-item-title" x-html="highlight(a['제목'])"></div>
+                      <div class="cal-item-summary" x-html="highlight(a['내용'])"></div>
+                      <div class="cal-item-foot">
+                        <a x-show="a['링크']" :href="a['링크']" target="_blank"
+                           rel="noopener noreferrer" @click.stop class="link-btn">원문</a>
+                        <button class="row-btn" :disabled="formatting"
+                          @click="formatSingle(a._idx, a._cat)">
+                          <span x-text="(formattingIdx === a._uid && formatting) ? '...' : '요약'"></span>
+                        </button>
+                      </div>
+                    </div>
+                  </template>
+                </div>
+              </template>
+            </div>
+
           </div>
 
           <!-- 하단 3열: 카테고리별 최신 기사 -->
@@ -2018,6 +2064,30 @@
       get newsCount() {
         return ['데이터','페이먼트','AML'].reduce((s, cat) =>
           s + (this.allArticles[cat] || []).filter(a => this.sourceType(a) === '언론기사').length, 0);
+      },
+      get homeDailyTopItems() {
+        const date = this.calSelectedDate;
+        if (!date) return [];
+        const result = [];
+        for (const cat of ['데이터', '페이먼트', 'AML']) {
+          const items = (this.allArticles[cat] || [])
+            .filter(a => (a['날짜']||'').startsWith(date) && a['우선순위'] === '상')
+            .slice(0, 3)
+            .map((a, i) => ({ ...a, _idx: i, _cat: cat, _uid: `${cat}-${i}` }));
+          if (items.length > 0) result.push({ cat, items });
+        }
+        return result;
+      },
+      get homeCalDotDates() {
+        const set = new Set();
+        const prefix = `${this.calYear}-${String(this.calMonth).padStart(2,'0')}`;
+        for (const arts of Object.values(this.allArticles)) {
+          for (const a of arts) {
+            const d = a['날짜'] || '';
+            if (d.startsWith(prefix) && a['우선순위'] === '상') set.add(d);
+          }
+        }
+        return set;
       },
       get catGridStyle() {
         if (this.activeCategory === '전체') return 'grid-template-columns: repeat(3, 1fr)';
