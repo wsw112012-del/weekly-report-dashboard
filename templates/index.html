@@ -579,6 +579,27 @@
     .policy-article-row { cursor: pointer; }
     .policy-notice { font-size: 11px; color: var(--t3); margin-left: 8px; }
 
+    /* 간트 연도 네비게이션 */
+    .gantt-year-nav { display: flex; align-items: center; gap: 6px; margin-left: 4px; }
+    .gantt-year-btn {
+      width: 22px; height: 22px; border-radius: 5px;
+      border: 1px solid var(--bd); background: #f8faff;
+      color: var(--t2); font-size: 13px; font-weight: 700;
+      cursor: pointer; display: flex; align-items: center; justify-content: center;
+      transition: all .15s; padding: 0;
+    }
+    .gantt-year-btn:hover { background: var(--accent-lt); color: var(--accent); border-color: var(--accent2); }
+    .gantt-year-label { font-size: 13px; font-weight: 700; color: var(--t1); min-width: 42px; text-align: center; }
+
+    /* 범례 */
+    .gantt-legend {
+      display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px;
+    }
+    .gantt-legend-item {
+      font-size: 10px; font-weight: 700; color: #fff;
+      padding: 2px 10px; border-radius: 20px;
+    }
+
     /* ── 법규/정책 관리 시스템 ── */
     /* 서브탭 */
     .policy-subtabs {
@@ -1039,6 +1060,66 @@
                 </div>
               </div>
 
+              <!-- 연간 간트 차트 -->
+              <div class="policy-section-title" style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
+                📅 연간 정책 시행 현황
+                <div class="gantt-year-nav">
+                  <button class="gantt-year-btn" @click="policyGanttYear--">‹</button>
+                  <span class="gantt-year-label" x-text="policyGanttYear + '년'"></span>
+                  <button class="gantt-year-btn" @click="policyGanttYear++">›</button>
+                </div>
+              </div>
+
+              <!-- 범례 -->
+              <div class="gantt-legend">
+                <span class="gantt-legend-item" style="background:#94a3b8">이미 지남</span>
+                <span class="gantt-legend-item" style="background:#16a34a">시행 중</span>
+                <span class="gantt-legend-item" style="background:#dc2626">D-30 이내</span>
+                <span class="gantt-legend-item" style="background:#d97706">D-90 이내</span>
+                <span class="gantt-legend-item" style="background:#2563eb">시행 예정</span>
+                <span class="gantt-legend-item" style="background:#7c3aed">계류/입법예정</span>
+              </div>
+
+              <div class="gantt-card" style="margin-bottom:24px">
+                <!-- 월 헤더 -->
+                <div class="gantt-header">
+                  <div class="gantt-row-label"><span class="gantt-label-text" style="color:var(--t3)">구분</span></div>
+                  <template x-for="m in 12" :key="m">
+                    <div class="gantt-month-cell"
+                      :style="m === policyGanttCurrentMonth ? 'background:var(--accent-lt);color:var(--accent);font-weight:800' : ''"
+                      x-text="m + '월'"></div>
+                  </template>
+                </div>
+                <!-- 데이터 / 페이먼트 / AML 행 -->
+                <template x-for="row in policyGanttRows" :key="row.cat">
+                  <div class="gantt-row">
+                    <div class="gantt-row-label">
+                      <span class="gantt-label-text"
+                        :style="row.cat==='데이터'?'color:var(--accent)':row.cat==='페이먼트'?'color:var(--pay-color)':'color:var(--aml-color)'"
+                        x-text="row.cat"></span>
+                    </div>
+                    <template x-for="m in 12" :key="m">
+                      <div class="gantt-cell"
+                        :style="m === policyGanttCurrentMonth ? 'background:rgba(37,99,235,.04)' : ''">
+                        <template x-for="p in row.byMonth[m]" :key="p.id">
+                          <div class="gantt-pill"
+                            :style="ganttPillStyle(p)"
+                            :title="p['정책명'] + '\n상태: ' + p['상태'] + '\n시행일: ' + p['시행일']"
+                            x-text="p['정책명'].length > 9 ? p['정책명'].slice(0,9)+'…' : p['정책명']">
+                          </div>
+                        </template>
+                      </div>
+                    </template>
+                  </div>
+                </template>
+                <!-- 데이터 없을 때 -->
+                <template x-if="!policyGanttHasData">
+                  <div style="padding:20px;text-align:center;font-size:12px;color:var(--t3)">
+                    <span x-text="policyGanttYear + '년 시행일이 설정된 정책이 없습니다.'"></span>
+                  </div>
+                </template>
+              </div>
+
               <!-- D-day 알림 -->
               <div class="policy-section-title">📢 시행일 임박 알림 (180일 이내)</div>
               <template x-if="policyDdayAlerts.length === 0">
@@ -1391,6 +1472,7 @@
       // 법규/정책 탭
       policyTab: 'dashboard',
       policyItems: [],
+      policyGanttYear: new Date().getFullYear(),
       policyFilterArea: '',
       policyFilterImpact: '',
       policyFilterStatus: '',
@@ -1511,6 +1593,46 @@
       },
 
       // 법규/정책 computed
+      get policyGanttRows() {
+        const AREA_TO_CAT = {
+          'AML/KYC': 'AML',
+          'PG/결제': '페이먼트', '스크래핑': '페이먼트', '가상자산': '페이먼트',
+        };
+        const getCat = area => AREA_TO_CAT[area] || '데이터';
+        const yr = this.policyGanttYear;
+        return ['데이터', '페이먼트', 'AML'].map(cat => {
+          const byMonth = {};
+          for (let m = 1; m <= 12; m++) byMonth[m] = [];
+          for (const p of this.policyItems) {
+            if (getCat(p['사업영역']) !== cat) continue;
+            const d = p['시행일'];
+            if (!d) continue;
+            const [y, m] = d.split('-').map(Number);
+            if (y === yr && m >= 1 && m <= 12) byMonth[m].push(p);
+          }
+          return { cat, byMonth };
+        });
+      },
+      get policyGanttHasData() {
+        return this.policyGanttRows.some(row =>
+          Object.values(row.byMonth).some(arr => arr.length > 0)
+        );
+      },
+      get policyGanttCurrentMonth() {
+        const now = new Date();
+        return now.getFullYear() === this.policyGanttYear ? now.getMonth() + 1 : -1;
+      },
+      ganttPillStyle(p) {
+        const n = this._daysUntil(p['시행일']);
+        const s = p['상태'];
+        if (n !== null && n < 0)                       return 'background:#94a3b8;color:#fff';
+        if (s === '시행중')                              return 'background:#16a34a;color:#fff';
+        if (s === '계류중' || s === '입법예정')           return 'background:#7c3aed;color:#fff';
+        if (s === '모니터링')                            return 'background:#64748b;color:#fff';
+        if (n !== null && n <= 30)                      return 'background:#dc2626;color:#fff';
+        if (n !== null && n <= 90)                      return 'background:#d97706;color:#fff';
+        return 'background:#2563eb;color:#fff';
+      },
       get policyAreas() {
         return [...new Set(this.policyItems.map(p => p['사업영역']).filter(Boolean))].sort();
       },
