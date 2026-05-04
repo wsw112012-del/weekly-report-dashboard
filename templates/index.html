@@ -1071,6 +1071,33 @@
     .cal-type-보도자료 { background: var(--accent2); }
     .cal-type-언론기사 { background: #6d28d9; }
 
+    /* 3×3 그리드 */
+    .home-daily-3col {
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;
+    }
+    .home-daily-col { display: flex; flex-direction: column; gap: 6px; }
+    .home-daily-col-hdr {
+      font-size: 11px; font-weight: 700; text-align: center;
+      padding: 6px 8px; border-radius: 7px;
+      background: #f1f5f9; border: 1px solid var(--bd);
+    }
+    .home-daily-mini-card {
+      background: #fff; border: 1px solid var(--bd); border-radius: 8px;
+      padding: 9px 11px; display: flex; flex-direction: column; gap: 4px;
+      transition: box-shadow .12s, border-color .12s;
+    }
+    .home-daily-mini-card:hover { box-shadow: var(--sh); border-color: var(--bd2); }
+    .home-daily-mini-top { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
+    .home-daily-mini-title {
+      font-size: 12px; font-weight: 600; color: var(--t1); line-height: 1.4;
+      display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+    }
+    .home-daily-mini-foot { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; margin-top: 2px; }
+    .home-daily-empty-col {
+      background: #fafbff; border: 1px dashed var(--bd); border-radius: 8px;
+      padding: 20px 8px; text-align: center; font-size: 11px; color: var(--t3);
+    }
+
     /* ── 정책DB 사업영역별 3열 그리드 ── */
     .policy-db-grid {
       display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px;
