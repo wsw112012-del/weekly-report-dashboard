@@ -1662,7 +1662,8 @@
           <div class="policy-subtabs">
             <button class="policy-subtab" :class="policyTab==='dashboard' ? 'active' : ''" @click="policyTab='dashboard'">📊 대시보드</button>
             <button class="policy-subtab" :class="policyTab==='db' ? 'active' : ''" @click="policyTab='db'">📋 정책 DB</button>
-            <button class="policy-subtab" :class="policyTab==='calendar' ? 'active' : ''" @click="policyTab='calendar'">📅 대응 캘린더</button>
+            <button class="policy-subtab" :class="policyTab==='calendar' ? 'active' : ''" @click="policyTab='calendar'; loadAssembly()">📅 입법/정책 일정</button>
+            <button class="policy-subtab" :class="policyTab==='legislation' ? 'active' : ''" @click="policyTab='legislation'; loadLegislation()">📜 입법현황</button>
           </div>
 
           <!-- ── 대시보드 ── -->
@@ -1860,8 +1861,64 @@
             </div>
           </template>
 
-          <!-- ── 대응 캘린더 ── -->
+          <!-- ── 입법/정책 일정 ── -->
           <template x-if="policyTab==='calendar'">
+            <div>
+            <!-- 국회 보도자료 섹션 -->
+            <div style="margin-bottom:20px">
+              <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+                <span style="font-size:13px;font-weight:800;color:var(--t1)">🏛️ 국회·국회의원 보도자료</span>
+                <button class="collect-btn primary" style="font-size:11px;padding:5px 12px"
+                        :disabled="assemblyLoading"
+                        @click="loadAssembly(true)">
+                  <span x-text="assemblyLoading ? '수집 중...' : '새로고침'"></span>
+                </button>
+                <span style="font-size:11px;color:var(--t3)" x-text="assemblyItems.length ? assemblyItems.length + '건' : ''"></span>
+                <span style="font-size:11px;color:var(--t3);margin-left:auto" x-text="assemblyLastFetched ? '마지막 수집: ' + assemblyLastFetched : ''"></span>
+              </div>
+              <!-- 필터 -->
+              <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:10px">
+                <template x-for="gbn in ['전체','국회의원','국회','입법지원기관','정당']" :key="gbn">
+                  <button class="src-btn"
+                          :class="assemblyGbn===gbn ? 'active-press' : ''"
+                          @click="assemblyGbn=gbn"
+                          x-text="gbn"></button>
+                </template>
+                <div style="display:flex;align-items:center;gap:6px;border:1px solid var(--bd);border-radius:7px;padding:0 10px;height:30px;background:#fff;flex:1;min-width:160px">
+                  <span style="font-size:12px;color:var(--t3)">🔍</span>
+                  <input type="text" x-model="assemblySearch" placeholder="의원명·법안명 검색..."
+                         style="flex:1;border:none;outline:none;font-size:12px;font-family:inherit;background:transparent"/>
+                  <template x-if="assemblySearch">
+                    <span @click="assemblySearch=''" style="cursor:pointer;color:var(--t3);font-size:11px">✕</span>
+                  </template>
+                </div>
+              </div>
+              <!-- 목록 -->
+              <template x-if="assemblyLoading">
+                <div class="empty-list">국회 보도자료 수집 중...</div>
+              </template>
+              <template x-if="!assemblyLoading && assemblyFiltered.length===0">
+                <div class="empty-list">수집된 국회 보도자료가 없습니다.<br><small>상단 '새로고침' 버튼을 클릭해 주세요.</small></div>
+              </template>
+              <div class="article-list" x-show="!assemblyLoading && assemblyFiltered.length > 0">
+                <template x-for="a in assemblyFiltered" :key="a.seq">
+                  <div class="article-row">
+                    <div class="row-top">
+                      <span class="cal-type-badge cal-type-보도자료" x-text="a.gbn"></span>
+                      <span class="agency-badge badge-data" x-text="a.org"></span>
+                      <span class="row-date" x-text="a.date"></span>
+                    </div>
+                    <div class="row-title" x-html="highlightQ(a.title, assemblySearch)"></div>
+                    <div class="row-bottom">
+                      <a :href="'https://www.nanet.go.kr/lowcontent/assamblybodo/selectAssamblyBodoDetail.do?searchSeq=' + a.seq"
+                         target="_blank" rel="noopener noreferrer" class="link-btn">상세보기</a>
+                    </div>
+                  </div>
+                </template>
+              </div>
+            </div>
+            <hr style="border:none;border-top:1px solid var(--bd);margin-bottom:20px">
+            <!-- 기존 캘린더 -->
             <div class="cal-layout">
 
               <!-- ▌왼쪽: 달력 -->
@@ -1961,6 +2018,93 @@
 
               </div><!-- /cal-right -->
             </div><!-- /cal-layout -->
+          </template>
+
+          <!-- ── 입법현황 ── -->
+          <template x-if="policyTab==='legislation'">
+            <div>
+              <!-- 헤더 + 수집 버튼 -->
+              <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap">
+                <span style="font-size:13px;font-weight:800;color:var(--t1)">⚖️ 대상 법령 입법현황</span>
+                <button class="collect-btn primary" style="font-size:11px;padding:5px 12px"
+                        :disabled="legLoading" @click="collectLegislation()">
+                  <span x-text="legLoading ? '수집 중...' : '수집'"></span>
+                </button>
+                <span style="font-size:11px;color:var(--t3)" x-text="legItems.length ? legItems.length + '건' : ''"></span>
+                <span style="font-size:11px;color:var(--t3);margin-left:auto"
+                      x-text="legLastFetched ? '마지막 수집: ' + legLastFetched : ''"></span>
+              </div>
+
+              <!-- 필터 바 -->
+              <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;align-items:center">
+                <template x-for="c in ['전체','데이터','페이먼트','AML']" :key="c">
+                  <button class="src-btn" :class="legCat===c ? 'active-press' : ''"
+                          @click="legCat=c" x-text="c"></button>
+                </template>
+                <div style="width:1px;height:18px;background:var(--bd);margin:0 2px"></div>
+                <template x-for="s in ['전체','정부','국회']" :key="s">
+                  <button class="src-btn" :class="legSource===s ? 'active-news' : ''"
+                          @click="legSource=s" x-text="s"></button>
+                </template>
+                <div style="width:1px;height:18px;background:var(--bd);margin:0 2px"></div>
+                <div class="articles-search" style="flex:1;min-width:180px">
+                  <span style="font-size:12px;color:var(--t3)">🔍</span>
+                  <input type="text" x-model="legSearch" placeholder="법령명·상태 검색..."/>
+                  <template x-if="legSearch">
+                    <span @click="legSearch=''" style="cursor:pointer;color:var(--t3);font-size:11px">✕</span>
+                  </template>
+                </div>
+                <span class="articles-count" x-text="filteredLegislation.length + '건'"></span>
+              </div>
+
+              <!-- 대상 법령 칩 -->
+              <div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:14px">
+                <button class="src-btn" :class="legLaw==='' ? 'active-press' : ''"
+                        @click="legLaw=''" style="font-size:10px">전체 법령</button>
+                <template x-for="law in legAllLaws" :key="law">
+                  <button class="src-btn" :class="legLaw===law ? 'active-press' : ''"
+                          @click="legLaw=law" x-text="law" style="font-size:10px"></button>
+                </template>
+              </div>
+
+              <!-- 상태 -->
+              <template x-if="legLoading">
+                <div class="empty-list">입법현황 수집 중...</div>
+              </template>
+              <template x-if="!legLoading && legItems.length===0">
+                <div class="empty-list">수집된 입법현황이 없습니다.<br>
+                  <small style="font-size:11px">'수집' 버튼을 클릭해 최신 입법 데이터를 가져오세요.</small>
+                </div>
+              </template>
+
+              <!-- 목록 -->
+              <div class="article-list" x-show="!legLoading && filteredLegislation.length > 0">
+                <template x-for="a in filteredLegislation" :key="a.id">
+                  <div class="article-row">
+                    <div class="row-top">
+                      <span class="cal-type-badge"
+                            :class="a.source==='gov' ? 'cal-type-보도자료' : 'cal-type-언론기사'"
+                            x-text="a.source==='gov' ? '정부' : '국회'"></span>
+                      <span class="cat-tag"
+                            :class="a.category==='데이터' ? 'tag-data' : a.category==='페이먼트' ? 'tag-pay' : 'tag-aml'"
+                            x-text="a.category"></span>
+                      <span style="font-size:10px;color:var(--t3);font-weight:600" x-text="a.target_law"></span>
+                      <span class="pri-badge" :style="legStatusStyle(a.status)" x-text="a.status || '-'"></span>
+                      <span class="row-date" x-text="a.scraped_at"></span>
+                    </div>
+                    <div class="row-title" x-html="highlightQ(a.bill_title, legSearch)"></div>
+                    <div class="row-lead"
+                         x-show="a.ministry || a.proposer"
+                         x-text="(a.source==='gov' ? '소관: ' + a.ministry : '제안: ' + a.proposer)
+                                + (a.amendment_type ? ' · ' + a.amendment_type : '')"></div>
+                    <div class="row-bottom">
+                      <a x-show="a.link" :href="a.link" target="_blank"
+                         rel="noopener noreferrer" class="link-btn">원문</a>
+                    </div>
+                  </div>
+                </template>
+              </div>
+            </div>
           </template>
 
         </div>
@@ -2200,6 +2344,22 @@
       policySearchKw: '',
       showPolicyForm: false,
       policyFormData: {},
+
+      // 입법현황 탭
+      legItems: [],
+      legCat: '전체',
+      legSource: '전체',
+      legLaw: '',
+      legSearch: '',
+      legLoading: false,
+      legLastFetched: '',
+
+      // 입법/정책 일정 탭 — assembly 변수 초기화
+      assemblyItems: [],
+      assemblyLoading: false,
+      assemblyGbn: '전체',
+      assemblySearch: '',
+      assemblyLastFetched: '',
 
       // 대응 캘린더
       calYear:  new Date().getFullYear(),
@@ -2673,6 +2833,62 @@
         const c = {'시행중':'#16a34a','시행예정':'#dc2626','계류중':'#7c3aed','입법예정':'#7c3aed','모니터링':'#6b7280'}[val] || '#6b7280';
         return `background:${c}22;color:${c};border:1px solid ${c}44`;
       },
+      // ── 입법현황 ──
+      get legAllLaws() {
+        return [...new Set(this.legItems.map(a => a.target_law).filter(Boolean))];
+      },
+      get filteredLegislation() {
+        return this.legItems.filter(a => {
+          if (this.legCat !== '전체' && a.category !== this.legCat) return false;
+          const src = a.source === 'gov' ? '정부' : '국회';
+          if (this.legSource !== '전체' && src !== this.legSource) return false;
+          if (this.legLaw && a.target_law !== this.legLaw) return false;
+          const q = this.legSearch.trim().toLowerCase();
+          if (q && !(a.bill_title||'').toLowerCase().includes(q)
+                 && !(a.status||'').toLowerCase().includes(q)
+                 && !(a.target_law||'').toLowerCase().includes(q)) return false;
+          return true;
+        });
+      },
+      legStatusStyle(status) {
+        const map = {
+          '입법예고':'#2563eb','법제처심사':'#d97706','공포':'#16a34a',
+          '공포대기':'#16a34a','국무회의 심의':'#7c3aed','입안':'#6b7280',
+          '계류중':'#7c3aed','본회의 통과':'#16a34a','위원회 심사':'#d97706',
+          '소관위 심사':'#d97706','본회의':'#16a34a',
+        };
+        const c = map[status] || '#6b7280';
+        return `background:${c}22;color:${c};border:1px solid ${c}44`;
+      },
+      async loadLegislation() {
+        this.legLoading = true;
+        try {
+          this.legItems = await fetch('/api/legislation').then(r => r.json());
+          if (this.legItems.length) this.legLastFetched = new Date().toLocaleString('ko-KR');
+        } catch(_) { this.legItems = []; }
+        finally { this.legLoading = false; }
+      },
+      async collectLegislation() {
+        this.legLoading = true;
+        try {
+          await fetch('/api/legislation/collect', { method: 'POST' });
+          await this.loadLegislation();
+        } catch(_) {}
+        finally { this.legLoading = false; }
+      },
+
+      // ── 입법/정책 일정 (assembly) ──
+      get assemblyFiltered() {
+        return this.assemblyItems.filter(a => {
+          if (this.assemblyGbn !== '전체' && a.gbn !== this.assemblyGbn) return false;
+          const q = this.assemblySearch.trim().toLowerCase();
+          return !q || (a.title||'').toLowerCase().includes(q) || (a.org||'').toLowerCase().includes(q);
+        });
+      },
+      async loadAssembly(forceCollect = false) {
+        // nanet.go.kr 국회 보도자료 — 추후 backend 연결 예정
+      },
+
       async loadPolicy() {
         try { this.policyItems = await fetch('/api/policydb').then(r => r.json()); }
         catch(_) { this.policyItems = []; }

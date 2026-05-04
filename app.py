@@ -6,6 +6,7 @@ app.py — 주간보고 파이프라인 대시보드
 
 import asyncio
 import glob
+import hashlib
 import io
 import json
 import os
@@ -64,7 +65,21 @@ BASE_DIR     = Path(__file__).parent
 TEMPLATES    = BASE_DIR / "templates"
 MAKE_REPORT  = BASE_DIR / "make_report.py"
 COLLECT_SCR  = BASE_DIR / "collect_보도자료.py"
-HISTORY_FILE = BASE_DIR / "history.json"
+HISTORY_FILE     = BASE_DIR / "history.json"
+LEGISLATION_FILE = BASE_DIR / "legislation_status.json"
+
+LEGISLATION_TARGETS: dict[str, list[str]] = {
+    "데이터": [
+        "개인정보보호법",
+        "신용정보의 이용 및 보호에 관한 법률",
+        "정보통신망이용촉진및정보보호등에관한법률",
+    ],
+    "페이먼트": ["전자금융거래법"],
+    "AML": [
+        "특정 금융거래정보의 보고 및 이용 등에 관한 법률",
+        "공중 등 협박목적을 위한 자금조달행위의 금지에 관한 법률",
+    ],
+}
 
 _DEFAULT_PPT_PATH = Path(r"C:\Users\쿠콘_우승우\Desktop\업무\00. '26 쿠콘전략실\08. 주간보고\데이터전략센터\주간보고")
 BASE_PPT_PATH = Path(os.environ.get("PPT_OUTPUT_DIR", str(_DEFAULT_PPT_PATH)))
@@ -709,6 +724,107 @@ async def get_articles(report_type: str):
     return JSONResponse(parse_collected(report_type))
 
 
+# ── 입법현황 스크래퍼 ──────────────────────────────────────────────────────────
+
+_LAWMAKING_BASE = "https://opinion.lawmaking.go.kr"
+
+
+def _scrape_govlm(law_name: str, category: str) -> list[dict]:
+    """정부 입법현황 (govLm) POST 스크래핑"""
+    url = f"{_LAWMAKING_BASE}/lmSts/govLm"
+    try:
+        resp = _APP_SESSION.post(url,
+            data={"searchLawNm": law_name, "pageIndex": "1"},
+            headers={"Referer": url}, timeout=15)
+        resp.raise_for_status()
+    except Exception as e:
+        print(f"[WARN] govLm fetch error ({law_name}): {e}")
+        return []
+    soup = BeautifulSoup(resp.content, 'lxml')
+    items = []
+    for row in soup.select('table tbody tr'):
+        cells = row.find_all('td')
+        if len(cells) < 5:
+            continue
+        link_tag = cells[1].find('a')
+        href = (link_tag.get('href') or '') if link_tag else ''
+        bill_title = cells[1].get_text(strip=True)
+        if not bill_title:
+            continue
+        items.append({
+            "id": hashlib.md5(f"gov-{law_name}-{bill_title}".encode()).hexdigest()[:12],
+            "source": "gov",
+            "category": category,
+            "target_law": law_name,
+            "bill_title": bill_title,
+            "bill_type": cells[2].get_text(strip=True),
+            "amendment_type": cells[3].get_text(strip=True),
+            "ministry": cells[4].get_text(strip=True),
+            "status": cells[5].get_text(strip=True) if len(cells) > 5 else '',
+            "proposer": "",
+            "bill_no": "",
+            "link": (_LAWMAKING_BASE + href) if href.startswith('/') else href,
+            "scraped_at": date.today().isoformat(),
+        })
+    return items
+
+
+def _scrape_nsmlmsts(law_name: str, category: str) -> list[dict]:
+    """국회 입법현황 (nsmLmSts) POST 스크래핑"""
+    url = f"{_LAWMAKING_BASE}/gcom/nsmLmSts/out"
+    try:
+        resp = _APP_SESSION.post(url,
+            data={"searchWrd": law_name, "pageIndex": "1"},
+            headers={"Referer": url}, timeout=15)
+        resp.raise_for_status()
+    except Exception as e:
+        print(f"[WARN] nsmLmSts fetch error ({law_name}): {e}")
+        return []
+    soup = BeautifulSoup(resp.content, 'lxml')
+    kw = law_name.replace(' ', '')[:5]
+    items = []
+    for row in soup.select('table tbody tr'):
+        cells = row.find_all('td')
+        if len(cells) < 4:
+            continue
+        title = cells[0].get_text(strip=True)
+        if not title or kw not in title.replace(' ', ''):
+            continue
+        link_tag = cells[0].find('a')
+        href = (link_tag.get('href') or '') if link_tag else ''
+        bill_no = cells[5].get_text(strip=True) if len(cells) > 5 else ''
+        items.append({
+            "id": hashlib.md5(f"asm-{law_name}-{bill_no}-{title[:20]}".encode()).hexdigest()[:12],
+            "source": "assembly",
+            "category": category,
+            "target_law": law_name,
+            "bill_title": title,
+            "bill_type": "",
+            "amendment_type": "",
+            "ministry": cells[2].get_text(strip=True) if len(cells) > 2 else '',
+            "status": cells[3].get_text(strip=True) if len(cells) > 3 else '',
+            "proposer": cells[1].get_text(' ', strip=True) if len(cells) > 1 else '',
+            "bill_no": bill_no,
+            "link": (_LAWMAKING_BASE + href) if href.startswith('/') else href,
+            "scraped_at": date.today().isoformat(),
+        })
+    return items
+
+
+def collect_legislation_status() -> list[dict]:
+    """6개 대상 법령의 정부·국회 입법현황 수집"""
+    results: list[dict] = []
+    for cat, laws in LEGISLATION_TARGETS.items():
+        for law in laws:
+            gov_items = _scrape_govlm(law, cat)
+            print(f"  govLm [{law}]: {len(gov_items)}건")
+            results.extend(gov_items)
+            asm_items = _scrape_nsmlmsts(law, cat)
+            print(f"  nsmLmSts [{law}]: {len(asm_items)}건")
+            results.extend(asm_items)
+    return results
+
+
 _POLICY_COLUMNS = [
     "id","정책명","구분","주무부처","사업영역","영향도",
     "공포일","시행일","상태","핵심내용","쿠콘액션",
@@ -770,6 +886,28 @@ async def update_policy(policy_id: str, req: Request):
 async def delete_policy(policy_id: str):
     _supabase_request("DELETE", f"policy_db?id=eq.{policy_id}")
     return JSONResponse({"ok": True})
+
+
+@app.get("/api/legislation")
+async def get_legislation():
+    """대상 법령 입법현황 반환 (Supabase 우선, 로컬 파일 fallback)"""
+    rows = _supabase_request("GET", "legislation_status?order=scraped_at.desc&limit=500")
+    if rows:
+        return JSONResponse(rows)
+    if LEGISLATION_FILE.exists():
+        return JSONResponse(json.loads(LEGISLATION_FILE.read_text(encoding='utf-8')))
+    return JSONResponse([])
+
+
+@app.post("/api/legislation/collect")
+async def trigger_legislation_collect():
+    """대상 법령 입법현황 수집 트리거"""
+    loop = asyncio.get_running_loop()
+    items = await loop.run_in_executor(None, collect_legislation_status)
+    LEGISLATION_FILE.write_text(json.dumps(items, ensure_ascii=False, indent=2), encoding='utf-8')
+    for item in items:
+        _supabase_request("POST", "legislation_status", item)
+    return JSONResponse({"ok": True, "count": len(items)})
 
 
 @app.get("/api/stream/{report_type}")
