@@ -2116,9 +2116,18 @@
       homeDailyColItems(cat) {
         const date = this.calSelectedDate;
         if (!date) return [];
+        const seen = new Set();
         return (this.allArticles[cat] || [])
-          .filter(a => (a['날짜']||'').startsWith(date) && a['우선순위'] === '상')
-          .slice(0, 5)
+          .filter(a => {
+            if (!(a['날짜']||'').startsWith(date)) return false;
+            if (a['우선순위'] !== '상') return false;
+            if (this.sourceType(a) !== '보도자료') return false;
+            const key = (a['제목']||'').trim();
+            if (seen.has(key)) return false;
+            seen.add(key);
+            return true;
+          })
+          .slice(0, 3)
           .map((a, i) => ({ ...a, _idx: i, _cat: cat, _uid: `${cat}-${i}` }));
       },
       get homeCalDotDates() {
