@@ -766,8 +766,30 @@ class GenerateRequest(BaseModel):
     content: str
 
 
+def _supabase_request(method: str, path: str, payload: dict | None = None) -> list | dict | None:
+    """Supabase REST API 공통 요청"""
+    if not SUPABASE_URL or not SUPABASE_KEY:
+        return None
+    import urllib.request
+    url = f"{SUPABASE_URL}/rest/v1/{path}"
+    data = json.dumps(payload).encode("utf-8") if payload else None
+    headers = {
+        "apikey": SUPABASE_KEY,
+        "Authorization": f"Bearer {SUPABASE_KEY}",
+        "Content-Type": "application/json",
+        "Prefer": "return=representation",
+    }
+    req = urllib.request.Request(url, data=data, headers=headers, method=method)
+    try:
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            return json.loads(resp.read())
+    except Exception as e:
+        print(f"[WARN] Supabase {method} {path} 실패: {e}")
+        return None
+
+
 def _save_history(content: str, ppt_path: str, category: str) -> None:
-    """PPT 생성 완료 이력을 history.json에 저장 (최신순)"""
+    """PPT 생성 완료 이력을 Supabase에 저장 (로컬 history.json 병행)"""
     title_m = re.search(r'◆[^\|]+\|\s*「?(.+?)」?\s{2,}', content)
     date_m  = re.search(r"'(\d{2}\.\d+\.\d+\([가-힣]\))", content)
     title   = title_m.group(1).strip() if title_m else content.split('\n')[0][:60]
@@ -781,6 +803,9 @@ def _save_history(content: str, ppt_path: str, category: str) -> None:
         "ppt_path": ppt_path,
         "category": category,
     }
+    # Supabase 저장
+    _supabase_request("POST", "history", entry)
+    # 로컬 fallback 저장
     history: list = []
     if HISTORY_FILE.exists():
         try:
@@ -791,23 +816,29 @@ def _save_history(content: str, ppt_path: str, category: str) -> None:
     HISTORY_FILE.write_text(json.dumps(history, ensure_ascii=False, indent=2), encoding='utf-8')
 
 
+def _load_history() -> list:
+    """Supabase에서 이력 로드. 실패 시 로컬 history.json fallback"""
+    rows = _supabase_request("GET", "history?order=id.desc&limit=200")
+    if rows is not None:
+        return rows
+    if HISTORY_FILE.exists():
+        try:
+            return json.loads(HISTORY_FILE.read_text(encoding='utf-8'))
+        except Exception:
+            pass
+    return []
+
+
 @app.get("/api/history")
 async def get_history():
     """PPT 생성 이력 반환"""
-    if not HISTORY_FILE.exists():
-        return JSONResponse([])
-    try:
-        return JSONResponse(json.loads(HISTORY_FILE.read_text(encoding='utf-8')))
-    except Exception:
-        return JSONResponse([])
+    return JSONResponse(_load_history())
 
 
 @app.get("/api/ppt/{item_id}")
 async def download_ppt(item_id: int):
-    """history.json의 id로 PPT 파일 다운로드"""
-    if not HISTORY_FILE.exists():
-        return JSONResponse({"error": "이력 없음"}, status_code=404)
-    history = json.loads(HISTORY_FILE.read_text(encoding='utf-8'))
+    """history id로 PPT 파일 다운로드"""
+    history = _load_history()
     entry = next((h for h in history if h.get("id") == item_id), None)
     if not entry:
         return JSONResponse({"error": "항목 없음"}, status_code=404)
