@@ -893,6 +893,173 @@
     }
     .policy-form-input:focus { outline: none; border-color: var(--accent2); box-shadow: 0 0 0 2px rgba(37,99,235,.1); }
     textarea.policy-form-input { resize: vertical; min-height: 60px; }
+
+    /* ── HOME 리디자인 ── */
+    .home-top-bar {
+      display: flex; align-items: center; gap: 14px; margin-bottom: 12px;
+    }
+    .home-search {
+      flex: 1; max-width: 400px;
+      display: flex; align-items: center; gap: 8px;
+      border: 1px solid var(--bd); border-radius: 8px;
+      padding: 0 12px; height: 36px; background: #fff;
+      transition: border-color .18s, box-shadow .18s;
+    }
+    .home-search:focus-within { border-color: var(--accent2); box-shadow: 0 0 0 2px rgba(37,99,235,.1); }
+    .home-search input { flex:1; border:none; outline:none; background:transparent; font-size:13px; font-family:inherit; color:var(--t1); }
+    .home-search input::placeholder { color: var(--t3); }
+
+    .home-chip-bar {
+      display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-bottom: 16px;
+    }
+    .home-chip {
+      display: inline-flex; align-items: center; gap: 5px;
+      padding: 5px 12px; border-radius: 20px;
+      border: 1.5px solid var(--bd); background: #f8faff;
+      color: var(--t2); font-size: 12px; font-weight: 600;
+      cursor: pointer; transition: all .15s; white-space: nowrap;
+    }
+    .home-chip:hover { border-color: var(--bd2); background: #f1f5f9; }
+    .chip-count {
+      font-size: 10px; font-weight: 700; padding: 1px 6px; border-radius: 10px;
+      background: rgba(0,0,0,.08);
+    }
+    .home-chip.chip-all.active   { background: #f1f5f9; border-color: #64748b; color: #1e293b; }
+    .home-chip.chip-data.active  { background: var(--accent-lt); border-color: var(--accent2); color: var(--accent); }
+    .home-chip.chip-pay.active   { background: var(--pay-lt); border-color: var(--pay-color); color: var(--pay-color); }
+    .home-chip.chip-aml.active   { background: var(--aml-lt); border-color: var(--aml-color); color: var(--aml-color); }
+    .home-chip.chip-press.active { background: var(--accent-lt); border-color: var(--accent2); color: var(--accent); }
+    .home-chip.chip-news.active  { background: #f3e8ff; border-color: #7c3aed; color: #6d28d9; }
+    .home-chip.chip-pri-high.active { background: #ecfdf5; border-color: #86efac; color: #16a34a; }
+    .home-chip.chip-pri-mid.active  { background: #eff6ff; border-color: #93c5fd; color: #2563eb; }
+    .home-chip.chip-pri-low.active  { background: #f8fafc; border-color: #cbd5e1; color: #94a3b8; }
+
+    /* 통계 스트립 (가로 1줄) */
+    .home-stats-strip {
+      display: flex; gap: 8px; margin-bottom: 14px; align-items: stretch;
+    }
+    .home-strip-card {
+      flex: 1; background: #fff; border: 1px solid var(--bd);
+      border-radius: 10px; padding: 10px 14px;
+      display: flex; align-items: center; gap: 10px;
+      cursor: pointer; transition: box-shadow .15s, border-color .15s;
+      min-width: 0;
+    }
+    .home-strip-card:hover { border-color: var(--bd2); box-shadow: var(--sh); }
+    .home-strip-card.strip-active-data  { border-color: var(--accent2); background: #f0f6ff; }
+    .home-strip-card.strip-active-pay   { border-color: var(--pay-color); background: #f0fdf8; }
+    .home-strip-card.strip-active-aml   { border-color: var(--aml-color); background: #fff5f5; }
+    .home-strip-label { font-size: 11px; font-weight: 700; flex-shrink: 0; }
+    .home-strip-bar-wrap { flex: 1; height: 5px; background: #f1f5f9; border-radius: 3px; overflow: hidden; min-width: 30px; }
+    .home-strip-bar { height: 100%; border-radius: 3px; transition: width .6s ease; min-width: 3px; }
+    .home-strip-num { font-size: 12px; font-weight: 700; color: var(--t2); flex-shrink: 0; white-space: nowrap; }
+    .home-strip-divider { width: 1px; background: var(--bd); flex-shrink: 0; margin: 0 4px; }
+    .home-strip-info {
+      flex: 1; background: #fff; border: 1px solid var(--bd);
+      border-radius: 10px; padding: 10px 14px;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      min-width: 0;
+    }
+    .home-strip-info-label { font-size: 10px; color: var(--t3); font-weight: 600; margin-bottom: 3px; white-space: nowrap; }
+    .home-strip-info-num { font-size: 15px; font-weight: 800; color: var(--t1); }
+
+    .home-main-layout {
+      display: flex; flex-direction: column; gap: 12px; margin-bottom: 16px;
+    }
+    .home-feed { display: flex; flex-direction: column; gap: 12px; }
+
+    .home-featured-card {
+      background: #fff; border: 1px solid var(--bd);
+      border-left: 4px solid var(--accent2);
+      border-radius: 12px; padding: 16px 18px;
+      box-shadow: var(--sh-sm); display: flex; flex-direction: column; gap: 8px;
+      transition: box-shadow .15s;
+    }
+    .home-featured-card:hover { box-shadow: var(--sh-md); }
+    .home-featured-title {
+      font-size: 15px; font-weight: 700; color: var(--t1); line-height: 1.45;
+      display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+    }
+    .home-featured-lead {
+      font-size: 12px; color: var(--t2); line-height: 1.65;
+      display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
+    }
+
+    .home-stats-card {
+      background: #fff; border: 1px solid var(--bd);
+      border-radius: 12px; padding: 14px 16px; box-shadow: var(--sh-sm);
+    }
+    .home-card-header {
+      font-size: 12px; font-weight: 700; color: var(--t2);
+      margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid var(--bd);
+    }
+    .home-stat-rows { display: flex; flex-direction: column; gap: 10px; }
+    .home-stat-row {
+      display: flex; align-items: center; gap: 8px;
+      cursor: pointer; padding: 3px 4px; border-radius: 6px; transition: background .12s;
+    }
+    .home-stat-row:hover { background: #f1f5f9; }
+    .home-stat-label { font-size: 11px; font-weight: 700; width: 50px; flex-shrink: 0; }
+    .home-stat-data { color: var(--accent); }
+    .home-stat-pay  { color: var(--pay-color); }
+    .home-stat-aml  { color: var(--aml-color); }
+    .home-stat-bar-wrap { flex: 1; height: 6px; background: #f1f5f9; border-radius: 3px; overflow: hidden; }
+    .home-stat-bar { height: 100%; border-radius: 3px; transition: width .6s ease; min-width: 3px; }
+    .home-bar-data { background: var(--accent2); }
+    .home-bar-pay  { background: var(--pay-color); }
+    .home-bar-aml  { background: var(--aml-color); }
+    .home-stat-num { font-size: 12px; font-weight: 700; color: var(--t2); width: 24px; text-align: right; flex-shrink: 0; }
+    .home-stats-total {
+      margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--bd);
+      font-size: 11px; color: var(--t3); text-align: right;
+    }
+    .home-stats-total strong { color: var(--t1); font-size: 13px; }
+    .home-update-info { display: flex; flex-direction: column; gap: 8px; }
+    .home-update-row { display: flex; align-items: center; justify-content: space-between; }
+    .home-update-label { font-size: 11px; color: var(--t3); font-weight: 500; }
+    .home-update-val { font-size: 12px; color: var(--t1); font-weight: 700; }
+
+    .home-cat-grid {
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px;
+    }
+    .home-cat-col {
+      background: #fff; border: 1px solid var(--bd);
+      border-radius: 12px; overflow: hidden; box-shadow: var(--sh-sm);
+    }
+    .home-cat-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 10px 14px; border-bottom: 1px solid var(--bd); background: #f8faff;
+    }
+    .home-cat-title { font-size: 12px; font-weight: 700; }
+    .home-mini-card {
+      padding: 10px 14px; border-bottom: 1px solid var(--bd);
+      display: flex; flex-direction: column; gap: 5px; transition: background .12s;
+    }
+    .home-mini-card:last-of-type { border-bottom: none; }
+    .home-mini-card:hover { background: #f8faff; }
+    .home-mini-top { display: flex; align-items: center; gap: 6px; }
+    .home-mini-title {
+      font-size: 13px; font-weight: 600; color: var(--t1); line-height: 1.45;
+      display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+    }
+    .home-mini-foot { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+    .home-more-btn {
+      width: 100%; padding: 9px; text-align: center;
+      background: #f8faff; border: none; border-top: 1px solid var(--bd);
+      font-size: 11px; font-weight: 600; color: var(--t3); cursor: pointer; transition: all .15s;
+    }
+    .home-more-btn:hover { background: var(--accent-lt); color: var(--accent); }
+
+    /* 카테고리 선택 시 컬럼 활성/비활성 */
+    .home-cat-grid { transition: grid-template-columns .3s ease; }
+    .home-cat-col { transition: opacity .25s, box-shadow .25s, border-color .25s; }
+    .home-cat-col.col-active      { box-shadow: var(--sh-md); }
+    .home-cat-col.col-active-data { border-top: 3px solid var(--accent2); }
+    .home-cat-col.col-active-pay  { border-top: 3px solid var(--pay-color); }
+    .home-cat-col.col-active-aml  { border-top: 3px solid var(--aml-color); }
+    .home-cat-col.col-inactive    { opacity: 0.5; }
+    .home-cat-col.col-inactive .home-mini-title { -webkit-line-clamp: 1; }
+    .home-cat-col.col-inactive .home-mini-foot  { display: none; }
   </style>
 </head>
 
@@ -946,142 +1113,190 @@
       <template x-if="currentPage === 'home'">
         <div>
 
-          <!-- 수집 기간 -->
-          <div class="period-label">
-            수집 대상 기간: <strong x-text="periodLabel"></strong>
-          </div>
-
-          <!-- 통계 박스 4개: 전체 → 데이터 → 페이먼트 → AML -->
-          <div class="stat-grid">
-            <div class="stat-box" :class="activeCategory === '전체' ? 'active-all' : ''"
-                 @click="switchCategory('전체')">
-              <div class="stat-label">전체</div>
-              <div><span class="stat-num" x-text="totalCount"></span><span class="stat-unit">건</span></div>
-            </div>
-            <div class="stat-box" :class="activeCategory === '데이터' ? 'active-data' : ''"
-                 @click="switchCategory('데이터')">
-              <div class="stat-label">데이터</div>
-              <div><span class="stat-num" x-text="allArticles['데이터'].length"></span><span class="stat-unit">건</span></div>
-            </div>
-            <div class="stat-box" :class="activeCategory === '페이먼트' ? 'active-pay' : ''"
-                 @click="switchCategory('페이먼트')">
-              <div class="stat-label">페이먼트</div>
-              <div><span class="stat-num" x-text="allArticles['페이먼트'].length"></span><span class="stat-unit">건</span></div>
-            </div>
-            <div class="stat-box" :class="activeCategory === 'AML' ? 'active-aml' : ''"
-                 @click="switchCategory('AML')">
-              <div class="stat-label">AML</div>
-              <div><span class="stat-num" x-text="allArticles['AML'].length"></span><span class="stat-unit">건</span></div>
-            </div>
-          </div>
-
-          <!-- 검색창 (중앙) -->
-          <div class="main-search-wrap">
-            <div class="main-search">
+          <!-- 상단: 수집 기간 + 검색창 -->
+          <div class="home-top-bar">
+            <span class="period-label" style="margin:0; flex-shrink:0">
+              수집 기간: <strong x-text="periodLabel"></strong>
+            </span>
+            <div class="home-search">
               <span class="main-search-icon">🔍</span>
               <input type="text" x-model="searchQuery" placeholder="기사 검색..." />
+              <template x-if="searchQuery">
+                <span @click="searchQuery=''" style="cursor:pointer;color:var(--t3);font-size:12px">✕</span>
+              </template>
             </div>
           </div>
 
-          <!-- 통합 필터 행: 구분 | 우선순위 | 건수 -->
-          <div class="filter-bar">
-            <button class="src-btn" :class="articleType === '전체' ? 'active-all' : ''"
-              @click="articleType = '전체'">전체</button>
-            <button class="src-btn" :class="articleType === '보도자료' ? 'active-press' : ''"
-              @click="articleType = '보도자료'">📋 보도자료</button>
-            <button class="src-btn" :class="articleType === '언론기사' ? 'active-news' : ''"
-              @click="articleType = '언론기사'">📰 언론기사</button>
+          <!-- 필터 칩 바 -->
+          <div class="home-chip-bar">
+            <button class="home-chip chip-all" :class="activeCategory==='전체' ? 'active' : ''"
+                    @click="switchCategory('전체')">
+              전체 <span class="chip-count" x-text="totalCount + '건'"></span>
+            </button>
+            <button class="home-chip chip-data" :class="activeCategory==='데이터' ? 'active' : ''"
+                    @click="switchCategory('데이터')">
+              데이터 <span class="chip-count" x-text="allArticles['데이터'].length + '건'"></span>
+            </button>
+            <button class="home-chip chip-pay" :class="activeCategory==='페이먼트' ? 'active' : ''"
+                    @click="switchCategory('페이먼트')">
+              페이먼트 <span class="chip-count" x-text="allArticles['페이먼트'].length + '건'"></span>
+            </button>
+            <button class="home-chip chip-aml" :class="activeCategory==='AML' ? 'active' : ''"
+                    @click="switchCategory('AML')">
+              AML <span class="chip-count" x-text="allArticles['AML'].length + '건'"></span>
+            </button>
             <div class="filter-divider"></div>
-            <button class="pri-btn" :class="priorityFilter === '상' ? 'active-high' : ''"
-              @click="togglePriority('상')">상</button>
-            <button class="pri-btn" :class="priorityFilter === '중' ? 'active-mid' : ''"
-              @click="togglePriority('중')">중</button>
-            <button class="pri-btn" :class="priorityFilter === '하' ? 'active-low' : ''"
-              @click="togglePriority('하')">하</button>
-            <span class="filter-count"
-              x-text="(activeCategory === '전체' ? filteredTotalCount : displayedArticles.length) + '건'"></span>
+            <button class="home-chip chip-press" :class="articleType==='보도자료' ? 'active' : ''"
+                    @click="articleType = articleType === '보도자료' ? '전체' : '보도자료'">
+              📋 보도자료
+            </button>
+            <button class="home-chip chip-news" :class="articleType==='언론기사' ? 'active' : ''"
+                    @click="articleType = articleType === '언론기사' ? '전체' : '언론기사'">
+              📰 언론기사
+            </button>
+            <div class="filter-divider"></div>
+            <button class="home-chip chip-pri-high" :class="priorityFilter==='상' ? 'active' : ''"
+                    @click="togglePriority('상')">상</button>
+            <button class="home-chip chip-pri-mid" :class="priorityFilter==='중' ? 'active' : ''"
+                    @click="togglePriority('중')">중</button>
+            <button class="home-chip chip-pri-low" :class="priorityFilter==='하' ? 'active' : ''"
+                    @click="togglePriority('하')">하</button>
           </div>
 
-          <!-- ── 전체 탭: 3컬럼 칸반 (데이터 | 페이먼트 | AML) ── -->
-          <template x-if="activeCategory === '전체'">
-            <div class="kanban-wrap">
-              <template x-for="col in kanbanCols" :key="col.key">
-                <div class="kanban-col">
-                  <div class="kanban-col-header">
-                    <span class="kanban-col-title" :class="'kc-' + col.key" x-text="col.label"></span>
-                    <span class="kanban-col-count" x-text="col.articles.length + '건'"></span>
+          <!-- 통계 스트립 (가로 1줄) -->
+          <div class="home-stats-strip">
+            <div class="home-strip-card"
+                 :class="activeCategory==='데이터' ? 'strip-active-data' : ''"
+                 @click="switchCategory('데이터')">
+              <span class="home-strip-label home-stat-data">데이터</span>
+              <div class="home-strip-bar-wrap">
+                <div class="home-strip-bar home-bar-data"
+                     :style="`width:${totalCount>0 ? Math.round(allArticles['데이터'].length/totalCount*100) : 0}%`"></div>
+              </div>
+              <span class="home-strip-num" x-text="allArticles['데이터'].length + '건'"></span>
+            </div>
+            <div class="home-strip-card"
+                 :class="activeCategory==='페이먼트' ? 'strip-active-pay' : ''"
+                 @click="switchCategory('페이먼트')">
+              <span class="home-strip-label home-stat-pay">페이먼트</span>
+              <div class="home-strip-bar-wrap">
+                <div class="home-strip-bar home-bar-pay"
+                     :style="`width:${totalCount>0 ? Math.round(allArticles['페이먼트'].length/totalCount*100) : 0}%`"></div>
+              </div>
+              <span class="home-strip-num" x-text="allArticles['페이먼트'].length + '건'"></span>
+            </div>
+            <div class="home-strip-card"
+                 :class="activeCategory==='AML' ? 'strip-active-aml' : ''"
+                 @click="switchCategory('AML')">
+              <span class="home-strip-label home-stat-aml">AML</span>
+              <div class="home-strip-bar-wrap">
+                <div class="home-strip-bar home-bar-aml"
+                     :style="`width:${totalCount>0 ? Math.round(allArticles['AML'].length/totalCount*100) : 0}%`"></div>
+              </div>
+              <span class="home-strip-num" x-text="allArticles['AML'].length + '건'"></span>
+            </div>
+            <div class="home-strip-divider"></div>
+            <div class="home-strip-info">
+              <div class="home-strip-info-label">우선:상</div>
+              <div class="home-strip-info-num" x-text="highPriorityCount + '건'"></div>
+            </div>
+            <div class="home-strip-info">
+              <div class="home-strip-info-label">보도자료</div>
+              <div class="home-strip-info-num" x-text="pressCount + '건'"></div>
+            </div>
+            <div class="home-strip-info">
+              <div class="home-strip-info-label">언론기사</div>
+              <div class="home-strip-info-num" x-text="newsCount + '건'"></div>
+            </div>
+          </div>
+
+          <!-- Featured 기사 + 키워드 칩 -->
+          <div class="home-main-layout">
+            <div class="home-feed">
+              <template x-if="featuredArticle">
+                <div class="home-featured-card" :style="`border-left-color: ${featuredBorderColor}`">
+                  <div class="art-card-top">
+                    <span class="agency-badge"
+                          :class="sourceType(featuredArticle)==='언론기사' ? 'badge-news' : badgeClass(featuredArticle._cat)"
+                          x-text="featuredArticle['기관']"></span>
+                    <span class="pri-badge"
+                          :class="featuredArticle['우선순위']==='상' ? 'pri-high' : featuredArticle['우선순위']==='하' ? 'pri-low' : 'pri-mid'"
+                          x-text="featuredArticle['우선순위'] || '중'"></span>
+                    <span class="cat-tag" :class="tagClass(featuredArticle._cat)" x-text="featuredArticle._cat"></span>
                   </div>
-                  <template x-if="col.articles.length === 0">
-                    <div class="empty-col">수집된 기사가 없습니다</div>
-                  </template>
-                  <template x-for="a in col.articles" :key="a._uid">
-                    <div class="art-card">
-                      <div class="art-card-top">
-                        <span class="agency-badge" :class="sourceType(a)==='언론기사' ? 'badge-news' : badgeClass(col.key)" x-text="a['기관']"></span>
-                        <span class="pri-badge"
-                          :class="a['우선순위']==='상' ? 'pri-high' : a['우선순위']==='하' ? 'pri-low' : 'pri-mid'"
-                          x-text="a['우선순위'] || '중'"></span>
-                      </div>
-                      <div class="art-card-title" x-html="highlight(a['제목'])"></div>
-                      <div class="art-card-lead" x-html="highlight(a['내용'])"></div>
-                      <div class="art-card-foot">
-                        <span class="art-card-date" x-text="a['날짜']"></span>
-                        <div class="art-card-btns">
-                          <a x-show="a['링크']" :href="a['링크']" target="_blank" rel="noopener noreferrer"
-                             @click.stop class="link-btn">원문</a>
-                          <button class="row-btn" :disabled="formatting"
-                            @click="formatSingle(a._idx, col.key)">
-                            <span x-text="(formattingIdx === a._uid && formatting) ? '...' : '요약'"></span>
-                          </button>
-                        </div>
-                      </div>
+                  <div class="home-featured-title" x-html="highlight(featuredArticle['제목'])"></div>
+                  <div class="home-featured-lead" x-html="highlight(featuredArticle['내용'])"></div>
+                  <div class="art-card-foot">
+                    <span class="art-card-date" x-text="featuredArticle['날짜']"></span>
+                    <div class="art-card-btns">
+                      <a x-show="featuredArticle['링크']" :href="featuredArticle['링크']" target="_blank"
+                         rel="noopener noreferrer" @click.stop class="link-btn">원문</a>
+                      <button class="row-btn" :disabled="formatting"
+                        @click="formatSingle(featuredArticle._idx, featuredArticle._cat)">
+                        <span x-text="(formattingIdx === featuredArticle._uid && formatting) ? '요약 중...' : '요약하기'"></span>
+                      </button>
                     </div>
-                  </template>
+                  </div>
                 </div>
               </template>
-            </div>
-          </template>
-
-          <!-- ── 개별 탭 (데이터/페이먼트/AML): 3×N 카드 그리드 ── -->
-          <template x-if="activeCategory !== '전체'">
-            <div>
-              <template x-if="currentArticles.length === 0">
+              <template x-if="!featuredArticle">
                 <div class="empty-list">수집된 보도자료가 없습니다 — 수집 시작 버튼을 눌러주세요</div>
               </template>
-              <template x-if="displayedArticles.length === 0 && currentArticles.length > 0">
-                <div class="empty-list">조건에 맞는 보도자료가 없습니다</div>
-              </template>
-              <div class="card-grid">
-                <template x-for="a in displayedArticles" :key="a._uid">
-                  <div class="art-card">
-                    <div class="art-card-top">
-                      <span class="agency-badge" :class="sourceType(a)==='언론기사' ? 'badge-news' : badgeClass(a._cat)" x-text="a['기관']"></span>
+
+              <!-- 키워드 칩 -->
+              <div class="main-kw-bar" x-show="currentKeywords.length > 0">
+                <template x-for="kw in currentKeywords" :key="kw">
+                  <span class="kw-chip"
+                        :class="[activeKeywords.includes(kw) ? 'active' : '', currentChipClass]"
+                        @click="toggleKeyword(kw)" x-text="kw"></span>
+                </template>
+              </div>
+            </div>
+          </div>
+
+          <!-- 하단 3열: 카테고리별 최신 기사 -->
+          <div class="home-cat-grid" :style="catGridStyle">
+            <template x-for="col in kanbanCols" :key="col.key">
+              <div class="home-cat-col" :class="catColClass(col.key)">
+                <div class="home-cat-header">
+                  <span class="home-cat-title" :class="'kc-' + col.key" x-text="col.label"></span>
+                  <span class="kanban-col-count" x-text="col.articles.length + '건'"></span>
+                </div>
+                <template x-if="col.articles.length === 0">
+                  <div class="empty-col">수집된 기사가 없습니다</div>
+                </template>
+                <template x-for="a in col.articles.slice(0, 5)" :key="a._uid">
+                  <div class="home-mini-card">
+                    <div class="home-mini-top">
+                      <span class="agency-badge"
+                            :class="sourceType(a)==='언론기사' ? 'badge-news' : badgeClass(col.key)"
+                            x-text="a['기관']"></span>
                       <span class="pri-badge"
-                        :class="a['우선순위']==='상' ? 'pri-high' : a['우선순위']==='하' ? 'pri-low' : 'pri-mid'"
-                        x-text="a['우선순위'] || '중'"></span>
+                            :class="a['우선순위']==='상' ? 'pri-high' : a['우선순위']==='하' ? 'pri-low' : 'pri-mid'"
+                            x-text="a['우선순위'] || '중'"></span>
                     </div>
-                    <div class="art-card-title" x-html="highlight(a['제목'])"></div>
-                    <div class="art-card-lead" x-html="highlight(a['내용'])"></div>
-                    <div class="art-card-foot">
+                    <div class="home-mini-title" x-html="highlight(a['제목'])"></div>
+                    <div class="home-mini-foot">
                       <span class="art-card-date" x-text="a['날짜']"></span>
                       <div class="art-card-btns">
                         <a x-show="a['링크']" :href="a['링크']" target="_blank" rel="noopener noreferrer"
                            @click.stop class="link-btn">원문</a>
                         <button class="row-btn" :disabled="formatting"
-                          @click="formatSingle(a._idx, a._cat)">
-                          <span x-text="(formattingIdx === a._uid && formatting) ? '요약 중...' : '요약하기'"></span>
-                        </button>
-                        <button class="row-btn ppt-btn" :disabled="generating || pptReadyUid !== a._uid"
-                          @click="generatePPTFor(a._uid)">
-                          <span x-text="(generatingUid === a._uid && generating) ? '생성 중...' : 'PPT'"></span>
+                          @click="formatSingle(a._idx, col.key)">
+                          <span x-text="(formattingIdx === a._uid && formatting) ? '...' : '요약'"></span>
                         </button>
                       </div>
                     </div>
                   </div>
                 </template>
+                <template x-if="col.articles.length > 5">
+                  <button class="home-more-btn" @click="switchCategory(col.key)">
+                    + <span x-text="col.articles.length - 5"></span>건 더 보기
+                  </button>
+                </template>
               </div>
-            </div>
-          </template>
+            </template>
+          </div>
 
         </div><!-- /HOME -->
       </template>
@@ -1741,6 +1956,41 @@
         return this.kanbanCols.reduce((s, col) => s + col.articles.length, 0);
       },
 
+      get featuredArticle() {
+        return this.displayedArticles[0] || null;
+      },
+      get featuredBorderColor() {
+        const cat = this.featuredArticle?._cat;
+        if (cat === '페이먼트') return 'var(--pay-color)';
+        if (cat === 'AML') return 'var(--aml-color)';
+        return 'var(--accent2)';
+      },
+      get highPriorityCount() {
+        return ['데이터','페이먼트','AML'].reduce((s, cat) =>
+          s + (this.allArticles[cat] || []).filter(a => a['우선순위'] === '상').length, 0);
+      },
+      get pressCount() {
+        return ['데이터','페이먼트','AML'].reduce((s, cat) =>
+          s + (this.allArticles[cat] || []).filter(a => this.sourceType(a) === '보도자료').length, 0);
+      },
+      get newsCount() {
+        return ['데이터','페이먼트','AML'].reduce((s, cat) =>
+          s + (this.allArticles[cat] || []).filter(a => this.sourceType(a) === '언론기사').length, 0);
+      },
+      get catGridStyle() {
+        if (this.activeCategory === '전체') return 'grid-template-columns: repeat(3, 1fr)';
+        const order = ['데이터', '페이먼트', 'AML'];
+        return 'grid-template-columns: ' + order.map(c => c === this.activeCategory ? '2fr' : '0.75fr').join(' ');
+      },
+      catColClass(cat) {
+        if (this.activeCategory === '전체') return '';
+        if (cat === this.activeCategory) {
+          const suffix = cat === 'AML' ? 'aml' : cat === '페이먼트' ? 'pay' : 'data';
+          return `col-active col-active-${suffix}`;
+        }
+        return 'col-inactive';
+      },
+
       get currentKeywords() { return KEYWORD_MAP[this.activeCategory] || []; },
 
       get currentChipClass() {
@@ -1801,7 +2051,13 @@
 
       highlight(text) {
         if (!text) return '';
-        let t = text.replace(/</g,'&lt;').replace(/>/g,'&gt;');
+        // HTML 엔티티 디코딩 (이중 인코딩 &amp;quot; → &quot; → " 까지 처리)
+        const tmp = document.createElement('div');
+        tmp.innerHTML = text;
+        let decoded = tmp.textContent || tmp.innerText || text;
+        tmp.innerHTML = decoded;
+        decoded = tmp.textContent || tmp.innerText || decoded;
+        let t = decoded.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
         const terms = [...this.activeKeywords];
         if (this.searchQuery.trim()) terms.push(this.searchQuery.trim());
         terms.forEach(kw => {
