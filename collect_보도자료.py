@@ -92,7 +92,6 @@ CONFIG = {
 
 # ════════════════════════════════════════════════════════════
 
-KOREA_KR_URL = "https://www.korea.kr/briefing/pressReleaseList.do"
 KOFIU_PRESS_URL    = "https://www.kofiu.go.kr/kor/notification/pressRelease.do"
 KOFIU_SANCTION_URL = "https://www.kofiu.go.kr/kor/notification/sanctions.do"
 
@@ -208,101 +207,69 @@ def _get(url: str, headers: dict | None = None, timeout: int = 30) -> str | None
         return None
 
 
-# ── korea.kr 스크래핑 ──────────────────────────────────────────────────────────
+# ── korea.kr RSS 수집 ──────────────────────────────────────────────────────────
 
-def get_total_pages(html: str) -> int:
-    matches = re.findall(r'pageLink\((\d+)\)', html)
-    return int(matches[-1]) if matches else 1
+KOREA_KR_RSS_URL = "https://www.korea.kr/rss/pressRelease.do"
 
+def scrape_korea_rss(report_type: str) -> list[dict]:
+    """korea.kr RSS 피드로 보도자료 수집 (스크래핑 대비 IP 차단 적음)"""
+    import xml.etree.ElementTree as ET
 
-def scrape_korea_page(page_index: int, start_date: str, end_date: str,
-                      search_word: str = '') -> tuple[list[dict], str]:
-    params = {
-        'pageIndex': page_index,
-        'startDate': start_date,
-        'endDate':   end_date,
-        'period':    'direct',
-        'srchWord':  search_word,
-        'repCodeType': '',
-        'repCode':   '',
-    }
-    url  = KOREA_KR_URL + '?' + urllib.parse.urlencode(params)
-    html = _get(url)
-    if html is None:
-        raise RuntimeError(f"요청 실패 (검색어: {search_word}, page {page_index})")
+    print(f"  [korea.kr RSS] 수집 중...")
+    raw = _get(KOREA_KR_RSS_URL, timeout=30)
+    if not raw:
+        print(f"  [korea.kr RSS] 접속 실패 — 건너뜀")
+        return []
 
-    soup = BeautifulSoup(html, 'lxml')
+    try:
+        root = ET.fromstring(raw)
+    except ET.ParseError as e:
+        print(f"  [korea.kr RSS] XML 파싱 실패: {e}")
+        return []
+
+    ns = {'dc': 'http://purl.org/dc/elements/1.1/'}
+    start_d = date.today() - timedelta(days=COLLECT_DAYS)
     articles: list[dict] = []
-    list_section = soup.find('div', class_='list_type')
-    if not list_section:
-        return articles, html
 
-    for li in list_section.find_all('li'):
-        a_tag     = li.find('a', href=True)
-        title_tag = li.find('strong')
-        lead_tag  = li.find('span', class_='lead')
-        source    = li.find('span', class_='source')
-        if not a_tag:
+    month_map = {'Jan':1,'Feb':2,'Mar':3,'Apr':4,'May':5,'Jun':6,
+                 'Jul':7,'Aug':8,'Sep':9,'Oct':10,'Nov':11,'Dec':12}
+
+    for item in root.findall('.//item'):
+        title   = (item.findtext('title')       or '').strip()
+        link    = (item.findtext('link')         or '').strip()
+        desc    = (item.findtext('description')  or '').strip()
+        pub_raw = (item.findtext('pubDate')      or '').strip()
+        agency  = (item.findtext('dc:creator', namespaces=ns)
+                   or item.findtext('category') or '').strip()
+
+        parsed_d = None
+        m = re.search(r'(\d{1,2})\s+(\w{3})\s+(\d{4})', pub_raw)
+        if m:
+            month = month_map.get(m.group(2))
+            if month:
+                try:
+                    parsed_d = date(int(m.group(3)), month, int(m.group(1)))
+                except ValueError:
+                    pass
+
+        if parsed_d and parsed_d < start_d:
             continue
-        title = title_tag.get_text(strip=True) if title_tag else ''
-        lead  = lead_tag.get_text(strip=True)  if lead_tag  else ''
-        date_str = agency = ''
-        if source:
-            spans = source.find_all('span')
-            if len(spans) >= 2:
-                date_str = spans[0].get_text(strip=True)
-                agency   = spans[1].get_text(strip=True)
-        href    = a_tag.get('href', '')
-        m       = re.search(r'newsId=(\d+)', href)
-        news_id = m.group(1) if m else ''
-        if href.startswith('http'):
-            url = href
-        elif news_id:
-            url = f"https://www.korea.kr/briefing/pressReleaseView.do?newsId={news_id}"
-        else:
-            url = ''
-        if title and agency:
-            articles.append({
-                'title':       title,
-                'lead':        lead,
-                'date_str':    date_str,
-                'agency':      agency,
-                'news_id':     news_id,
-                'url':         url,
-                'source_type': '보도자료',
-            })
-    return articles, html
 
+        m2 = re.search(r'newsId=(\d+)', link)
+        news_id = m2.group(1) if m2 else f'rss_{abs(hash(link))}'
 
-def scrape_korea_kr(report_type: str, max_pages: int = 5) -> list[dict]:
-    start_date, end_date = get_date_range(COLLECT_DAYS)
-    cfg = CONFIG[report_type]
-    search_words = cfg.get('search_words', [cfg.get('search_word', '')])
+        articles.append({
+            'title':       title,
+            'lead':        desc,
+            'date_str':    parsed_d.strftime('%Y-%m-%d') if parsed_d else pub_raw[:10],
+            'agency':      agency,
+            'news_id':     news_id,
+            'url':         link,
+            'source_type': '보도자료',
+        })
 
-    all_articles: list[dict] = []
-    print(f"검색 기간: {start_date} ~ {end_date} (최근 {COLLECT_DAYS}일)")
-
-    for sw in search_words:
-        print(f"  korea.kr 검색어: '{sw}'")
-        time.sleep(5)
-        try:
-            arts, html = scrape_korea_page(1, start_date, end_date, sw)
-        except RuntimeError as e:
-            print(f"    [korea.kr 접근 불가 - 회사 네트워크 제한, 건너뜀]")
-            continue
-        total = min(get_total_pages(html), max_pages)
-        print(f"    {total}페이지 수집 예정")
-        all_articles.extend(arts)
-        for page in range(2, total + 1):
-            time.sleep(3)
-            try:
-                p_arts, _ = scrape_korea_page(page, start_date, end_date, sw)
-                all_articles.extend(p_arts)
-            except RuntimeError as e:
-                print(f"    페이지 {page} 실패 (건너뜀): {e}")
-
-    print(f"korea.kr 1차 수집: {len(all_articles)}건 (중복 포함)")
-    return all_articles
+    print(f"  [korea.kr RSS] {len(articles)}건 수집")
+    return articles
 
 
 # ── Naver 뉴스 API 수집 ────────────────────────────────────────────────────────
@@ -656,8 +623,8 @@ if __name__ == '__main__':
 
     report_type = sys.argv[1]
 
-    # korea.kr 수집
-    articles = scrape_korea_kr(report_type)
+    # korea.kr RSS 수집
+    articles = scrape_korea_rss(report_type)
 
     # AML 전용: kofiu.go.kr 추가 수집
     if report_type == 'AML':
