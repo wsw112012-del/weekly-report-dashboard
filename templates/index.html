@@ -524,6 +524,60 @@
     .hist-result-count { font-size: 11px; color: var(--t3); margin-bottom: 8px; text-align: right; }
 
     [x-cloak] { display: none !important; }
+
+    /* ── 법규/정책 탭 ── */
+    .policy-wrap { padding: 4px 0; }
+    .policy-controls {
+      display: flex; align-items: center; gap: 8px;
+      margin-bottom: 16px; flex-wrap: wrap;
+    }
+    .policy-chips { display: flex; gap: 4px; flex-wrap: wrap; }
+    .policy-year-select { display: flex; align-items: center; gap: 6px; margin-left: auto; }
+    .policy-year-label { font-size: 13px; font-weight: 700; color: var(--t1); min-width: 48px; text-align: center; }
+    .gantt-card {
+      background: var(--bg-card); border: 1px solid var(--bd);
+      border-radius: 12px; overflow: hidden;
+      box-shadow: var(--sh-sm); margin-bottom: 20px;
+    }
+    .gantt-header, .gantt-row {
+      display: grid;
+      grid-template-columns: 72px repeat(12, 1fr);
+    }
+    .gantt-header { background: #f1f5f9; }
+    .gantt-row { border-top: 1px solid var(--bd); }
+    .gantt-row:hover { background: #f8faff; }
+    .gantt-row-label {
+      padding: 10px 8px; display: flex; align-items: center;
+      border-right: 1px solid var(--bd);
+    }
+    .gantt-label-text { font-size: 11px; font-weight: 700; white-space: nowrap; }
+    .gantt-month-cell {
+      padding: 8px 2px; font-size: 10px; font-weight: 700;
+      color: var(--t3); text-align: center;
+      border-right: 1px solid var(--bd);
+    }
+    .gantt-month-cell:last-child { border-right: none; }
+    .gantt-cell {
+      padding: 4px 2px; min-height: 40px;
+      display: flex; flex-direction: column; gap: 2px; align-items: stretch;
+      border-right: 1px solid var(--bd); max-height: 120px; overflow-y: auto;
+    }
+    .gantt-cell:last-child { border-right: none; }
+    .gantt-pill {
+      padding: 2px 4px; border-radius: 3px;
+      font-size: 9px; font-weight: 700; color: #fff;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+      cursor: pointer; transition: filter .15s, transform .15s;
+      text-align: center;
+    }
+    .gantt-pill:hover { filter: brightness(1.2); transform: scale(1.05); z-index: 10; position: relative; }
+    .policy-list-header {
+      display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;
+    }
+    .policy-list-header .list-title { font-size: 13px; font-weight: 700; color: var(--t1); }
+    .policy-list-header .list-count { font-size: 11px; color: var(--t3); }
+    .policy-article-row { cursor: pointer; }
+    .policy-notice { font-size: 11px; color: var(--t3); margin-left: 8px; }
   </style>
 </head>
 
@@ -562,6 +616,11 @@
            @click="currentPage = 'history'; loadHistory()">
         <span class="nav-icon">📚</span>
         <span class="nav-label">HISTORY</span>
+      </div>
+      <div class="nav-item" :class="currentPage === 'policy' ? 'active' : ''"
+           @click="currentPage = 'policy'; loadPolicy()">
+        <span class="nav-icon">⚖️</span>
+        <span class="nav-label">법규/정책</span>
       </div>
     </aside>
 
@@ -784,6 +843,101 @@
         </div>
       </template>
 
+      <!-- ══ 법규/정책 ══ -->
+      <template x-if="currentPage === 'policy'">
+        <div class="policy-wrap">
+
+          <!-- 컨트롤 바 -->
+          <div class="policy-controls">
+            <div class="policy-chips">
+              <template x-for="cat in ['전체','데이터','페이먼트','AML']" :key="cat">
+                <button class="kw-chip"
+                  :class="policyCat === cat ? 'active' : ''"
+                  @click="policyCat = cat"
+                  x-text="cat">
+                </button>
+              </template>
+            </div>
+            <div class="policy-year-select">
+              <button class="pri-btn" @click="policyYear > 2024 ? policyYear-- : null" :disabled="policyYear <= 2024">◀</button>
+              <span class="policy-year-label" x-text="policyYear + '년'"></span>
+              <button class="pri-btn" @click="policyYear < currentYear ? policyYear++ : null" :disabled="policyYear >= currentYear">▶</button>
+            </div>
+            <span class="filter-count" x-text="filteredPolicyArticles.length + '건'"></span>
+            <template x-if="policyYear < currentYear">
+              <span class="policy-notice">※ 과거 연도는 현재 수집된 데이터 범위 내에서만 표시됩니다</span>
+            </template>
+          </div>
+
+          <!-- 간트 타임라인 -->
+          <div class="gantt-card">
+            <div class="gantt-header">
+              <div class="gantt-row-label"></div>
+              <template x-for="m in 12" :key="m">
+                <div class="gantt-month-cell" x-text="m + '월'"></div>
+              </template>
+            </div>
+            <template x-for="row in ganttRows" :key="row.key">
+              <div class="gantt-row">
+                <div class="gantt-row-label">
+                  <span class="gantt-label-text" :style="'color:' + row.color" x-text="row.label"></span>
+                </div>
+                <template x-for="m in 12" :key="m">
+                  <div class="gantt-cell">
+                    <template x-for="a in ganttCell(row.key, m)" :key="a._uid">
+                      <div class="gantt-pill"
+                        :style="'background:' + row.color"
+                        :title="a['날짜'] + ' ' + a['기관'] + ' — ' + a['제목']"
+                        @click="openPolicyDetail(a)"
+                        x-text="a['기관'].slice(0,5)">
+                      </div>
+                    </template>
+                  </div>
+                </template>
+              </div>
+            </template>
+            <template x-if="filteredPolicyArticles.length === 0 && !policyLoading">
+              <div class="history-empty">수집된 법규/정책 기사가 없습니다</div>
+            </template>
+            <template x-if="policyLoading">
+              <div class="history-empty">불러오는 중...</div>
+            </template>
+          </div>
+
+          <!-- 하단 목록 -->
+          <div class="policy-list-header">
+            <span class="list-title">법규·정책 기사 목록</span>
+            <span class="list-count" x-text="filteredPolicyArticles.length + '건'"></span>
+          </div>
+          <div class="article-list">
+            <template x-if="filteredPolicyArticles.length === 0 && !policyLoading">
+              <div class="empty-list">조건에 맞는 기사가 없습니다</div>
+            </template>
+            <template x-for="a in filteredPolicyArticles" :key="a._uid">
+              <div class="article-row policy-article-row" @click="openPolicyDetail(a)">
+                <div class="row-top">
+                  <span class="agency-badge" :class="badgeClass(a._cat)" x-text="a['기관']"></span>
+                  <span class="pri-badge"
+                    :class="a._cat==='데이터' ? 'pri-high' : a._cat==='페이먼트' ? '' : 'pri-low'"
+                    :style="a._cat==='페이먼트' ? 'background:var(--pay-lt);color:var(--pay-color)' : ''"
+                    x-text="a._cat"></span>
+                  <span class="row-title" x-text="a['제목']"></span>
+                </div>
+                <div class="row-lead" x-text="a['내용']"></div>
+                <div class="row-bottom">
+                  <span class="row-date" x-text="a['날짜']"></span>
+                  <a x-show="a['링크']" :href="a['링크']" target="_blank" rel="noopener noreferrer"
+                     @click.stop class="link-btn">원문</a>
+                  <button class="row-btn" :disabled="formatting"
+                    @click.stop="formatSingle(a._idx, a._cat)">요약하기</button>
+                </div>
+              </div>
+            </template>
+          </div>
+
+        </div>
+      </template>
+
     </main>
 
     <!-- ── LOG PANEL ── -->
@@ -855,6 +1009,40 @@
     </div>
   </div>
 
+  <!-- ── 법규/정책 상세 모달 ── -->
+  <div class="modal-backdrop" x-show="showPolicyDetail" x-cloak @click.self="showPolicyDetail = false">
+    <div class="modal" x-show="policyDetailItem">
+      <div class="modal-header">
+        <span class="modal-title" x-text="policyDetailItem?.['제목'] || ''"></span>
+        <button class="modal-close" @click="showPolicyDetail = false">✕</button>
+      </div>
+      <div class="modal-body" style="gap:8px;display:flex;flex-direction:column">
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <span class="agency-badge" :class="badgeClass(policyDetailItem?._cat)"
+                x-text="policyDetailItem?.['기관'] || ''"></span>
+          <span class="pri-badge"
+                :class="policyDetailItem?._cat==='데이터' ? 'pri-high' : policyDetailItem?._cat==='AML' ? 'pri-low' : ''"
+                :style="policyDetailItem?._cat==='페이먼트' ? 'background:var(--pay-lt);color:var(--pay-color)' : ''"
+                x-text="policyDetailItem?._cat || ''"></span>
+          <span class="row-date" x-text="policyDetailItem?.['날짜'] || ''"></span>
+        </div>
+        <p style="font-size:13px;color:var(--t2);line-height:1.7"
+           x-text="policyDetailItem?.['내용'] || ''"></p>
+        <a x-show="policyDetailItem?.['링크']" :href="policyDetailItem?.['링크'] || ''"
+           target="_blank" rel="noopener noreferrer"
+           class="link-btn" style="align-self:flex-start">원문 보기</a>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-ppt" :disabled="formatting"
+          @click="formatSingle(policyDetailItem?._idx, policyDetailItem?._cat); showPolicyDetail=false">
+          요약하기
+        </button>
+        <div class="modal-footer-spacer"></div>
+        <button class="btn-cancel" @click="showPolicyDetail = false">닫기</button>
+      </div>
+    </div>
+  </div>
+
   <!-- ── ALPINE ── -->
   <script>
   function app() {
@@ -902,9 +1090,18 @@
       modalCategory: '',
       pptResult: null,
       logs: [],
-      formattingIdx: null,   // 현재 요약 중인 _uid
-      pptReadyUid: null,     // PPT 생성 가능한 _uid
-      generatingUid: null,   // PPT 생성 중인 _uid
+      formattingIdx: null,
+      pptReadyUid: null,
+      generatingUid: null,
+
+      // 법규/정책 탭
+      currentYear: new Date().getFullYear(),
+      policyYear: new Date().getFullYear(),
+      policyCat: '전체',
+      policyArticles: [],
+      policyLoading: false,
+      showPolicyDetail: false,
+      policyDetailItem: null,
 
       _applyFilters(list) {
         if (this.articleType !== '전체') {
@@ -1018,9 +1215,57 @@
         return t;
       },
 
+      // 법규/정책: 간트 행 정의
+      get ganttRows() {
+        const all = [
+          { key: '데이터',   label: '데이터',   color: '#1e40af' },
+          { key: '페이먼트', label: '페이먼트', color: '#0f766e' },
+          { key: 'AML',      label: 'AML',      color: '#b91c1c' },
+        ];
+        if (this.policyCat === '전체') return all;
+        return all.filter(r => r.key === this.policyCat);
+      },
+
+      get filteredPolicyArticles() {
+        let list = this.policyArticles.map((a, i) => ({
+          ...a, _uid: `policy-${a._cat}-${a._idx}-${i}`,
+        }));
+        if (this.policyCat !== '전체') {
+          list = list.filter(a => a._cat === this.policyCat);
+        }
+        return list;
+      },
+
+      ganttCell(catKey, month) {
+        return this.filteredPolicyArticles.filter(a => {
+          if (a._cat !== catKey) return false;
+          const parts = (a['날짜'] || '').split('-');
+          return parts.length >= 2 && parseInt(parts[1], 10) === month;
+        });
+      },
+
+      async loadPolicy() {
+        this.policyLoading = true;
+        try {
+          this.policyArticles = await fetch(`/api/policy?year=${this.policyYear}`).then(r => r.json());
+        } catch(_) {
+          this.policyArticles = [];
+        } finally {
+          this.policyLoading = false;
+        }
+      },
+
+      openPolicyDetail(article) {
+        this.policyDetailItem = article;
+        this.showPolicyDetail = true;
+      },
+
       async init() {
         await this.loadAll();
         setInterval(() => this.loadAll(), 10000);
+        this.$watch('policyYear', () => {
+          if (this.currentPage === 'policy') this.loadPolicy();
+        });
       },
 
       async loadAll() {

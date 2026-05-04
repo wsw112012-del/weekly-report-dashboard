@@ -709,6 +709,25 @@ async def get_articles(report_type: str):
     return JSONResponse(parse_collected(report_type))
 
 
+@app.get("/api/policy")
+async def get_policy(year: int = None):
+    """법령 개정·시행 관련 기사만 필터링해 반환 (연도별)"""
+    if year is None:
+        year = date.today().year
+    year_prefix = str(year)
+    result = []
+    for cat in CATEGORIES:
+        for a in parse_collected(cat):
+            title_lead = a.get("제목", "") + a.get("내용", "")
+            if not any(kw in title_lead for kw in _PRIORITY_HIGH):
+                continue
+            if not a.get("날짜", "").startswith(year_prefix):
+                continue
+            result.append({**a, "category": cat})
+    result.sort(key=lambda x: x.get("날짜", ""))
+    return JSONResponse(result)
+
+
 @app.get("/api/stream/{report_type}")
 async def stream_collect(report_type: str):
     """SSE: collect_보도자료.py 실시간 로그 스트림 (전체=3개 순차 실행)"""
