@@ -1050,6 +1050,39 @@
     }
     .home-more-btn:hover { background: var(--accent-lt); color: var(--accent); }
 
+    /* ── 정책DB 사업영역별 3열 그리드 ── */
+    .policy-db-grid {
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px;
+    }
+    .policy-col {
+      background: #fff; border: 1px solid var(--bd);
+      border-radius: 12px; overflow: hidden; box-shadow: var(--sh-sm);
+      display: flex; flex-direction: column;
+    }
+    .policy-col-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 10px 14px; border-bottom: 1px solid var(--bd);
+      background: #f8faff; flex-shrink: 0;
+    }
+    .policy-col-title { font-size: 12px; font-weight: 700; }
+    .policy-col-count { font-size: 10px; font-weight: 600; color: var(--t3); }
+    .policy-mini-card {
+      padding: 11px 14px; border-bottom: 1px solid var(--bd);
+      display: flex; flex-direction: column; gap: 5px; transition: background .12s;
+    }
+    .policy-mini-card:last-child { border-bottom: none; }
+    .policy-mini-card:hover { background: #f8faff; }
+    .policy-mini-top { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; }
+    .policy-mini-name {
+      font-size: 13px; font-weight: 600; color: var(--t1); line-height: 1.4;
+    }
+    .policy-mini-meta { font-size: 10px; color: var(--t3); line-height: 1.5; }
+    .policy-mini-content {
+      font-size: 11px; color: var(--t2); line-height: 1.55;
+      display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+    }
+    .policy-mini-foot { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; margin-top: 2px; }
+
     /* 카테고리 선택 시 컬럼 활성/비활성 */
     .home-cat-grid { transition: grid-template-columns .3s ease; }
     .home-cat-col { transition: opacity .25s, box-shadow .25s, border-color .25s; }
@@ -1532,41 +1565,50 @@
                 <button class="btn-ppt" style="margin-left:auto" @click="openPolicyForm(null)">+ 신규 추가</button>
               </div>
 
-              <!-- 정책 목록 -->
-              <template x-for="p in filteredPolicyItems" :key="p.id">
-                <div class="policy-item-card">
-                  <div class="policy-item-top">
-                    <span class="policy-badge policy-badge-type" x-text="p['구분']"></span>
-                    <span class="policy-badge" :style="policyImpactStyle(p['영향도'])" x-text="p['영향도']"></span>
-                    <span class="policy-badge" :style="policyStatusStyle(p['상태'])" x-text="p['상태']"></span>
-                    <span class="policy-badge policy-badge-area" x-text="p['사업영역']"></span>
-                    <span class="policy-item-name" x-text="p['정책명']"></span>
-                    <span class="policy-dday-sm" x-show="p['시행일'] && p['상태']!=='시행중'"
-                      :style="'color:' + policyDdayColor(p['시행일'])"
-                      x-text="policyDdayLabel(p['시행일'])"></span>
-                  </div>
-                  <div class="policy-item-meta">
-                    <span x-text="p['주무부처']"></span> ·
-                    <span x-text="'담당: ' + (p['담당부서']||'-')"></span> ·
-                    <span x-text="'공포: ' + (p['공포일']||'-')"></span> ·
-                    <span x-text="'시행: ' + (p['시행일']||'-')"></span>
-                  </div>
-                  <div class="policy-item-content" x-text="p['핵심내용']"></div>
-                  <div class="policy-item-action" x-show="p['쿠콘액션']">
-                    <span style="font-weight:600;color:var(--accent)">쿠콘액션</span>
-                    <span x-text="p['쿠콘액션']"></span>
-                  </div>
-                  <div class="policy-item-foot">
-                    <label class="policy-toggle-wrap">
-                      <input type="checkbox" :checked="p['트래킹여부']==='Y'"
-                        @change="toggleTracking(p)"> 트래킹
-                    </label>
-                    <a x-show="p['출처URL']" :href="p['출처URL']" target="_blank" class="link-btn">원문</a>
-                    <button class="row-btn" @click="openPolicyForm(p)">수정</button>
-                    <button class="row-btn" style="color:#dc2626" @click="deletePolicy(p.id)">삭제</button>
-                  </div>
-                </div>
+              <!-- 사업영역별 3열 그리드 -->
+              <template x-if="filteredPolicyItems.length === 0">
+                <div class="policy-empty">등록된 정책이 없습니다</div>
               </template>
+              <div class="policy-db-grid" x-show="filteredPolicyItems.length > 0">
+                <template x-for="col in policyDbCols" :key="col.area">
+                  <div class="policy-col">
+                    <!-- 컬럼 헤더 -->
+                    <div class="policy-col-header">
+                      <span class="policy-col-title" :style="`color:${col.color}`" x-text="col.area"></span>
+                      <span class="policy-col-count" x-text="col.items.length + '건'"></span>
+                    </div>
+                    <!-- 카드 목록 -->
+                    <template x-for="p in col.items" :key="p.id">
+                      <div class="policy-mini-card">
+                        <div class="policy-mini-top">
+                          <span class="policy-badge policy-badge-type" x-text="p['구분']"></span>
+                          <span class="policy-badge" :style="policyImpactStyle(p['영향도'])" x-text="p['영향도']"></span>
+                          <span class="policy-badge" :style="policyStatusStyle(p['상태'])" x-text="p['상태']"></span>
+                          <span class="policy-dday-sm" x-show="p['시행일'] && p['상태']!=='시행중'"
+                            :style="'font-size:11px;font-weight:800;color:' + policyDdayColor(p['시행일'])"
+                            x-text="policyDdayLabel(p['시행일'])"></span>
+                        </div>
+                        <div class="policy-mini-name" x-text="p['정책명']"></div>
+                        <div class="policy-mini-meta">
+                          <span x-text="p['주무부처']"></span>
+                          <template x-if="p['시행일']">
+                            <span x-text="' · 시행: ' + p['시행일']"></span>
+                          </template>
+                        </div>
+                        <div class="policy-mini-content" x-show="p['핵심내용']" x-text="p['핵심내용']"></div>
+                        <div class="policy-mini-foot">
+                          <label class="policy-toggle-wrap" style="flex:1; font-size:10px">
+                            <input type="checkbox" :checked="p['트래킹여부']==='Y'" @change="toggleTracking(p)"> 트래킹
+                          </label>
+                          <a x-show="p['출처URL']" :href="p['출처URL']" target="_blank" class="link-btn">원문</a>
+                          <button class="row-btn" @click="openPolicyForm(p)">수정</button>
+                          <button class="row-btn" style="color:#dc2626" @click="deletePolicy(p.id)">삭제</button>
+                        </div>
+                      </div>
+                    </template>
+                  </div>
+                </template>
+              </div>
             </div>
           </template>
 
@@ -2204,6 +2246,21 @@
       get policyAreas() {
         return [...new Set(this.policyItems.map(p => p['사업영역']).filter(Boolean))].sort();
       },
+      get policyDbCols() {
+        const groups = {};
+        for (const p of this.filteredPolicyItems) {
+          const area = p['사업영역'] || '기타';
+          if (!groups[area]) groups[area] = [];
+          groups[area].push(p);
+        }
+        const catColor = cat => cat === 'AML' ? 'var(--aml-color)' : cat === '페이먼트' ? 'var(--pay-color)' : 'var(--accent)';
+        return Object.entries(groups)
+          .sort(([a], [b]) => a === '기타' ? 1 : b === '기타' ? -1 : a.localeCompare(b, 'ko'))
+          .map(([area, items]) => {
+            const cat = this._areaToCat(area);
+            return { area, items, color: catColor(cat) };
+          });
+      },
       get filteredPolicyItems() {
         return this.policyItems.filter(p => {
           if (this.policyFilterArea   && p['사업영역'] !== this.policyFilterArea)   return false;
@@ -2263,7 +2320,10 @@
       // 법규/정책 메서드
       _daysUntil(dateStr) {
         try {
-          const d = new Date(dateStr); const t = new Date();
+          if (!dateStr) return null;
+          const d = new Date(dateStr);
+          if (isNaN(d.getTime())) return null;
+          const t = new Date();
           t.setHours(0,0,0,0); d.setHours(0,0,0,0);
           return Math.round((d - t) / 86400000);
         } catch { return null; }
