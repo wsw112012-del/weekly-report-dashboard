@@ -1323,39 +1323,47 @@
               <button class="cal-today-btn" @click="calGoToday()">오늘 일정 보기</button>
             </div>
 
-            <!-- 오른쪽: 선택일 우선:상 기사 -->
+            <!-- 오른쪽: 선택일 우선:상 기사 — 3열 그리드 -->
             <div class="home-daily-right">
               <div class="home-daily-header">
                 <span class="home-daily-date" x-text="calSelectedDate + ' — 우선순위 상 보도자료'"></span>
               </div>
-              <template x-if="homeDailyTopItems.length === 0">
-                <div class="cal-empty">선택한 날짜에 우선순위 상 기사가 없습니다</div>
-              </template>
-              <template x-for="group in homeDailyTopItems" :key="group.cat">
-                <div class="home-daily-group">
-                  <div class="home-daily-cat-label" :class="'kc-' + group.cat" x-text="group.cat"></div>
-                  <template x-for="a in group.items" :key="a._uid">
-                    <div class="cal-item-card">
-                      <div class="cal-item-top">
-                        <span class="cal-type-badge"
-                              :class="sourceType(a)==='언론기사' ? 'cal-type-언론기사' : 'cal-type-보도자료'"
-                              x-text="sourceType(a)"></span>
-                        <span class="cal-org-badge" x-text="a['기관']"></span>
+              <div class="home-daily-3col">
+                <template x-for="cat in ['데이터','페이먼트','AML']" :key="cat">
+                  <div class="home-daily-col">
+                    <!-- 열 헤더 -->
+                    <div class="home-daily-col-hdr"
+                         :style="cat==='데이터' ? 'color:var(--accent);border-color:var(--accent);background:var(--accent-lt)'
+                               : cat==='페이먼트' ? 'color:var(--pay-color);border-color:var(--pay-color);background:var(--pay-lt)'
+                               : 'color:var(--aml-color);border-color:var(--aml-color);background:var(--aml-lt)'"
+                         x-text="cat"></div>
+                    <!-- 기사 카드 -->
+                    <template x-for="a in homeDailyColItems(cat)" :key="a._uid">
+                      <div class="home-daily-mini-card">
+                        <div class="home-daily-mini-top">
+                          <span class="cal-type-badge"
+                                :class="sourceType(a)==='언론기사' ? 'cal-type-언론기사' : 'cal-type-보도자료'"
+                                x-text="sourceType(a)"></span>
+                          <span class="cal-org-badge" x-text="a['기관']"></span>
+                        </div>
+                        <div class="home-daily-mini-title" x-html="highlight(a['제목'])"></div>
+                        <div class="home-daily-mini-foot">
+                          <a x-show="a['링크']" :href="a['링크']" target="_blank"
+                             rel="noopener noreferrer" @click.stop class="link-btn">원문</a>
+                          <button class="row-btn" :disabled="formatting"
+                            @click="formatSingle(a._idx, a._cat)">
+                            <span x-text="(formattingIdx === a._uid && formatting) ? '...' : '요약'"></span>
+                          </button>
+                        </div>
                       </div>
-                      <div class="cal-item-title" x-html="highlight(a['제목'])"></div>
-                      <div class="cal-item-summary" x-html="highlight(a['내용'])"></div>
-                      <div class="cal-item-foot">
-                        <a x-show="a['링크']" :href="a['링크']" target="_blank"
-                           rel="noopener noreferrer" @click.stop class="link-btn">원문</a>
-                        <button class="row-btn" :disabled="formatting"
-                          @click="formatSingle(a._idx, a._cat)">
-                          <span x-text="(formattingIdx === a._uid && formatting) ? '...' : '요약'"></span>
-                        </button>
-                      </div>
-                    </div>
-                  </template>
-                </div>
-              </template>
+                    </template>
+                    <!-- 빈 열 -->
+                    <template x-if="homeDailyColItems(cat).length === 0">
+                      <div class="home-daily-empty-col">기사 없음</div>
+                    </template>
+                  </div>
+                </template>
+              </div>
             </div>
 
           </div>
@@ -2104,6 +2112,14 @@
           if (items.length > 0) result.push({ cat, items });
         }
         return result;
+      },
+      homeDailyColItems(cat) {
+        const date = this.calSelectedDate;
+        if (!date) return [];
+        return (this.allArticles[cat] || [])
+          .filter(a => (a['날짜']||'').startsWith(date) && a['우선순위'] === '상')
+          .slice(0, 5)
+          .map((a, i) => ({ ...a, _idx: i, _cat: cat, _uid: `${cat}-${i}` }));
       },
       get homeCalDotDates() {
         const set = new Set();
