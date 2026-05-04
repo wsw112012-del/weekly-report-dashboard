@@ -213,8 +213,6 @@ KOREA_KR_RSS_URL = "https://www.korea.kr/rss/pressRelease.do"
 
 def scrape_korea_rss(report_type: str) -> list[dict]:
     """korea.kr RSS 피드로 보도자료 수집 (스크래핑 대비 IP 차단 적음)"""
-    import xml.etree.ElementTree as ET
-
     print(f"  [korea.kr RSS] 수집 중...")
     raw = _get(KOREA_KR_RSS_URL, timeout=30)
     if not raw:
@@ -225,26 +223,25 @@ def scrape_korea_rss(report_type: str) -> list[dict]:
         print(f"  [korea.kr RSS] 재시도 실패 — 건너뜀")
         return []
 
-    try:
-        root = ET.fromstring(raw)
-    except ET.ParseError as e:
-        print(f"  [korea.kr RSS] XML 파싱 실패: {e}")
+    soup = BeautifulSoup(raw, 'lxml-xml')
+    items = soup.find_all('item')
+    if not items:
+        print(f"  [korea.kr RSS] item 없음 — 건너뜀")
         return []
 
-    ns = {'dc': 'http://purl.org/dc/elements/1.1/'}
     start_d = date.today() - timedelta(days=COLLECT_DAYS)
     articles: list[dict] = []
 
     month_map = {'Jan':1,'Feb':2,'Mar':3,'Apr':4,'May':5,'Jun':6,
                  'Jul':7,'Aug':8,'Sep':9,'Oct':10,'Nov':11,'Dec':12}
 
-    for item in root.findall('.//item'):
-        title   = (item.findtext('title')       or '').strip()
-        link    = (item.findtext('link')         or '').strip()
-        desc    = (item.findtext('description')  or '').strip()
-        pub_raw = (item.findtext('pubDate')      or '').strip()
-        agency  = (item.findtext('dc:creator', namespaces=ns)
-                   or item.findtext('category') or '').strip()
+    for item in items:
+        title   = (item.find('title').get_text()       if item.find('title')       else '').strip()
+        link    = (item.find('link').get_text()         if item.find('link')         else '').strip()
+        desc    = (item.find('description').get_text()  if item.find('description')  else '').strip()
+        pub_raw = (item.find('pubDate').get_text()      if item.find('pubDate')      else '').strip()
+        agency  = (item.find('dc:creator') or item.find('creator') or item.find('category'))
+        agency  = agency.get_text().strip() if agency else ''
 
         parsed_d = None
         m = re.search(r'(\d{1,2})\s+(\w{3})\s+(\d{4})', pub_raw)
