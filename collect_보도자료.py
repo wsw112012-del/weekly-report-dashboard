@@ -218,7 +218,11 @@ def scrape_korea_rss(report_type: str) -> list[dict]:
     print(f"  [korea.kr RSS] 수집 중...")
     raw = _get(KOREA_KR_RSS_URL, timeout=30)
     if not raw:
-        print(f"  [korea.kr RSS] 접속 실패 — 건너뜀")
+        print(f"  [korea.kr RSS] 접속 실패 — 10초 후 재시도...")
+        time.sleep(10)
+        raw = _get(KOREA_KR_RSS_URL, timeout=30)
+    if not raw:
+        print(f"  [korea.kr RSS] 재시도 실패 — 건너뜀")
         return []
 
     try:
