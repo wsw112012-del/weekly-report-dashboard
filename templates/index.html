@@ -110,7 +110,7 @@
     .log-toggle-btn:hover { background: var(--accent-lt); border-color: var(--accent2); color: var(--accent); }
 
     /* ── BODY WRAP ── */
-    #wrap { display: flex; flex: 1; overflow: hidden; }
+    #wrap { display: flex; flex-direction: row; flex-wrap: nowrap; flex: 1; overflow: hidden; min-height: 0; }
 
     /* ── SIDEBAR ── */
     .sidebar {
@@ -119,6 +119,7 @@
       border-right: 1px solid var(--bd);
       padding: 16px 8px;
       display: flex; flex-direction: column; gap: 4px;
+      overflow-y: auto; overflow-x: hidden;
     }
     .nav-item {
       display: flex; align-items: center; gap: 10px;
@@ -244,7 +245,8 @@
     .pri-btn.active-low  { background: #f1f5f9; border-color: #94a3b8; color: #475569; }
 
     /* ── MAIN ── */
-    .main { flex: 1; overflow-y: auto; padding: 20px 24px; }
+    .main { flex: 1; min-width: 0; min-height: 0; overflow-y: auto; padding: 20px 24px; display: flex; flex-direction: column; transition: padding-right .25s ease; }
+    .main.log-open { padding-right: 304px; }
     .main::-webkit-scrollbar { width: 4px; }
     .main::-webkit-scrollbar-thumb { background: var(--bd); border-radius: 2px; }
 
@@ -367,18 +369,25 @@
       color: var(--t3); font-size: 13px; background: var(--bg-card);
     }
 
-    /* ── LOG PANEL ── */
+    /* ── LOG PANEL (우측 고정 사이드바) ── */
     .log-panel {
-      width: 0; flex-shrink: 0;
+      position: fixed;
+      top: 64px;
+      right: 0;
+      width: 0;
+      height: calc(100% - 64px);
       background: var(--sidebar-bg);
       border-left: none;
       display: flex; flex-direction: column;
       overflow: hidden;
-      transition: width .25s ease;
+      transition: width .25s ease, border-left .25s ease;
+      z-index: 200;
+      box-shadow: none;
     }
     .log-panel.log-open {
       width: 280px;
       border-left: 1px solid var(--bd);
+      box-shadow: -4px 0 16px rgba(15,23,42,.08);
     }
 
     .log-header {
@@ -958,6 +967,10 @@
     .policy-form-input:focus { outline: none; border-color: var(--accent2); box-shadow: 0 0 0 2px rgba(37,99,235,.1); }
     textarea.policy-form-input { resize: vertical; min-height: 60px; }
 
+    /* ── HOME 페이지 레이아웃 ── */
+    .home-page { flex: 1; display: flex; flex-direction: column; min-height: 0; }
+    .home-cat-grid { flex: 1; align-content: start; min-height: 120px; }
+
     /* ── HOME 리디자인 ── */
     .home-top-bar {
       display: flex; align-items: center; gap: 14px; margin-bottom: 12px;
@@ -1320,11 +1333,11 @@
     </aside>
 
     <!-- ── MAIN ── -->
-    <main class="main">
+    <main class="main" :class="showLog ? 'log-open' : ''">
 
       <!-- ══ HOME ══ -->
       <template x-if="currentPage === 'home'">
-        <div>
+        <div class="home-page">
 
           <!-- 상단: 수집 기간 + 검색창 -->
           <div class="home-top-bar">
