@@ -1805,8 +1805,6 @@
                     @click="polTab='legislation'">⚖️ 입법현황</button>
             <button class="pol-tab" :class="polTab==='assembly' ? 'active' : ''"
                     @click="polTab='assembly'">📰 국회의원 보도자료</button>
-            <button class="pol-tab" :class="polTab==='policydb' ? 'active' : ''"
-                    @click="polTab='policydb'; loadPolicy()">🗂 정책DB</button>
             <button class="pol-tab" :class="polTab==='gantt' ? 'active' : ''"
                     @click="polTab='gantt'">📊 연간 시행현황</button>
           </div>
@@ -1879,7 +1877,7 @@
                           <tr class="pol-row" :class="polSelectedId===a.id ? 'selected' : ''"
                               @click="polSelectedId = polSelectedId===a.id ? null : a.id">
                             <td class="pol-no" x-text="i+1"></td>
-                            <td class="pol-date" x-text="a.scraped_at"></td>
+                            <td class="pol-date" x-text="a.propose_date || a.scraped_at"></td>
                             <td>
                               <span class="pol-src-badge"
                                     :class="a.source==='gov' ? 'src-gov' : 'src-congress'"
@@ -1990,76 +1988,6 @@
                     </table>
                   </template>
                 </div>
-              </div>
-            </div>
-          </template>
-
-          <!-- ── 정책DB 탭 ── -->
-          <template x-if="polTab === 'policydb'">
-            <div class="pol-policydb-wrap">
-              <div class="policy-db-bar">
-                <select class="policy-select" x-model="policyFilterArea">
-                  <option value="">사업영역 전체</option>
-                  <template x-for="a in policyAreas" :key="a"><option :value="a" x-text="a"></option></template>
-                </select>
-                <select class="policy-select" x-model="policyFilterImpact">
-                  <option value="">영향도 전체</option>
-                  <option value="높음">높음</option>
-                  <option value="중간">중간</option>
-                  <option value="낮음">낮음</option>
-                </select>
-                <select class="policy-select" x-model="policyFilterStatus">
-                  <option value="">상태 전체</option>
-                  <option value="시행중">시행중</option>
-                  <option value="시행예정">시행예정</option>
-                  <option value="계류중">계류중</option>
-                  <option value="입법예정">입법예정</option>
-                  <option value="모니터링">모니터링</option>
-                </select>
-                <input class="policy-search-input" type="text" placeholder="정책명 검색" x-model="policySearchKw">
-                <span class="filter-count" x-text="filteredPolicyItems.length + '건'"></span>
-                <button class="btn-ppt" style="margin-left:auto" @click="openPolicyForm(null)">+ 신규 추가</button>
-              </div>
-              <template x-if="filteredPolicyItems.length === 0">
-                <div class="policy-empty">등록된 정책이 없습니다</div>
-              </template>
-              <div class="policy-db-grid" x-show="filteredPolicyItems.length > 0">
-                <template x-for="col in policyDbCols" :key="col.area">
-                  <div class="policy-col">
-                    <div class="policy-col-header">
-                      <span class="policy-col-title" :style="`color:${col.color}`" x-text="col.area"></span>
-                      <span class="policy-col-count" x-text="col.items.length + '건'"></span>
-                    </div>
-                    <template x-for="p in col.items" :key="p.id">
-                      <div class="policy-mini-card">
-                        <div class="policy-mini-top">
-                          <span class="policy-badge policy-badge-type" x-text="p['구분']"></span>
-                          <span class="policy-badge" :style="policyImpactStyle(p['영향도'])" x-text="p['영향도']"></span>
-                          <span class="policy-badge" :style="policyStatusStyle(p['상태'])" x-text="p['상태']"></span>
-                          <span class="policy-dday-sm" x-show="p['시행일'] && p['상태']!=='시행중'"
-                            :style="'font-size:11px;font-weight:800;color:' + policyDdayColor(p['시행일'])"
-                            x-text="policyDdayLabel(p['시행일'])"></span>
-                        </div>
-                        <div class="policy-mini-name" x-text="p['정책명']"></div>
-                        <div class="policy-mini-meta">
-                          <span x-text="p['주무부처']"></span>
-                          <template x-if="p['시행일']">
-                            <span x-text="' · 시행: ' + p['시행일']"></span>
-                          </template>
-                        </div>
-                        <div class="policy-mini-content" x-show="p['핵심내용']" x-text="p['핵심내용']"></div>
-                        <div class="policy-mini-foot">
-                          <label class="policy-toggle-wrap" style="flex:1; font-size:10px">
-                            <input type="checkbox" :checked="p['트래킹여부']==='Y'" @change="toggleTracking(p)"> 트래킹
-                          </label>
-                          <a x-show="p['출처URL']" :href="p['출처URL']" target="_blank" class="link-btn">원문</a>
-                          <button class="row-btn" @click="openPolicyForm(p)">수정</button>
-                          <button class="row-btn" style="color:#dc2626" @click="deletePolicy(p.id)">삭제</button>
-                        </div>
-                      </div>
-                    </template>
-                  </div>
-                </template>
               </div>
             </div>
           </template>
@@ -3472,7 +3400,7 @@
         this.annualStatusItems = result;
       },
       async loadLegislation() {
-        this.legLoading = true;
+        if (!this.legItems.length) this.legLoading = true;
         try {
           this.legItems = await fetch('/api/legislation').then(r => r.json());
           if (this.legItems.length) this.legLastFetched = new Date().toLocaleString('ko-KR');

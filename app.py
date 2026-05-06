@@ -773,6 +773,12 @@ def _scrape_govlm(law_name: str, category: str) -> list[dict]:
         kw = law_name.replace(' ', '')[:6]
         if kw not in bill_title.replace(' ', '') and kw not in cells[4].get_text(strip=True).replace(' ', ''):
             continue
+        propose_date = ''
+        for ci in range(6, min(len(cells), 10)):
+            txt = cells[ci].get_text(strip=True)
+            if txt and (txt[0].isdigit() and len(txt) >= 8):
+                propose_date = txt
+                break
         items.append({
             "id": hashlib.md5(f"gov-{law_name}-{bill_title}".encode()).hexdigest()[:12],
             "source": "gov",
@@ -785,6 +791,7 @@ def _scrape_govlm(law_name: str, category: str) -> list[dict]:
             "status": cells[5].get_text(strip=True) if len(cells) > 5 else '',
             "proposer": "",
             "bill_no": "",
+            "propose_date": propose_date,
             "link": (_LAWMAKING_BASE + href) if href.startswith('/') else href,
             "scraped_at": date.today().isoformat(),
         })
@@ -817,6 +824,7 @@ def _scrape_nsmlmsts(law_name: str, category: str) -> list[dict]:
         link_tag = cells[0].find('a')
         href = (link_tag.get('href') or '') if link_tag else ''
         bill_no = cells[5].get_text(strip=True) if len(cells) > 5 else ''
+        propose_date = cells[4].get_text(strip=True) if len(cells) > 4 else ''
         items.append({
             "id": hashlib.md5(f"asm-{law_name}-{bill_no}-{title[:20]}".encode()).hexdigest()[:12],
             "source": "assembly",
@@ -829,6 +837,7 @@ def _scrape_nsmlmsts(law_name: str, category: str) -> list[dict]:
             "status": cells[3].get_text(strip=True) if len(cells) > 3 else '',
             "proposer": cells[1].get_text(' ', strip=True) if len(cells) > 1 else '',
             "bill_no": bill_no,
+            "propose_date": propose_date,
             "link": (_LAWMAKING_BASE + href) if href.startswith('/') else href,
             "scraped_at": date.today().isoformat(),
         })
