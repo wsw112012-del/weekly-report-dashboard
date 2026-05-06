@@ -1713,7 +1713,7 @@
                   <div class="cat-tag" :class="law.category==='데이터'?'tag-data':law.category==='페이먼트'?'tag-pay':'tag-aml'" x-text="law.category"></div>
                   <div class="annual-law-name" x-text="law.law_name"></div>
                   <div class="annual-status-badge" :style="annualStatusStyle(law.status)" x-text="law.status"></div>
-                  <div class="annual-date" x-text="law.effective_date || ''"></div>
+                  <div class="annual-date" x-text="law.effective_date ? '최근: ' + law.effective_date : ''"></div>
                 </div>
               </template>
               <template x-if="!annualStatusItems.length">
@@ -3050,11 +3050,44 @@
         const c = map[status] || '#6b7280';
         return `background:${c}22;color:${c};border:1px solid ${c}44`;
       },
+      _legStatusToAnnual(status) {
+        if (!status) return '발의';
+        if (['공포','본회의 통과','원안가결','수정가결'].some(s => status.includes(s))) return '시행';
+        if (['공포대기','법제처심사완료','법제처 심사완료'].some(s => status.includes(s))) return '시행 예정(D-30)';
+        if (['법제처심사','국무회의','입법예고'].some(s => status.includes(s))) return '시행 예정(D-90)';
+        return '발의';
+      },
+      _buildAnnualStatus() {
+        const TARGETS = {
+          '데이터': ['개인정보보호법','신용정보의 이용 및 보호에 관한 법률','정보통신망이용촉진및정보보호등에관한법률'],
+          '페이먼트': ['전자금융거래법'],
+          'AML': ['특정 금융거래정보의 보고 및 이용 등에 관한 법률','공중 등 협박목적을 위한 자금조달행위의 금지에 관한 법률'],
+        };
+        const result = [];
+        let uid = 0;
+        for (const [cat, laws] of Object.entries(TARGETS)) {
+          for (const law of laws) {
+            const items = this.legItems
+              .filter(a => a.target_law === law && a.source === 'gov' && a.status)
+              .sort((a, b) => (b.scraped_at || '').localeCompare(a.scraped_at || ''));
+            const latest = items[0];
+            result.push({
+              id: `annual-${uid++}`,
+              category: cat,
+              law_name: law,
+              status: latest ? this._legStatusToAnnual(latest.status) : '발의',
+              effective_date: latest ? latest.status : '',
+            });
+          }
+        }
+        this.annualStatusItems = result;
+      },
       async loadLegislation() {
         this.legLoading = true;
         try {
           this.legItems = await fetch('/api/legislation').then(r => r.json());
           if (this.legItems.length) this.legLastFetched = new Date().toLocaleString('ko-KR');
+          this._buildAnnualStatus();
         } catch(_) { this.legItems = []; }
         finally { this.legLoading = false; }
       },
