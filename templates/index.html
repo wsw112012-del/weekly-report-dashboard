@@ -599,7 +599,90 @@
     [x-cloak] { display: none !important; }
 
     /* ── 법규/정책 탭 ── */
-    .policy-wrap { padding: 4px 0; }
+    .policy-wrap { padding: 4px 0; display: flex; flex-direction: column; min-height: 0; }
+
+    /* ── 법규/정책 신규 레이아웃 ── */
+    .pol-tabs {
+      display: flex; gap: 0; border-bottom: 2px solid var(--bd); margin-bottom: 16px; flex-shrink: 0;
+    }
+    .pol-tab {
+      padding: 8px 18px; border-radius: 6px 6px 0 0; border: 1px solid transparent;
+      background: none; font-size: 13px; font-weight: 600; color: var(--t3);
+      cursor: pointer; transition: all .15s; margin-bottom: -2px;
+    }
+    .pol-tab:hover { color: var(--t2); background: #f1f5f9; }
+    .pol-tab.active {
+      color: var(--accent); background: #fff;
+      border-color: var(--bd); border-bottom-color: #fff;
+    }
+    .pol-layout {
+      display: flex; gap: 0; flex: 1; min-height: 0;
+      border: 1px solid var(--bd); border-radius: 10px; overflow: hidden;
+      background: #fff;
+    }
+    .pol-sidebar {
+      width: 148px; flex-shrink: 0; border-right: 1px solid var(--bd);
+      padding: 10px 6px; display: flex; flex-direction: column; gap: 2px;
+      overflow-y: auto; background: #f8faff;
+    }
+    .pol-sidebar-title {
+      font-size: 10px; font-weight: 700; color: var(--t3);
+      padding: 6px 8px 3px; letter-spacing: .5px;
+    }
+    .pol-sidebar-divider { height: 1px; background: var(--bd); margin: 5px 4px; }
+    .pol-sidebar-item {
+      padding: 6px 10px; border-radius: 7px; font-size: 12px; font-weight: 600;
+      color: var(--t2); cursor: pointer; transition: all .15s;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .pol-sidebar-item:hover { background: #e8f0fe; color: var(--t1); }
+    .pol-sidebar-item.active { background: var(--accent-lt); color: var(--accent); }
+    .pol-main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+    .pol-filter-bar {
+      display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+      padding: 8px 14px; border-bottom: 1px solid var(--bd); flex-shrink: 0;
+      background: #fafbff;
+    }
+    .pol-count { font-size: 11px; color: var(--t3); font-weight: 700; margin-left: auto; }
+    .pol-fetched { font-size: 10px; color: var(--t3); }
+    .pol-table-wrap { flex: 1; overflow-y: auto; }
+    .pol-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    .pol-table thead tr {
+      background: #f1f5f9; border-bottom: 2px solid var(--bd);
+      position: sticky; top: 0; z-index: 1;
+    }
+    .pol-table th {
+      padding: 8px 10px; font-size: 11px; font-weight: 700; color: var(--t2);
+      text-align: left; white-space: nowrap; border-right: 1px solid var(--bd);
+    }
+    .pol-table th:last-child { border-right: none; }
+    .pol-table td {
+      padding: 10px 10px; border-bottom: 1px solid #eef2f8;
+      vertical-align: top; border-right: 1px solid #eef2f8;
+    }
+    .pol-table td:last-child { border-right: none; }
+    .pol-row { cursor: pointer; transition: background .1s; }
+    .pol-row:hover { background: #f0f6ff; }
+    .pol-row.selected { background: #dbeafe; }
+    .pol-no { color: var(--t3); font-size: 11px; text-align: center; width: 36px; }
+    .pol-date { color: var(--t3); font-size: 11px; white-space: nowrap; }
+    .pol-title { font-size: 13px; font-weight: 600; color: var(--t1); line-height: 1.4; margin-bottom: 3px; }
+    .pol-meta { font-size: 11px; color: var(--t3); }
+    .pol-src-badge {
+      font-size: 10px; font-weight: 700; padding: 2px 7px;
+      border-radius: 4px; color: #fff; white-space: nowrap;
+    }
+    .src-gov { background: var(--accent2); }
+    .src-congress { background: #7c3aed; }
+    .pol-law-chip {
+      font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 10px;
+      white-space: nowrap; display: inline-block;
+    }
+    .pol-status-badge {
+      font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 10px;
+      white-space: nowrap; display: inline-block;
+    }
+    .pol-policydb-wrap { flex: 1; overflow-y: auto; padding: 16px; }
     .policy-controls {
       display: flex; align-items: center; gap: 8px;
       margin-bottom: 16px; flex-wrap: wrap;
@@ -1716,7 +1799,273 @@
       <template x-if="currentPage === 'policy'">
         <div class="policy-wrap">
 
-          <!-- ── 연간 정책 시행현황 (간트차트) ── -->
+          <!-- ── 탭 바 ── -->
+          <div class="pol-tabs">
+            <button class="pol-tab" :class="polTab==='legislation' ? 'active' : ''"
+                    @click="polTab='legislation'">⚖️ 입법현황</button>
+            <button class="pol-tab" :class="polTab==='assembly' ? 'active' : ''"
+                    @click="polTab='assembly'">📰 국회의원 보도자료</button>
+            <button class="pol-tab" :class="polTab==='policydb' ? 'active' : ''"
+                    @click="polTab='policydb'; loadPolicy()">🗂 정책DB</button>
+            <button class="pol-tab" :class="polTab==='gantt' ? 'active' : ''"
+                    @click="polTab='gantt'">📊 연간 시행현황</button>
+          </div>
+
+          <!-- ── 입법현황 탭 ── -->
+          <template x-if="polTab === 'legislation'">
+            <div class="pol-layout">
+              <!-- 좌측 사이드바 -->
+              <div class="pol-sidebar">
+                <div class="pol-sidebar-title">대상 법령</div>
+                <div class="pol-sidebar-item" :class="legSideLaw==='' && legCat==='전체' ? 'active' : ''"
+                     @click="legSideLaw=''; legLaw=''; legCat='전체'">전체</div>
+                <template x-for="law in legAllLaws" :key="law">
+                  <div class="pol-sidebar-item" :class="legSideLaw===law ? 'active' : ''"
+                       @click="legSideLaw=law; legLaw=law; legCat='전체'"
+                       x-text="law"></div>
+                </template>
+                <div class="pol-sidebar-divider"></div>
+                <div class="pol-sidebar-title">카테고리</div>
+                <template x-for="c in ['전체','데이터','페이먼트','AML']" :key="c">
+                  <div class="pol-sidebar-item"
+                       :class="legCat===c && legSideLaw==='' ? 'active' : ''"
+                       @click="legCat=c; legSideLaw=''; legLaw=''"
+                       x-text="c"></div>
+                </template>
+              </div>
+              <!-- 우측 메인 -->
+              <div class="pol-main">
+                <div class="pol-filter-bar">
+                  <div class="articles-search" style="flex:1;max-width:300px">
+                    <span style="font-size:12px;color:var(--t3)">🔍</span>
+                    <input type="text" x-model="legSearch" placeholder="법령명·기관·상태 검색..."/>
+                    <template x-if="legSearch">
+                      <span @click="legSearch=''" style="cursor:pointer;color:var(--t3);font-size:11px">✕</span>
+                    </template>
+                  </div>
+                  <template x-for="s in ['전체','정부','국회']" :key="s">
+                    <button class="src-btn" :class="legSource===s ? 'active-press' : ''"
+                            @click="legSource=s" x-text="s"></button>
+                  </template>
+                  <button class="collect-btn primary" style="font-size:11px;padding:5px 12px"
+                          :disabled="legLoading" @click="collectLegislation()">
+                    <span x-text="legLoading ? '수집 중...' : '수집'"></span>
+                  </button>
+                  <span class="pol-count" x-text="filteredLegislation.length + '건'"></span>
+                  <span class="pol-fetched" x-text="legLastFetched ? '수집: ' + legLastFetched : ''"></span>
+                </div>
+                <div class="pol-table-wrap">
+                  <template x-if="legLoading">
+                    <div class="panel-loading">입법현황 수집 중...</div>
+                  </template>
+                  <template x-if="!legLoading && filteredLegislation.length===0">
+                    <div class="panel-empty">수집된 입법현황이 없습니다.<br><small>'수집' 버튼을 눌러주세요.</small></div>
+                  </template>
+                  <template x-if="!legLoading && filteredLegislation.length > 0">
+                    <table class="pol-table">
+                      <thead>
+                        <tr>
+                          <th style="width:36px">No</th>
+                          <th style="width:84px">날짜</th>
+                          <th style="width:44px">유형</th>
+                          <th>제목 / 소관·발의</th>
+                          <th style="width:88px">대상 법령</th>
+                          <th style="width:108px">진행 상황</th>
+                          <th style="width:44px">링크</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <template x-for="(a, i) in filteredLegislation" :key="a.id">
+                          <tr class="pol-row" :class="polSelectedId===a.id ? 'selected' : ''"
+                              @click="polSelectedId = polSelectedId===a.id ? null : a.id">
+                            <td class="pol-no" x-text="i+1"></td>
+                            <td class="pol-date" x-text="a.scraped_at"></td>
+                            <td>
+                              <span class="pol-src-badge"
+                                    :class="a.source==='gov' ? 'src-gov' : 'src-congress'"
+                                    x-text="a.source==='gov' ? '정부' : '국회'"></span>
+                            </td>
+                            <td>
+                              <div class="pol-title" x-html="highlightQ(a.bill_title, legSearch)"></div>
+                              <div class="pol-meta" x-show="a.ministry || a.proposer">
+                                <span x-text="a.source==='gov' ? a.ministry : a.proposer"></span>
+                                <template x-if="a.amendment_type">
+                                  <span x-text="' · ' + a.amendment_type"></span>
+                                </template>
+                              </div>
+                            </td>
+                            <td>
+                              <span class="pol-law-chip"
+                                    :class="a.category==='데이터'?'tag-data':a.category==='페이먼트'?'tag-pay':'tag-aml'"
+                                    x-text="a.target_law"></span>
+                            </td>
+                            <td>
+                              <span class="pol-status-badge" :style="legStatusStyle(a.status)"
+                                    x-text="a.status || '-'"></span>
+                            </td>
+                            <td>
+                              <a x-show="a.link" :href="a.link" target="_blank"
+                                 rel="noopener noreferrer" class="link-btn" @click.stop>원문</a>
+                            </td>
+                          </tr>
+                        </template>
+                      </tbody>
+                    </table>
+                  </template>
+                </div>
+              </div>
+            </div>
+          </template>
+
+          <!-- ── 국회의원 보도자료 탭 ── -->
+          <template x-if="polTab === 'assembly'">
+            <div class="pol-layout">
+              <div class="pol-sidebar">
+                <div class="pol-sidebar-title">카테고리</div>
+                <template x-for="c in ['전체','데이터','페이먼트','AML']" :key="c">
+                  <div class="pol-sidebar-item" :class="assemblyPressCat===c ? 'active' : ''"
+                       @click="assemblyPressCat=c" x-text="c"></div>
+                </template>
+              </div>
+              <div class="pol-main">
+                <div class="pol-filter-bar">
+                  <div class="articles-search" style="flex:1;max-width:300px">
+                    <span style="font-size:12px;color:var(--t3)">🔍</span>
+                    <input type="text" x-model="assemblyPressSearch" placeholder="의원명·법안명 검색..."/>
+                    <template x-if="assemblyPressSearch">
+                      <span @click="assemblyPressSearch=''" style="cursor:pointer;color:var(--t3);font-size:11px">✕</span>
+                    </template>
+                  </div>
+                  <button class="collect-btn primary" style="font-size:11px;padding:5px 12px"
+                          :disabled="assemblyPressLoading" @click="collectAssemblyPress()">
+                    <span x-text="assemblyPressLoading ? '수집 중...' : '수집'"></span>
+                  </button>
+                  <span class="pol-count" x-text="filteredAssemblyPress.length + '건'"></span>
+                  <span class="pol-fetched" x-text="assemblyPressLastFetched ? '수집: ' + assemblyPressLastFetched : ''"></span>
+                </div>
+                <div class="pol-table-wrap">
+                  <template x-if="assemblyPressLoading">
+                    <div class="panel-loading">수집 중...</div>
+                  </template>
+                  <template x-if="!assemblyPressLoading && filteredAssemblyPress.length===0">
+                    <div class="panel-empty">수집된 보도자료가 없습니다.<br><small>보도자료 수집 시 함께 갱신됩니다.</small></div>
+                  </template>
+                  <template x-if="!assemblyPressLoading && filteredAssemblyPress.length > 0">
+                    <table class="pol-table">
+                      <thead>
+                        <tr>
+                          <th style="width:36px">No</th>
+                          <th style="width:84px">날짜</th>
+                          <th style="width:72px">카테고리</th>
+                          <th style="width:120px">발의처</th>
+                          <th>제목</th>
+                          <th style="width:44px">링크</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <template x-for="(a, i) in filteredAssemblyPress" :key="a.id">
+                          <tr class="pol-row" :class="polSelectedId===a.id ? 'selected' : ''"
+                              @click="polSelectedId = polSelectedId===a.id ? null : a.id">
+                            <td class="pol-no" x-text="i+1"></td>
+                            <td class="pol-date" x-text="a.pub_date"></td>
+                            <td>
+                              <span class="pol-law-chip"
+                                    :class="a.category==='데이터'?'tag-data':a.category==='페이먼트'?'tag-pay':'tag-aml'"
+                                    x-text="a.category"></span>
+                            </td>
+                            <td>
+                              <div class="pol-meta" x-text="a.org"></div>
+                              <div class="pol-meta" x-text="a.part"></div>
+                            </td>
+                            <td>
+                              <div class="pol-title" x-html="highlightQ(a.title, assemblyPressSearch)"></div>
+                            </td>
+                            <td>
+                              <a :href="a.link" target="_blank" rel="noopener noreferrer"
+                                 class="link-btn" @click.stop>원문</a>
+                            </td>
+                          </tr>
+                        </template>
+                      </tbody>
+                    </table>
+                  </template>
+                </div>
+              </div>
+            </div>
+          </template>
+
+          <!-- ── 정책DB 탭 ── -->
+          <template x-if="polTab === 'policydb'">
+            <div class="pol-policydb-wrap">
+              <div class="policy-db-bar">
+                <select class="policy-select" x-model="policyFilterArea">
+                  <option value="">사업영역 전체</option>
+                  <template x-for="a in policyAreas" :key="a"><option :value="a" x-text="a"></option></template>
+                </select>
+                <select class="policy-select" x-model="policyFilterImpact">
+                  <option value="">영향도 전체</option>
+                  <option value="높음">높음</option>
+                  <option value="중간">중간</option>
+                  <option value="낮음">낮음</option>
+                </select>
+                <select class="policy-select" x-model="policyFilterStatus">
+                  <option value="">상태 전체</option>
+                  <option value="시행중">시행중</option>
+                  <option value="시행예정">시행예정</option>
+                  <option value="계류중">계류중</option>
+                  <option value="입법예정">입법예정</option>
+                  <option value="모니터링">모니터링</option>
+                </select>
+                <input class="policy-search-input" type="text" placeholder="정책명 검색" x-model="policySearchKw">
+                <span class="filter-count" x-text="filteredPolicyItems.length + '건'"></span>
+                <button class="btn-ppt" style="margin-left:auto" @click="openPolicyForm(null)">+ 신규 추가</button>
+              </div>
+              <template x-if="filteredPolicyItems.length === 0">
+                <div class="policy-empty">등록된 정책이 없습니다</div>
+              </template>
+              <div class="policy-db-grid" x-show="filteredPolicyItems.length > 0">
+                <template x-for="col in policyDbCols" :key="col.area">
+                  <div class="policy-col">
+                    <div class="policy-col-header">
+                      <span class="policy-col-title" :style="`color:${col.color}`" x-text="col.area"></span>
+                      <span class="policy-col-count" x-text="col.items.length + '건'"></span>
+                    </div>
+                    <template x-for="p in col.items" :key="p.id">
+                      <div class="policy-mini-card">
+                        <div class="policy-mini-top">
+                          <span class="policy-badge policy-badge-type" x-text="p['구분']"></span>
+                          <span class="policy-badge" :style="policyImpactStyle(p['영향도'])" x-text="p['영향도']"></span>
+                          <span class="policy-badge" :style="policyStatusStyle(p['상태'])" x-text="p['상태']"></span>
+                          <span class="policy-dday-sm" x-show="p['시행일'] && p['상태']!=='시행중'"
+                            :style="'font-size:11px;font-weight:800;color:' + policyDdayColor(p['시행일'])"
+                            x-text="policyDdayLabel(p['시행일'])"></span>
+                        </div>
+                        <div class="policy-mini-name" x-text="p['정책명']"></div>
+                        <div class="policy-mini-meta">
+                          <span x-text="p['주무부처']"></span>
+                          <template x-if="p['시행일']">
+                            <span x-text="' · 시행: ' + p['시행일']"></span>
+                          </template>
+                        </div>
+                        <div class="policy-mini-content" x-show="p['핵심내용']" x-text="p['핵심내용']"></div>
+                        <div class="policy-mini-foot">
+                          <label class="policy-toggle-wrap" style="flex:1; font-size:10px">
+                            <input type="checkbox" :checked="p['트래킹여부']==='Y'" @change="toggleTracking(p)"> 트래킹
+                          </label>
+                          <a x-show="p['출처URL']" :href="p['출처URL']" target="_blank" class="link-btn">원문</a>
+                          <button class="row-btn" @click="openPolicyForm(p)">수정</button>
+                          <button class="row-btn" style="color:#dc2626" @click="deletePolicy(p.id)">삭제</button>
+                        </div>
+                      </div>
+                    </template>
+                  </div>
+                </template>
+              </div>
+            </div>
+          </template>
+
+          <!-- ── 연간 시행현황 탭 (간트차트) ── -->
+          <template x-if="polTab === 'gantt'">
           <div style="margin-bottom:18px">
             <div class="policy-section-title" style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
               📊 연간 정책 시행현황
@@ -1771,9 +2120,10 @@
               </template>
             </div>
           </div>
+          </template>
 
-          <!-- ── 2열 메인: 국회의원 보도자료 + 입법현황 ── -->
-          <div class="policy-main-2col">
+          <!-- ── REMOVED old 2col + dead zone ── -->
+          <template x-if="false"><div class="policy-main-2col-removed">
 
             <!-- 왼쪽: 국회의원 보도자료 -->
             <div class="policy-panel">
@@ -2324,7 +2674,7 @@
               </div>
             </div>
           </template>
-          </template><!-- /x-if="false" dead zone -->
+          </div></template><!-- removed old 2col+deadzone -->
 
         </div>
       </template>
@@ -2565,6 +2915,11 @@
       legSearch: '',
       legLoading: false,
       legLastFetched: '',
+
+      // 법규/정책 새 탭 시스템
+      polTab: 'legislation',
+      polSelectedId: null,
+      legSideLaw: '',
 
       // 하위 호환 (dead zone HTML 참조용 — 실제 사용 안 함)
       policyTab: 'dashboard',
@@ -3065,9 +3420,11 @@
           const src = a.source === 'gov' ? '정부' : '국회';
           if (this.legSource !== '전체' && src !== this.legSource) return false;
           if (this.legLaw && a.target_law !== this.legLaw) return false;
+          if (this.legSideLaw && a.target_law !== this.legSideLaw) return false;
           const q = this.legSearch.trim().toLowerCase();
           if (q && !(a.bill_title||'').toLowerCase().includes(q)
                  && !(a.status||'').toLowerCase().includes(q)
+                 && !(a.ministry||'').toLowerCase().includes(q)
                  && !(a.target_law||'').toLowerCase().includes(q)) return false;
           return true;
         });
