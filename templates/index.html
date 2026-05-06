@@ -1562,17 +1562,11 @@
           <!-- 타입 탭 -->
           <div class="articles-type-tabs">
             <button class="articles-type-tab" :class="articlesTypeFilter==='전체' ? 'active' : ''"
-                    @click="articlesTypeFilter='전체'">
-              전체 <span x-text="articlesPageItems('전체').length + '건'"></span>
-            </button>
+                    @click="articlesTypeFilter='전체'">전체</button>
             <button class="articles-type-tab" :class="articlesTypeFilter==='보도자료' ? 'active' : ''"
-                    @click="articlesTypeFilter='보도자료'">
-              보도자료 <span x-text="articlesPageItems('보도자료').length + '건'"></span>
-            </button>
+                    @click="articlesTypeFilter='보도자료'">보도자료</button>
             <button class="articles-type-tab tab-news" :class="articlesTypeFilter==='언론기사' ? 'active tab-news' : ''"
-                    @click="articlesTypeFilter='언론기사'">
-              언론기사 <span x-text="articlesPageItems('언론기사').length + '건'"></span>
-            </button>
+                    @click="articlesTypeFilter='언론기사'">언론기사</button>
           </div>
 
           <!-- 필터 바 -->
@@ -1592,7 +1586,6 @@
                 <span @click="articlesSearchQ=''" style="cursor:pointer;color:var(--t3);font-size:11px">✕</span>
               </template>
             </div>
-            <span class="articles-count" x-text="articlesFiltered.length + '건'"></span>
           </div>
 
           <!-- 기사 목록 -->
@@ -2742,6 +2735,9 @@
         if (q) items = items.filter(a =>
           (a['제목']||'').toLowerCase().includes(q) || (a['내용']||'').toLowerCase().includes(q)
         );
+        if (this.articlesTypeFilter === '전체') {
+          items = [...items].sort((a, b) => (b['날짜'] || '').localeCompare(a['날짜'] || ''));
+        }
         return items;
       },
 
