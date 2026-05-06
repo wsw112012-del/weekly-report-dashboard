@@ -889,16 +889,13 @@ def _scrape_assembly_press() -> list[dict]:
 
 
 def collect_legislation_status() -> list[dict]:
-    """6개 대상 법령의 정부·국회 입법현황 수집"""
+    """6개 대상 법령의 정부 입법현황 수집 (opinion.lawmaking.go.kr govLm)"""
     results: list[dict] = []
     for cat, laws in LEGISLATION_TARGETS.items():
         for law in laws:
             gov_items = _scrape_govlm(law, cat)
             print(f"  govLm [{law}]: {len(gov_items)}건")
             results.extend(gov_items)
-            asm_items = _scrape_nsmlmsts(law, cat)
-            print(f"  nsmLmSts [{law}]: {len(asm_items)}건")
-            results.extend(asm_items)
     return results
 
 
@@ -1040,6 +1037,33 @@ async def stream_collect(report_type: str):
                 yield f"data: {line.decode('utf-8', errors='replace').rstrip()}\n\n"
             await loop.run_in_executor(None, proc.wait)
             yield f"data: ✓ [{cat}] 수집 완료\n\n"
+
+        # 입법현황 수집
+        yield "data: ━━ [입법현황] 수집 시작 ━━\n\n"
+        try:
+            leg_items = await loop.run_in_executor(None, collect_legislation_status)
+            LEGISLATION_FILE.write_text(
+                json.dumps(leg_items, ensure_ascii=False, indent=2), encoding='utf-8'
+            )
+            for item in leg_items:
+                _supabase_request("POST", "legislation_status", item)
+            yield f"data: ✓ 입법현황 {len(leg_items)}건 완료\n\n"
+        except Exception as e:
+            yield f"data: [WARN] 입법현황 수집 오류: {e}\n\n"
+
+        # 국회의원 보도자료 수집
+        yield "data: ━━ [국회의원 보도자료] 수집 시작 ━━\n\n"
+        try:
+            press_items = await loop.run_in_executor(None, _scrape_assembly_press)
+            ASSEMBLY_PRESS_FILE.write_text(
+                json.dumps(press_items, ensure_ascii=False, indent=2), encoding='utf-8'
+            )
+            for item in press_items:
+                _supabase_request("POST", "assembly_press", item)
+            yield f"data: ✓ 국회의원 보도자료 {len(press_items)}건 완료\n\n"
+        except Exception as e:
+            yield f"data: [WARN] 국회의원 보도자료 수집 오류: {e}\n\n"
+
         yield "data: [DONE]\n\n"
 
     return StreamingResponse(event_generator(), media_type="text/event-stream")

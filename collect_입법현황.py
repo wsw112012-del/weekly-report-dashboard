@@ -261,10 +261,6 @@ def collect_legislation() -> list[dict]:
             print(f"  govLm [{law}]: {len(gov)}건")
             results.extend(gov)
             time.sleep(0.5)
-            asm = scrape_nsmlmsts(law, cat)
-            print(f"  nsmLmSts [{law}]: {len(asm)}건")
-            results.extend(asm)
-            time.sleep(0.5)
     return results
 
 
