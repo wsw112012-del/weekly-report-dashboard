@@ -1203,6 +1203,56 @@
     .home-cat-col.col-inactive    { opacity: 0.5; }
     .home-cat-col.col-inactive .home-mini-title { -webkit-line-clamp: 1; }
     .home-cat-col.col-inactive .home-mini-foot  { display: none; }
+
+    /* ── 법규/정책 재구성: 2열 패널 레이아웃 ── */
+    .policy-annual-header {
+      display: flex; align-items: center; gap: 8px; margin-bottom: 8px;
+    }
+    .policy-annual-grid {
+      display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px;
+    }
+    .policy-annual-card {
+      border: 1px solid var(--bd); border-radius: 8px; padding: 8px 12px;
+      min-width: 170px; max-width: 220px; background: var(--bg2);
+    }
+    .annual-law-name {
+      font-size: 11px; font-weight: 600; color: var(--t1); margin: 4px 0; line-height: 1.4;
+    }
+    .annual-status-badge {
+      display: inline-block; font-size: 10px; font-weight: 600;
+      padding: 2px 7px; border-radius: 10px; margin-top: 3px;
+    }
+    .annual-date { font-size: 10px; color: var(--t3); margin-top: 3px; }
+
+    .policy-main-2col {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 14px;
+    }
+    .policy-panel {
+      border: 1px solid var(--bd); border-radius: 10px; overflow: hidden;
+      display: flex; flex-direction: column; max-height: 72vh; background: #fff;
+    }
+    .panel-header {
+      display: flex; align-items: center; gap: 8px; padding: 10px 14px;
+      border-bottom: 1px solid var(--bd); background: var(--bg2);
+      font-size: 13px; font-weight: 800; flex-shrink: 0;
+    }
+    .panel-filters {
+      display: flex; flex-wrap: wrap; gap: 4px; padding: 7px 10px;
+      border-bottom: 1px solid var(--bd); flex-shrink: 0;
+    }
+    .panel-chips {
+      display: flex; flex-wrap: wrap; gap: 4px; padding: 5px 10px;
+      border-bottom: 1px solid var(--bd); flex-shrink: 0;
+    }
+    .panel-list {
+      flex: 1; overflow-y: auto; padding: 0 6px 6px;
+    }
+    .panel-loading, .panel-empty {
+      text-align: center; color: var(--t3); font-size: 12px; padding: 28px 0;
+    }
+    .row-org {
+      font-size: 10px; color: var(--t2); font-weight: 600;
+    }
   </style>
 </head>
 
@@ -1261,7 +1311,7 @@
         <span class="nav-label">HISTORY</span>
       </div>
       <div class="nav-item" :class="currentPage === 'policy' ? 'active' : ''"
-           @click="currentPage = 'policy'; loadPolicy()">
+           @click="currentPage = 'policy'; loadLegislation(); loadAssemblyPress()">
         <span class="nav-icon">⚖️</span>
         <span class="nav-label">법규/정책</span>
       </div>
@@ -1658,19 +1708,156 @@
       <template x-if="currentPage === 'policy'">
         <div class="policy-wrap">
 
-          <!-- 서브탭 -->
-          <div class="policy-subtabs">
-            <button class="policy-subtab" :class="policyTab==='dashboard' ? 'active' : ''" @click="policyTab='dashboard'">📊 대시보드</button>
-            <button class="policy-subtab" :class="policyTab==='db' ? 'active' : ''" @click="policyTab='db'">📋 정책 DB</button>
-            <button class="policy-subtab" :class="policyTab==='calendar' ? 'active' : ''" @click="policyTab='calendar'; loadAssembly()">📅 입법/정책 일정</button>
-            <button class="policy-subtab" :class="policyTab==='legislation' ? 'active' : ''" @click="policyTab='legislation'; loadLegislation()">📜 입법현황</button>
+          <!-- ── 연간 정책 시행현황 ── -->
+          <div style="margin-bottom:18px">
+            <div class="policy-annual-header">
+              <span style="font-size:13px;font-weight:800">📊 연간 정책 시행현황</span>
+              <span style="font-size:11px;color:var(--t3)" x-text="new Date().getFullYear() + '년'"></span>
+            </div>
+            <div class="policy-annual-grid">
+              <template x-for="law in annualStatusItems" :key="law.id">
+                <div class="policy-annual-card">
+                  <div class="cat-tag" :class="law.category==='데이터'?'tag-data':law.category==='페이먼트'?'tag-pay':'tag-aml'" x-text="law.category"></div>
+                  <div class="annual-law-name" x-text="law.law_name"></div>
+                  <div class="annual-status-badge" :style="annualStatusStyle(law.status)" x-text="law.status"></div>
+                  <div class="annual-date" x-text="law.effective_date || ''"></div>
+                </div>
+              </template>
+              <template x-if="!annualStatusItems.length">
+                <div class="policy-empty" style="padding:16px 0;font-size:12px;color:var(--t3)">시행현황 데이터 없음 (관리자 등록 필요)</div>
+              </template>
+            </div>
           </div>
 
-          <!-- ── 대시보드 ── -->
-          <template x-if="policyTab==='dashboard'">
-            <div>
-              <!-- 요약 카드 -->
-              <div class="policy-stat-grid">
+          <!-- ── 2열 메인: 국회의원 보도자료 + 입법현황 ── -->
+          <div class="policy-main-2col">
+
+            <!-- 왼쪽: 국회의원 보도자료 -->
+            <div class="policy-panel">
+              <div class="panel-header">
+                <span>📰 국회의원 보도자료</span>
+                <button class="collect-btn primary" style="font-size:11px;padding:4px 10px"
+                        :disabled="assemblyPressLoading" @click="collectAssemblyPress()">
+                  <span x-text="assemblyPressLoading ? '수집 중...' : '수집'"></span>
+                </button>
+                <span style="font-size:11px;color:var(--t3)" x-text="assemblyPressItems.length ? assemblyPressItems.length + '건' : ''"></span>
+                <span style="font-size:11px;color:var(--t3);margin-left:auto" x-text="assemblyPressLastFetched ? assemblyPressLastFetched : ''"></span>
+              </div>
+              <div class="panel-filters">
+                <template x-for="c in ['전체','데이터','페이먼트','AML']" :key="c">
+                  <button class="src-btn" :class="assemblyPressCat===c ? 'active-press' : ''"
+                          @click="assemblyPressCat=c" x-text="c"></button>
+                </template>
+                <div class="articles-search" style="flex:1;min-width:120px">
+                  <span style="font-size:12px;color:var(--t3)">🔍</span>
+                  <input type="text" x-model="assemblyPressSearch" placeholder="의원명·법안명..."/>
+                  <template x-if="assemblyPressSearch">
+                    <span @click="assemblyPressSearch=''" style="cursor:pointer;color:var(--t3);font-size:11px">✕</span>
+                  </template>
+                </div>
+                <span class="articles-count" x-text="filteredAssemblyPress.length + '건'"></span>
+              </div>
+              <div class="panel-list">
+                <template x-if="assemblyPressLoading">
+                  <div class="panel-loading">수집 중...</div>
+                </template>
+                <template x-if="!assemblyPressLoading && filteredAssemblyPress.length===0">
+                  <div class="panel-empty">수집된 보도자료가 없습니다.<br><small>'수집' 버튼을 눌러주세요.</small></div>
+                </template>
+                <template x-for="a in filteredAssemblyPress" :key="a.id">
+                  <div class="article-row">
+                    <div class="row-top">
+                      <span class="cat-tag" :class="a.category==='데이터'?'tag-data':a.category==='페이먼트'?'tag-pay':'tag-aml'" x-text="a.category"></span>
+                      <span class="agency-badge badge-data" x-text="a.part"></span>
+                      <span class="row-org" x-text="a.org"></span>
+                      <span class="row-date" x-text="a.pub_date"></span>
+                    </div>
+                    <div class="row-title" x-html="highlightQ(a.title, assemblyPressSearch)"></div>
+                    <div class="row-bottom">
+                      <a :href="a.link" target="_blank" rel="noopener noreferrer" class="link-btn">원문</a>
+                    </div>
+                  </div>
+                </template>
+              </div>
+            </div>
+
+            <!-- 오른쪽: 입법현황 -->
+            <div class="policy-panel">
+              <div class="panel-header">
+                <span>⚖️ 입법현황</span>
+                <button class="collect-btn primary" style="font-size:11px;padding:4px 10px"
+                        :disabled="legLoading" @click="collectLegislation()">
+                  <span x-text="legLoading ? '수집 중...' : '수집'"></span>
+                </button>
+                <span style="font-size:11px;color:var(--t3)" x-text="legItems.length ? legItems.length + '건' : ''"></span>
+                <span style="font-size:11px;color:var(--t3);margin-left:auto" x-text="legLastFetched ? legLastFetched : ''"></span>
+              </div>
+              <div class="panel-filters">
+                <template x-for="c in ['전체','데이터','페이먼트','AML']" :key="c">
+                  <button class="src-btn" :class="legCat===c ? 'active-press' : ''"
+                          @click="legCat=c" x-text="c"></button>
+                </template>
+                <template x-for="s in ['전체','정부','국회']" :key="s">
+                  <button class="src-btn" :class="legSource===s ? 'active-news' : ''"
+                          @click="legSource=s" x-text="s"></button>
+                </template>
+                <div class="articles-search" style="flex:1;min-width:120px">
+                  <span style="font-size:12px;color:var(--t3)">🔍</span>
+                  <input type="text" x-model="legSearch" placeholder="법령명·상태..."/>
+                  <template x-if="legSearch">
+                    <span @click="legSearch=''" style="cursor:pointer;color:var(--t3);font-size:11px">✕</span>
+                  </template>
+                </div>
+                <span class="articles-count" x-text="filteredLegislation.length + '건'"></span>
+              </div>
+              <!-- 대상 법령 칩 -->
+              <div class="panel-chips">
+                <button class="src-btn" :class="legLaw==='' ? 'active-press' : ''"
+                        @click="legLaw=''" style="font-size:10px">전체 법령</button>
+                <template x-for="law in legAllLaws" :key="law">
+                  <button class="src-btn" :class="legLaw===law ? 'active-press' : ''"
+                          @click="legLaw=law" x-text="law" style="font-size:10px"></button>
+                </template>
+              </div>
+              <div class="panel-list">
+                <template x-if="legLoading">
+                  <div class="panel-loading">입법현황 수집 중...</div>
+                </template>
+                <template x-if="!legLoading && filteredLegislation.length===0">
+                  <div class="panel-empty">수집된 입법현황이 없습니다.<br><small>'수집' 버튼을 눌러주세요.</small></div>
+                </template>
+                <template x-for="a in filteredLegislation" :key="a.id">
+                  <div class="article-row">
+                    <div class="row-top">
+                      <span class="cal-type-badge"
+                            :class="a.source==='gov' ? 'cal-type-보도자료' : 'cal-type-언론기사'"
+                            x-text="a.source==='gov' ? '정부' : '국회'"></span>
+                      <span class="cat-tag"
+                            :class="a.category==='데이터' ? 'tag-data' : a.category==='페이먼트' ? 'tag-pay' : 'tag-aml'"
+                            x-text="a.category"></span>
+                      <span style="font-size:10px;color:var(--t3);font-weight:600" x-text="a.target_law"></span>
+                      <span class="pri-badge" :style="legStatusStyle(a.status)" x-text="a.status || '-'"></span>
+                      <span class="row-date" x-text="a.scraped_at"></span>
+                    </div>
+                    <div class="row-title" x-html="highlightQ(a.bill_title, legSearch)"></div>
+                    <div class="row-lead"
+                         x-show="a.ministry || a.proposer"
+                         x-text="(a.source==='gov' ? '소관: ' + a.ministry : '제안: ' + a.proposer)
+                                + (a.amendment_type ? ' · ' + a.amendment_type : '')"></div>
+                    <div class="row-bottom">
+                      <a x-show="a.link" :href="a.link" target="_blank"
+                         rel="noopener noreferrer" class="link-btn">원문</a>
+                    </div>
+                  </div>
+                </template>
+              </div>
+            </div>
+
+          </div><!-- /policy-main-2col -->
+
+          <!-- DEAD ZONE for removed sections (dashboard, db, calendar, legislation) -->
+          <template x-if="false">
+            <div class="policy-stat-grid">
                 <div class="policy-stat-card">
                   <div class="policy-stat-label">전체 정책</div>
                   <div class="policy-stat-num" x-text="policyItems.length"></div>
@@ -2106,6 +2293,7 @@
               </div>
             </div>
           </template>
+          </template><!-- /x-if="false" dead zone -->
 
         </div>
       </template>
@@ -2334,7 +2522,26 @@
       articlesPriFilter: '',
       articlesSearchQ: '',
 
-      // 법규/정책 탭
+      // 법규/정책 — 연간 정책 시행현황 (수동 관리 데이터)
+      annualStatusItems: [],
+
+      // 법규/정책 — 국회의원 보도자료 (nanet.go.kr)
+      assemblyPressItems: [],
+      assemblyPressLoading: false,
+      assemblyPressCat: '전체',
+      assemblyPressSearch: '',
+      assemblyPressLastFetched: '',
+
+      // 법규/정책 — 입법현황 (opinion.lawmaking.go.kr)
+      legItems: [],
+      legCat: '전체',
+      legSource: '전체',
+      legLaw: '',
+      legSearch: '',
+      legLoading: false,
+      legLastFetched: '',
+
+      // 하위 호환 (dead zone HTML 참조용 — 실제 사용 안 함)
       policyTab: 'dashboard',
       policyItems: [],
       policyGanttYear: new Date().getFullYear(),
@@ -2344,24 +2551,11 @@
       policySearchKw: '',
       showPolicyForm: false,
       policyFormData: {},
-
-      // 입법현황 탭
-      legItems: [],
-      legCat: '전체',
-      legSource: '전체',
-      legLaw: '',
-      legSearch: '',
-      legLoading: false,
-      legLastFetched: '',
-
-      // 입법/정책 일정 탭 — assembly 변수 초기화
       assemblyItems: [],
       assemblyLoading: false,
       assemblyGbn: '전체',
       assemblySearch: '',
       assemblyLastFetched: '',
-
-      // 대응 캘린더
       calYear:  new Date().getFullYear(),
       calMonth: new Date().getMonth() + 1,
       calSelectedDate: (() => {
@@ -2877,7 +3071,44 @@
         finally { this.legLoading = false; }
       },
 
-      // ── 입법/정책 일정 (assembly) ──
+      // ── 연간 정책 시행현황 상태 스타일 ──
+      annualStatusStyle(status) {
+        const map = {
+          '발의': '#2563eb',
+          '시행': '#16a34a',
+          '시행 예정(D-30)': '#dc2626',
+          '시행 예정(D-90)': '#d97706',
+        };
+        const c = map[status] || '#6b7280';
+        return `background:${c}22;color:${c};border:1px solid ${c}44`;
+      },
+
+      // ── 국회의원 보도자료 (nanet.go.kr) ──
+      get filteredAssemblyPress() {
+        return this.assemblyPressItems.filter(a => {
+          if (this.assemblyPressCat !== '전체' && a.category !== this.assemblyPressCat) return false;
+          const q = this.assemblyPressSearch.trim().toLowerCase();
+          return !q || (a.title||'').toLowerCase().includes(q) || (a.org||'').toLowerCase().includes(q);
+        });
+      },
+      async loadAssemblyPress() {
+        this.assemblyPressLoading = true;
+        try {
+          this.assemblyPressItems = await fetch('/api/assembly-press').then(r => r.json());
+          if (this.assemblyPressItems.length) this.assemblyPressLastFetched = new Date().toLocaleString('ko-KR');
+        } catch(_) { this.assemblyPressItems = []; }
+        finally { this.assemblyPressLoading = false; }
+      },
+      async collectAssemblyPress() {
+        this.assemblyPressLoading = true;
+        try {
+          await fetch('/api/assembly-press/collect', { method: 'POST' });
+          await this.loadAssemblyPress();
+        } catch(_) {}
+        finally { this.assemblyPressLoading = false; }
+      },
+
+      // ── 하위 호환 stubs (dead zone HTML 참조용) ──
       get assemblyFiltered() {
         return this.assemblyItems.filter(a => {
           if (this.assemblyGbn !== '전체' && a.gbn !== this.assemblyGbn) return false;
@@ -2885,9 +3116,7 @@
           return !q || (a.title||'').toLowerCase().includes(q) || (a.org||'').toLowerCase().includes(q);
         });
       },
-      async loadAssembly(forceCollect = false) {
-        // nanet.go.kr 국회 보도자료 — 추후 backend 연결 예정
-      },
+      async loadAssembly(forceCollect = false) {},
 
       async loadPolicy() {
         try { this.policyItems = await fetch('/api/policydb').then(r => r.json()); }

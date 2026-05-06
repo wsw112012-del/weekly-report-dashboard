@@ -65,8 +65,9 @@ BASE_DIR     = Path(__file__).parent
 TEMPLATES    = BASE_DIR / "templates"
 MAKE_REPORT  = BASE_DIR / "make_report.py"
 COLLECT_SCR  = BASE_DIR / "collect_보도자료.py"
-HISTORY_FILE     = BASE_DIR / "history.json"
-LEGISLATION_FILE = BASE_DIR / "legislation_status.json"
+HISTORY_FILE       = BASE_DIR / "history.json"
+LEGISLATION_FILE   = BASE_DIR / "legislation_status.json"
+ASSEMBLY_PRESS_FILE = BASE_DIR / "assembly_press.json"
 
 LEGISLATION_TARGETS: dict[str, list[str]] = {
     "데이터": [
@@ -79,6 +80,12 @@ LEGISLATION_TARGETS: dict[str, list[str]] = {
         "특정 금융거래정보의 보고 및 이용 등에 관한 법률",
         "공중 등 협박목적을 위한 자금조달행위의 금지에 관한 법률",
     ],
+}
+
+ASSEMBLY_KEYWORDS: dict[str, list[str]] = {
+    "데이터": ["개인정보", "신용정보", "정보통신망", "데이터", "마이데이터"],
+    "페이먼트": ["전자금융", "결제", "핀테크", "간편결제", "지급결제", "PG", "빅테크"],
+    "AML": ["자금세탁", "특정금융", "공중협박", "테러자금", "자금조달", "가상자산"],
 }
 
 _DEFAULT_PPT_PATH = Path(r"C:\Users\쿠콘_우승우\Desktop\업무\00. '26 쿠콘전략실\08. 주간보고\데이터전략센터\주간보고")
@@ -729,18 +736,29 @@ async def get_articles(report_type: str):
 _LAWMAKING_BASE = "https://opinion.lawmaking.go.kr"
 
 
+def _ensure_lawmaking_session() -> None:
+    """opinion.lawmaking.go.kr 세션 쿠키 확보 (최초 1회)"""
+    if not _APP_SESSION.cookies.get('JSESSIONID'):
+        try:
+            _APP_SESSION.get(_LAWMAKING_BASE, timeout=10)
+        except Exception:
+            pass
+
+
 def _scrape_govlm(law_name: str, category: str) -> list[dict]:
-    """정부 입법현황 (govLm) POST 스크래핑"""
+    """정부 입법현황 - GET + lsNmKo 파라미터"""
+    _ensure_lawmaking_session()
     url = f"{_LAWMAKING_BASE}/lmSts/govLm"
     try:
-        resp = _APP_SESSION.post(url,
-            data={"searchLawNm": law_name, "pageIndex": "1"},
-            headers={"Referer": url}, timeout=15)
+        resp = _APP_SESSION.get(url,
+            params={"lsNmKo": law_name, "govLmStsScYn": "Y", "pageIndex": "1"},
+            timeout=30)
         resp.raise_for_status()
     except Exception as e:
         print(f"[WARN] govLm fetch error ({law_name}): {e}")
         return []
-    soup = BeautifulSoup(resp.content, 'lxml')
+    resp.encoding = 'utf-8'
+    soup = BeautifulSoup(resp.text, 'lxml')
     items = []
     for row in soup.select('table tbody tr'):
         cells = row.find_all('td')
@@ -750,6 +768,10 @@ def _scrape_govlm(law_name: str, category: str) -> list[dict]:
         href = (link_tag.get('href') or '') if link_tag else ''
         bill_title = cells[1].get_text(strip=True)
         if not bill_title:
+            continue
+        # lsNmKo 검색은 법령명 포함 여부로 필터 (검색어가 제목에 포함되어야 함)
+        kw = law_name.replace(' ', '')[:6]
+        if kw not in bill_title.replace(' ', '') and kw not in cells[4].get_text(strip=True).replace(' ', ''):
             continue
         items.append({
             "id": hashlib.md5(f"gov-{law_name}-{bill_title}".encode()).hexdigest()[:12],
@@ -770,18 +792,20 @@ def _scrape_govlm(law_name: str, category: str) -> list[dict]:
 
 
 def _scrape_nsmlmsts(law_name: str, category: str) -> list[dict]:
-    """국회 입법현황 (nsmLmSts) POST 스크래핑"""
+    """국회 입법현황 - GET 후 법령명 키워드로 title 필터링"""
+    _ensure_lawmaking_session()
     url = f"{_LAWMAKING_BASE}/gcom/nsmLmSts/out"
     try:
-        resp = _APP_SESSION.post(url,
-            data={"searchWrd": law_name, "pageIndex": "1"},
-            headers={"Referer": url}, timeout=15)
+        resp = _APP_SESSION.get(url,
+            params={"issLawitmYn": "Y", "pageIndex": "1"},
+            timeout=30)
         resp.raise_for_status()
     except Exception as e:
         print(f"[WARN] nsmLmSts fetch error ({law_name}): {e}")
         return []
-    soup = BeautifulSoup(resp.content, 'lxml')
-    kw = law_name.replace(' ', '')[:5]
+    resp.encoding = 'utf-8'
+    soup = BeautifulSoup(resp.text, 'lxml')
+    kw = law_name.replace(' ', '')[:6]
     items = []
     for row in soup.select('table tbody tr'):
         cells = row.find_all('td')
@@ -808,6 +832,59 @@ def _scrape_nsmlmsts(law_name: str, category: str) -> list[dict]:
             "link": (_LAWMAKING_BASE + href) if href.startswith('/') else href,
             "scraped_at": date.today().isoformat(),
         })
+    return items
+
+
+def _classify_assembly_press(title: str) -> str | None:
+    """보도자료 제목 키워드로 데이터/페이먼트/AML 분류. 해당 없으면 None"""
+    for cat, kws in ASSEMBLY_KEYWORDS.items():
+        if any(kw in title for kw in kws):
+            return cat
+    return None
+
+
+def _scrape_assembly_press() -> list[dict]:
+    """nanet.go.kr 국회의원 보도자료 수집 (데이터/페이먼트/AML 키워드 필터)"""
+    url = "https://www.nanet.go.kr/lowcontent/assamblybodo/selectAssamblyBodoList.do"
+    items: list[dict] = []
+    for page in range(1, 11):  # 최근 10페이지(200건)
+        try:
+            resp = _APP_SESSION.get(url, params={"pageIndex": str(page)}, timeout=20)
+            resp.raise_for_status()
+        except Exception as e:
+            print(f"[WARN] nanet page {page}: {e}")
+            break
+        html = resp.content.decode('utf-8', errors='replace')
+        soup = BeautifulSoup(html, 'lxml')
+        rows = soup.select('table tbody tr')
+        if not rows:
+            break
+        for row in rows:
+            cells = row.find_all('td')
+            if len(cells) < 6:
+                continue
+            link_tag = cells[3].find('a', class_='detailLink')
+            if not link_tag:
+                continue
+            title = link_tag.get_text(strip=True)
+            category = _classify_assembly_press(title)
+            if not category:
+                continue
+            seq = link_tag.get('data-search-seq', '')
+            part = cells[1].get_text(strip=True)
+            org = cells[2].get_text(strip=True)
+            pub_date = cells[5].get_text(strip=True)
+            items.append({
+                "id": hashlib.md5(f"nanet-{seq}".encode()).hexdigest()[:12],
+                "source": "nanet",
+                "category": category,
+                "title": title,
+                "part": part,
+                "org": org,
+                "pub_date": pub_date,
+                "link": f"https://www.nanet.go.kr/lowcontent/assamblybodo/selectAssamblyBodoList.do",
+                "scraped_at": date.today().isoformat(),
+            })
     return items
 
 
@@ -907,6 +984,28 @@ async def trigger_legislation_collect():
     LEGISLATION_FILE.write_text(json.dumps(items, ensure_ascii=False, indent=2), encoding='utf-8')
     for item in items:
         _supabase_request("POST", "legislation_status", item)
+    return JSONResponse({"ok": True, "count": len(items)})
+
+
+@app.get("/api/assembly-press")
+async def get_assembly_press():
+    """국회의원 보도자료 반환 (Supabase 우선, 로컬 파일 fallback)"""
+    rows = _supabase_request("GET", "assembly_press?order=pub_date.desc&limit=200")
+    if rows:
+        return JSONResponse(rows)
+    if ASSEMBLY_PRESS_FILE.exists():
+        return JSONResponse(json.loads(ASSEMBLY_PRESS_FILE.read_text(encoding='utf-8')))
+    return JSONResponse([])
+
+
+@app.post("/api/assembly-press/collect")
+async def trigger_assembly_press_collect():
+    """nanet.go.kr 국회의원 보도자료 수집 트리거"""
+    loop = asyncio.get_running_loop()
+    items = await loop.run_in_executor(None, _scrape_assembly_press)
+    ASSEMBLY_PRESS_FILE.write_text(json.dumps(items, ensure_ascii=False, indent=2), encoding='utf-8')
+    for item in items:
+        _supabase_request("POST", "assembly_press", item)
     return JSONResponse({"ok": True, "count": len(items)})
 
 
