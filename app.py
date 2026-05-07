@@ -118,25 +118,48 @@ def latest_ppt(report_type: str) -> str | None:
     return None
 
 
-_PRIORITY_HIGH = [
-    "개정", "시행", "제정", "법률", "법안", "입법", "고시", "훈령",
-    "제재", "과태료", "처벌", "행정처분", "금지", "의무화", "규제",
-    "위반", "제도화", "시행령", "시행규칙",
+# 대상 법령명 (LEGISLATION_TARGETS 자동 추출) — 가중치 ×3
+_LAW_NAMES: list[str] = [
+    law for laws in LEGISLATION_TARGETS.values() for law in laws
 ]
-_PRIORITY_LOW = [
+# 법령 단축 별칭 — 가중치 ×3
+_LAW_ALIASES: list[str] = [
+    "특금법", "특정금융정보법", "특정금융거래법",
+    "개인정보보호법", "신용정보법", "정보통신망법",
+    "전자금융거래법", "공협법",
+]
+# 법률 동작 키워드 — 가중치 ×1 (누적될수록 점수 상승)
+_LAW_ACTION_KW: list[str] = [
+    "개정", "제정", "시행", "입법예고", "공포", "시행령", "시행규칙",
+    "고시", "훈령", "법안", "입법", "의무화", "금지", "처벌",
+    "제재", "과태료", "행정처분", "위반", "규제", "제도화",
+]
+# 저우선 키워드 (홍보·행사성)
+_PRIORITY_LOW: list[str] = [
     "소통", "간담회", "행사", "청취", "격려", "참석", "방문",
     "인사", "취임", "기념", "홍보", "인터뷰", "보도참고",
 ]
 
 
 def get_priority(article: dict) -> str:
-    """보도자료 중요도 자동 산정: 상/중/하"""
+    """보도자료·언론기사 우선순위 자동 산정 (상/중/하).
+
+    법령명·별칭 포함 시 가중치 3, 법률 동작 키워드 각 +1.
+    총점 3 이상 → 상, 1 이상(저우선 ≤1) → 중, 법률 무관+저우선 → 하.
+    """
     text = article.get("제목", "") + " " + article.get("내용", "")
-    high = sum(1 for kw in _PRIORITY_HIGH if kw in text)
-    low  = sum(1 for kw in _PRIORITY_LOW  if kw in text)
-    if high >= 1:
+
+    law_score    = sum(3 for law in (_LAW_NAMES + _LAW_ALIASES) if law in text)
+    action_score = sum(1 for kw in _LAW_ACTION_KW if kw in text)
+    low_hits     = sum(1 for kw in _PRIORITY_LOW  if kw in text)
+
+    total = law_score + action_score
+
+    if total >= 3:
         return "상"
-    if low >= 2 or (low >= 1 and high == 0):
+    if total >= 1 and low_hits <= 1:
+        return "중"
+    if low_hits >= 1 and total == 0:
         return "하"
     return "중"
 
@@ -745,6 +768,64 @@ def _ensure_lawmaking_session() -> None:
             pass
 
 
+_bill_summary_cache: dict[str, str] = {}
+_bill_detail_cache: dict[str, dict] = {}
+
+
+def _parse_lawflow(soup) -> tuple[str, str]:
+    """ul.lawflowStep 마지막 항목에서 (상태명, 날짜) 추출"""
+    ul = soup.find('ul', class_='lawflowStep')
+    if not ul:
+        return '', ''
+    items = ul.find_all('li')
+    if not items:
+        return '', ''
+    last_text = items[-1].get_text(strip=True)
+    import re as _re
+    status = _re.split(r'\s*\(', last_text)[0].strip()
+    date_m = _re.search(r'(\d{4})\.\s*(\d{1,2})\.\s*(\d{1,2})\.', last_text)
+    date = f"{date_m.group(1)}.{date_m.group(2)}.{date_m.group(3)}." if date_m else ''
+    return status, date
+
+
+def _fetch_bill_detail(link: str) -> dict:
+    """법안 상세 페이지에서 제·개정이유 + 주요내용 + 입법현황(상태, 날짜) 추출"""
+    if not link:
+        return {}
+    if link in _bill_detail_cache:
+        return _bill_detail_cache[link]
+    try:
+        _ensure_lawmaking_session()
+        resp = _APP_SESSION.get(link, timeout=20)
+        resp.encoding = 'utf-8'
+        soup = BeautifulSoup(resp.text, 'lxml')
+
+        def _extract_section(keywords: list[str]) -> str:
+            for kw in keywords:
+                h3 = soup.find('h3', string=lambda t: t and kw in t)
+                if h3:
+                    parent = h3.find_parent('div')
+                    nxt = parent.find_next_sibling('div') if parent else None
+                    if nxt:
+                        return nxt.get_text(separator=' ', strip=True)
+            return ''
+
+        reason  = _extract_section(['제·개정이유', '제개정이유', '개정이유', '제정이유'])
+        summary = _extract_section(['주요내용'])
+        flow_status, flow_date = _parse_lawflow(soup)
+        result = {'summary': summary, 'reason': reason, 'flow_status': flow_status, 'flow_date': flow_date}
+        _bill_detail_cache[link] = result
+        return result
+    except Exception as e:
+        print(f'[WARN] bill detail fetch error ({link[:60]}): {e}')
+        return {}
+
+
+def _fetch_bill_summary(link: str) -> str:
+    """법안 상세 페이지에서 주요내용 추출 (bill_detail 위임)"""
+    return _fetch_bill_detail(link).get('summary', '')
+
+
 def _scrape_govlm(law_name: str, category: str) -> list[dict]:
     """정부 입법현황 - GET + lsNmKo 파라미터"""
     _ensure_lawmaking_session()
@@ -780,7 +861,7 @@ def _scrape_govlm(law_name: str, category: str) -> list[dict]:
                 propose_date = txt
                 break
         items.append({
-            "id": hashlib.md5(f"gov-{law_name}-{bill_title}".encode()).hexdigest()[:12],
+            "id": hashlib.md5(f"gov-{href or (law_name + bill_title + cells[2].get_text(strip=True))}".encode()).hexdigest()[:12],
             "source": "gov",
             "category": category,
             "target_law": law_name,
@@ -826,7 +907,7 @@ def _scrape_nsmlmsts(law_name: str, category: str) -> list[dict]:
         bill_no = cells[5].get_text(strip=True) if len(cells) > 5 else ''
         propose_date = cells[4].get_text(strip=True) if len(cells) > 4 else ''
         items.append({
-            "id": hashlib.md5(f"asm-{law_name}-{bill_no}-{title[:20]}".encode()).hexdigest()[:12],
+            "id": hashlib.md5(f"asm-{bill_no or href or (law_name + title[:30])}".encode()).hexdigest()[:12],
             "source": "assembly",
             "category": category,
             "target_law": law_name,
@@ -974,12 +1055,139 @@ async def delete_policy(policy_id: str):
 @app.get("/api/legislation")
 async def get_legislation():
     """대상 법령 입법현황 반환 (Supabase 우선, 로컬 파일 fallback)"""
-    rows = _supabase_request("GET", "legislation_status?order=scraped_at.desc&limit=500")
+    rows = _supabase_request("GET", "legislation_status?order=scraped_at.desc&limit=500") or []
+    local: list = []
+    if LEGISLATION_FILE.exists():
+        try:
+            local = json.loads(LEGISLATION_FILE.read_text(encoding='utf-8'))
+        except Exception:
+            pass
+    # 로컬 파일이 더 많으면 로컬 우선 (Supabase upsert 미완료 상황 대응)
+    if len(local) > len(rows):
+        return JSONResponse(local)
     if rows:
         return JSONResponse(rows)
-    if LEGISLATION_FILE.exists():
-        return JSONResponse(json.loads(LEGISLATION_FILE.read_text(encoding='utf-8')))
     return JSONResponse([])
+
+
+@app.get("/api/bill-summary")
+async def get_bill_summary(link: str = ""):
+    """법안 상세 페이지 요약 반환 (제·개정이유 + 주요내용 + 입법현황)"""
+    if not link:
+        return JSONResponse({"summary": "", "reason": "", "flow_status": "", "flow_date": ""})
+    loop = asyncio.get_running_loop()
+    detail = await loop.run_in_executor(None, _fetch_bill_detail, link)
+    return JSONResponse({
+        "summary":     detail.get("summary", ""),
+        "reason":      detail.get("reason", ""),
+        "flow_status": detail.get("flow_status", ""),
+        "flow_date":   detail.get("flow_date", ""),
+    })
+
+
+@app.get("/api/news")
+async def get_news(q: str = "", display: int = 10, propose_date: str = ""):
+    """네이버 뉴스 검색 API — 입법현황 관련 언론기사 반환 (키워드 + 날짜 ±7일 필터)"""
+    client_id     = os.environ.get("NAVER_CLIENT_ID", "")
+    client_secret = os.environ.get("NAVER_CLIENT_SECRET", "")
+    if not q or not client_id or not client_secret:
+        return JSONResponse({"items": [], "error": "missing query or API keys"})
+
+    fetch_count = min(display * 5, 100)
+    url = (
+        "https://openapi.naver.com/v1/search/news.json"
+        f"?query={urllib.parse.quote(q)}&display={fetch_count}&sort=date"
+    )
+    try:
+        resp = _APP_SESSION.get(
+            url,
+            headers={
+                "X-Naver-Client-Id": client_id,
+                "X-Naver-Client-Secret": client_secret,
+            },
+            timeout=8,
+        )
+        raw_items = resp.json().get("items", [])
+    except Exception as e:
+        return JSONResponse({"items": [], "error": str(e)})
+
+    # 키워드 필터: 2자 이상 핵심 단어가 제목 또는 본문에 포함
+    _SKIP = {'법률', '관한', '이용', '보고', '위한', '관련', '대한', '따른', '등에', '이상', '이하', '으로', '에서', '하여'}
+    keywords = [w for w in re.split(r'[\s·,]+', q) if len(w) >= 2 and w not in _SKIP]
+
+    def _strip_html(s: str) -> str:
+        return re.sub(r'<[^>]+>', '', s)
+
+    def _relevant(item: dict) -> bool:
+        if not keywords:
+            return True
+        text = _strip_html(item.get('title', '') + ' ' + item.get('description', ''))
+        return any(kw in text for kw in keywords)
+
+    # 날짜 범위 필터: propose_date ±7일 (없으면 스킵)
+    center_dt = None
+    if propose_date:
+        m = re.match(r'(\d{4})\.(\d{1,2})\.(\d{1,2})', propose_date)
+        if m:
+            from datetime import date as _date, timedelta
+            center_dt = _date(int(m.group(1)), int(m.group(2)), int(m.group(3)))
+
+    from email.utils import parsedate_to_datetime
+    def _in_range(item: dict) -> bool:
+        if not center_dt:
+            return True
+        try:
+            pub = parsedate_to_datetime(item.get('pubDate', '')).date()
+            return abs((pub - center_dt).days) <= 7
+        except Exception:
+            return True
+
+    filtered = [it for it in raw_items if _relevant(it) and _in_range(it)][:display]
+    return JSONResponse({"items": filtered})
+
+
+@app.post("/api/legislation/enrich")
+async def enrich_legislation():
+    """전체 입법현황 상세 페이지에서 입법현황 상태.날짜 일괄 업데이트"""
+    from concurrent.futures import ThreadPoolExecutor
+    import threading
+
+    async def generator():
+        if not LEGISLATION_FILE.exists():
+            yield "data: 로컬 파일 없음\n\n"
+            return
+        items = json.loads(LEGISLATION_FILE.read_text(encoding='utf-8'))
+        total = len(items)
+        yield f"data: 총 {total}건 상세 페이지 수집 시작\n\n"
+        lock = threading.Lock()
+        done = [0]
+
+        def fetch_one(item):
+            link = item.get('link', '')
+            if not link:
+                return
+            detail = _fetch_bill_detail(link)
+            if detail.get('flow_status'):
+                item['status'] = detail['flow_status']
+            if detail.get('flow_date'):
+                item['propose_date'] = detail['flow_date']
+            with lock:
+                done[0] += 1
+
+        loop = asyncio.get_running_loop()
+        with ThreadPoolExecutor(max_workers=5) as pool:
+            futures = [pool.submit(fetch_one, item) for item in items]
+            while any(not f.done() for f in futures):
+                await asyncio.sleep(1)
+                yield f"data: 진행 {done[0]}/{total}\n\n"
+        LEGISLATION_FILE.write_text(
+            json.dumps(items, ensure_ascii=False, indent=2), encoding='utf-8')
+        for item in items:
+            _supabase_request("POST", "legislation_status", item, upsert=True)
+        yield f"data: ✓ 완료 ({done[0]}건 업데이트)\n\n"
+
+    return StreamingResponse(generator(), media_type="text/event-stream",
+                             headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
 
 
 @app.post("/api/legislation/collect")
@@ -989,7 +1197,7 @@ async def trigger_legislation_collect():
     items = await loop.run_in_executor(None, collect_legislation_status)
     LEGISLATION_FILE.write_text(json.dumps(items, ensure_ascii=False, indent=2), encoding='utf-8')
     for item in items:
-        _supabase_request("POST", "legislation_status", item)
+        _supabase_request("POST", "legislation_status", item, upsert=True)
     return JSONResponse({"ok": True, "count": len(items)})
 
 
@@ -1011,7 +1219,7 @@ async def trigger_assembly_press_collect():
     items = await loop.run_in_executor(None, _scrape_assembly_press)
     ASSEMBLY_PRESS_FILE.write_text(json.dumps(items, ensure_ascii=False, indent=2), encoding='utf-8')
     for item in items:
-        _supabase_request("POST", "assembly_press", item)
+        _supabase_request("POST", "assembly_press", item, upsert=True)
     return JSONResponse({"ok": True, "count": len(items)})
 
 
@@ -1055,7 +1263,7 @@ async def stream_collect(report_type: str):
                 json.dumps(leg_items, ensure_ascii=False, indent=2), encoding='utf-8'
             )
             for item in leg_items:
-                _supabase_request("POST", "legislation_status", item)
+                _supabase_request("POST", "legislation_status", item, upsert=True)
             yield f"data: ✓ 입법현황 {len(leg_items)}건 완료\n\n"
         except Exception as e:
             yield f"data: [WARN] 입법현황 수집 오류: {e}\n\n"
@@ -1068,7 +1276,7 @@ async def stream_collect(report_type: str):
                 json.dumps(press_items, ensure_ascii=False, indent=2), encoding='utf-8'
             )
             for item in press_items:
-                _supabase_request("POST", "assembly_press", item)
+                _supabase_request("POST", "assembly_press", item, upsert=True)
             yield f"data: ✓ 국회의원 보도자료 {len(press_items)}건 완료\n\n"
         except Exception as e:
             yield f"data: [WARN] 국회의원 보도자료 수집 오류: {e}\n\n"
@@ -1099,18 +1307,19 @@ class GenerateRequest(BaseModel):
     content: str
 
 
-def _supabase_request(method: str, path: str, payload: dict | None = None) -> list | dict | None:
+def _supabase_request(method: str, path: str, payload: dict | None = None, upsert: bool = False) -> list | dict | None:
     """Supabase REST API 공통 요청"""
     if not SUPABASE_URL or not SUPABASE_KEY:
         return None
     import urllib.request
     url = f"{SUPABASE_URL}/rest/v1/{path}"
     data = json.dumps(payload).encode("utf-8") if payload else None
+    prefer = "resolution=merge-duplicates,return=representation" if upsert else "return=representation"
     headers = {
         "apikey": SUPABASE_KEY,
         "Authorization": f"Bearer {SUPABASE_KEY}",
         "Content-Type": "application/json",
-        "Prefer": "return=representation",
+        "Prefer": prefer,
     }
     req = urllib.request.Request(url, data=data, headers=headers, method=method)
     try:

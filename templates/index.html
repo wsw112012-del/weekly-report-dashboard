@@ -283,6 +283,13 @@
     .list-count { font-size: 11px; color: var(--t3); }
 
     .article-list { display: flex; flex-direction: column; gap: 8px; }
+    .articles-3col-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 14px; align-items: start; }
+    .articles-col { display: flex; flex-direction: column; min-width: 0; gap: 8px; }
+    .articles-col-hdr {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 8px 12px; border-radius: 8px; font-size: 13px; font-weight: 700;
+      border: 1px solid;
+    }
 
     .article-row {
       background: var(--bg-card); border: 1px solid var(--bd);
@@ -621,7 +628,7 @@
       background: #fff;
     }
     .pol-sidebar {
-      width: 148px; flex-shrink: 0; border-right: 1px solid var(--bd);
+      width: 200px; flex-shrink: 0; border-right: 1px solid var(--bd);
       padding: 10px 6px; display: flex; flex-direction: column; gap: 2px;
       overflow-y: auto; background: #f8faff;
     }
@@ -633,7 +640,8 @@
     .pol-sidebar-item {
       padding: 6px 10px; border-radius: 7px; font-size: 12px; font-weight: 600;
       color: var(--t2); cursor: pointer; transition: all .15s;
-      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+      white-space: normal; word-break: keep-all; line-height: 1.45;
+      display: flex; align-items: center;
     }
     .pol-sidebar-item:hover { background: #e8f0fe; color: var(--t1); }
     .pol-sidebar-item.active { background: var(--accent-lt); color: var(--accent); }
@@ -681,6 +689,24 @@
     .pol-status-badge {
       font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 10px;
       white-space: nowrap; display: inline-block;
+    }
+    .pol-row-expand td { background: #f8faff; padding: 0 !important; }
+    .pol-year-row td {
+      background: #eff6ff; font-size: 12px; font-weight: 800; color: #1d4ed8;
+      padding: 5px 14px !important; border-top: 2px solid #93c5fd;
+      border-bottom: 1px solid #bfdbfe; letter-spacing: .5px;
+    }
+    .pol-summary-box {
+      display: flex; gap: 8px; align-items: flex-start;
+      padding: 10px 14px; border-top: 1px solid #e2e8f0;
+    }
+    .pol-summary-label {
+      font-size: 10px; font-weight: 800; color: var(--accent);
+      background: var(--accent-lt); padding: 2px 7px; border-radius: 4px;
+      white-space: nowrap; flex-shrink: 0; margin-top: 1px;
+    }
+    .pol-summary-text {
+      font-size: 12px; color: var(--t2); line-height: 1.6;
     }
     .pol-policydb-wrap { flex: 1; overflow-y: auto; padding: 16px; }
     .policy-controls {
@@ -755,6 +781,142 @@
       font-size: 10px; font-weight: 700; color: #fff;
       padding: 2px 10px; border-radius: 20px;
     }
+
+    /* ── 세로 타임라인 ── */
+    .tl-scroll { flex: 1; overflow-y: auto; padding: 24px 32px; }
+    .tl-year-row {
+      display: flex; justify-content: center;
+      margin: 24px 0 4px; position: relative; z-index: 1;
+    }
+    .tl-year-badge {
+      background: #0d9488; color: #fff;
+      font-size: 14px; font-weight: 800;
+      padding: 5px 28px; border-radius: 20px;
+      letter-spacing: 1px;
+    }
+    .tl-item {
+      display: grid;
+      grid-template-columns: 1fr 56px 1fr;
+      align-items: stretch;
+      min-height: 84px;
+    }
+    .tl-slot { display: flex; align-items: center; padding: 6px 0; }
+    .tl-slot-left  { justify-content: flex-end;  padding-right: 14px; }
+    .tl-slot-right { justify-content: flex-start; padding-left: 14px; }
+    .tl-card {
+      background: #fff; border: 1px solid var(--bd);
+      border-radius: 10px; padding: 11px 13px;
+      box-shadow: 0 1px 4px rgba(0,0,0,.06);
+      max-width: 340px; width: 100%;
+      transition: box-shadow .15s;
+    }
+    .tl-card:hover { box-shadow: 0 4px 12px rgba(0,0,0,.1); }
+    .tl-card-left  { text-align: right; }
+    .tl-card-right { text-align: left; }
+    .tl-card-title { font-size: 13px; font-weight: 700; color: var(--t1); line-height: 1.4; margin-bottom: 4px; }
+    .tl-card-meta  { font-size: 11px; color: var(--t3); margin-bottom: 7px; }
+    .tl-card-footer { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; }
+    .tl-card-left  .tl-card-footer { justify-content: flex-end; }
+    .tl-card-right .tl-card-footer { justify-content: flex-start; }
+    .tl-center {
+      display: flex; flex-direction: column; align-items: center;
+    }
+    .tl-line-top, .tl-line-bot {
+      flex: 1; width: 0;
+      border-left: 2px dashed #cbd5e1;
+    }
+    .tl-node {
+      width: 46px; height: 46px; border-radius: 50%;
+      background: #d97706; color: #fff;
+      font-size: 10px; font-weight: 800;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0; z-index: 1;
+      box-shadow: 0 0 0 3px #fff, 0 0 0 5px #d97706;
+      cursor: pointer; transition: background .15s;
+    }
+    .tl-node-active { background: var(--accent) !important; box-shadow: 0 0 0 3px #fff, 0 0 0 5px var(--accent) !important; }
+    .tl-card { cursor: pointer; }
+    .tl-card-active { border-color: var(--accent) !important; box-shadow: 0 0 0 2px var(--accent2) !important; }
+    .tl-item-selected .tl-node { background: var(--accent); }
+
+    /* ── 상세 패널 ── */
+    .tl-detail-panel {
+      flex: 1; min-width: 320px;
+      display: flex; flex-direction: column;
+      background: #fff; border-left: 1px solid var(--bd);
+      overflow: hidden;
+    }
+    .tl-detail-header {
+      display: flex; align-items: flex-start; gap: 10px;
+      padding: 16px 16px 12px; border-bottom: 1px solid var(--bd);
+      flex-shrink: 0;
+    }
+    .tl-detail-law { display: flex; align-items: center; gap: 5px; margin-bottom: 6px; }
+    .tl-detail-title {
+      font-size: 14px; font-weight: 800; color: var(--t1);
+      line-height: 1.4; margin-bottom: 5px;
+    }
+    .tl-detail-meta { font-size: 11px; color: var(--t3); display: flex; align-items: center; flex-wrap: wrap; gap: 2px; }
+    .tl-detail-close {
+      flex-shrink: 0; width: 26px; height: 26px; border-radius: 6px;
+      border: 1px solid var(--bd); background: #f8faff;
+      color: var(--t3); font-size: 12px; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      transition: all .15s;
+    }
+    .tl-detail-close:hover { background: #fee2e2; color: #dc2626; border-color: #fca5a5; }
+    .tl-detail-tabs {
+      display: flex; border-bottom: 2px solid var(--bd);
+      flex-shrink: 0; background: #f8faff;
+    }
+    .tl-detail-tab {
+      padding: 9px 18px; font-size: 12px; font-weight: 700;
+      color: var(--t3); background: none; border: none;
+      border-bottom: 2px solid transparent; margin-bottom: -2px;
+      cursor: pointer; transition: all .15s;
+    }
+    .tl-detail-tab:hover { color: var(--t2); }
+    .tl-detail-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+    .tl-detail-body {
+      flex: 1; overflow-y: auto; padding: 16px;
+    }
+    /* 요약 섹션 */
+    .sum-sec { margin-bottom: 16px; }
+    .sum-sec:last-child { margin-bottom: 0; }
+    .sum-sec-hdr { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+    .sum-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--accent); flex-shrink: 0; }
+    .sum-sec-title { font-size: 13px; font-weight: 800; color: var(--t1); }
+    .sum-sec-body { padding-left: 18px; }
+    .sum-reason { font-size: 12px; color: var(--t2); line-height: 1.75; }
+    .sum-item-hdr { font-size: 13px; font-weight: 600; color: var(--accent); margin: 10px 0 3px; line-height: 1.4; }
+    .sum-item-hdr:first-child { margin-top: 0; }
+    .sum-item-body { font-size: 12px; color: var(--t2); line-height: 1.65; padding-left: 4px; }
+    .sum-flow-badge { display: inline-block; padding: 4px 12px; background: #eff6ff; border: 1px solid #93c5fd; border-radius: 6px; font-size: 12px; color: #1d4ed8; font-weight: 600; }
+    /* 리사이즈 핸들 */
+    .resize-handle {
+      width: 5px; cursor: col-resize; flex-shrink: 0; position: relative; z-index: 2;
+      background: transparent; transition: background .15s; margin: 0 -1px;
+    }
+    .resize-handle:hover { background: rgba(59,130,246,0.15); }
+    /* 뉴스 아이템 */
+    .tl-news-item {
+      background: #f8faff; border: 1px solid var(--bd);
+      border-radius: 8px; padding: 12px 14px;
+    }
+    .tl-news-item:hover { border-color: var(--accent2); }
+    .tl-news-title {
+      display: block; font-size: 13px; font-weight: 700;
+      color: var(--t1); text-decoration: none;
+      margin-bottom: 5px; line-height: 1.4;
+    }
+    .tl-news-title:hover { color: var(--accent); text-decoration: underline; }
+    .tl-news-title b { color: var(--accent); font-weight: 800; }
+    .tl-news-desc {
+      font-size: 11px; color: var(--t3); line-height: 1.6;
+      margin-bottom: 6px;
+      display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
+    }
+    .tl-news-date { font-size: 10px; color: var(--t3); }
 
     /* ── 법규/정책 관리 시스템 ── */
     /* 서브탭 */
@@ -1051,8 +1213,105 @@
     textarea.policy-form-input { resize: vertical; min-height: 60px; }
 
     /* ── HOME 페이지 레이아웃 ── */
-    .home-page { flex: 1; display: flex; flex-direction: column; min-height: 0; }
-    .home-cat-grid { flex: 1; align-content: start; min-height: 120px; }
+    .home-page { flex: 1; display: flex; flex-direction: column; }
+    .home-cat-grid { align-content: start; }
+
+    /* ── 홈 입법현황 캐러셀 배너 ── */
+    .home-leg-banner {
+      position: relative;
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 16px; padding: 18px 56px 36px; margin-bottom: 14px;
+      overflow: hidden; user-select: none;
+      box-shadow: 0 2px 12px rgba(30,58,138,0.08);
+    }
+    .leg-slide-area { text-align: center; }
+    .leg-slide-top { display: flex; align-items: center; justify-content: center; gap: 10px; margin-bottom: 8px; }
+    .leg-cat-badge { font-size: 10px; font-weight: 700; padding: 2px 10px; border-radius: 10px; }
+    .leg-cat-data { background: rgba(37,99,235,0.1); color: #1d4ed8; }
+    .leg-cat-pay  { background: rgba(124,58,237,0.1); color: #7c3aed; }
+    .leg-cat-aml  { background: rgba(185,28,28,0.1);  color: #b91c1c; }
+    .leg-slide-ministry { font-size: 11px; color: #64748b; white-space: nowrap; }
+    .leg-slide-lawname {
+      font-size: 20px; font-weight: 800; color: #0f2050; letter-spacing: -0.4px; margin-bottom: 18px;
+    }
+    /* 타임라인 */
+    .leg-tl-area { display: flex; align-items: center; gap: 14px; margin-bottom: 16px; padding: 0 10px; }
+    .leg-tl-year { font-size: 13px; font-weight: 700; color: #94a3b8; flex-shrink: 0; min-width: 36px; }
+    .leg-tl-track { flex: 1; position: relative; height: 44px; }
+    .leg-tl-line {
+      position: absolute; top: 8px; left: 0; right: 0; height: 2px;
+      background: #cbd5e1; border-radius: 1px;
+    }
+    .leg-tl-node-wrap {
+      position: absolute; top: 0;
+      display: flex; flex-direction: column; align-items: center;
+    }
+    .leg-tl-node {
+      width: 16px; height: 16px; border-radius: 50%;
+      background: #93c5fd; border: 2.5px solid #3b82f6;
+      cursor: pointer; transition: transform .15s, box-shadow .15s;
+    }
+    .leg-tl-node:hover { transform: scale(1.4); }
+    .leg-tl-node.node-enacted { background: #93c5fd; border-color: #2563eb; }
+    .leg-tl-node.node-passed  { background: #93c5fd; border-color: #2563eb; }
+    .leg-tl-node.node-selected { background: #f59e0b; border-color: #d97706; transform: scale(1.5); box-shadow: 0 0 12px rgba(245,158,11,0.5); }
+    .leg-tl-node-year { font-size: 10px; font-weight: 700; color: #94a3b8; white-space: nowrap; margin-top: 5px; }
+    .leg-tl-node-year.yr-selected { color: #d97706; }
+    /* 법안 목록 */
+    .leg-slide-bills { display: flex; flex-direction: column; gap: 5px; text-align: left; max-width: 700px; margin: 0 auto; }
+    .leg-bill-row {
+      display: flex; align-items: center; gap: 8px; padding: 5px 10px;
+      border-radius: 8px; background: #f8faff;
+    }
+    .leg-bill-status {
+      font-size: 10px; font-weight: 700; padding: 1px 8px; border-radius: 8px;
+      background: #dbeafe; color: #1d4ed8; white-space: nowrap; flex-shrink: 0;
+    }
+    .leg-bill-title {
+      flex: 1; font-size: 12px; color: #1e293b;
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    .leg-bill-date { font-size: 10px; color: #94a3b8; flex-shrink: 0; }
+    /* 화살표 */
+    .leg-arrow {
+      position: absolute; top: 50%; transform: translateY(-50%);
+      background: #f1f5f9; border: 1px solid #e2e8f0;
+      color: #1e3a8a; width: 36px; height: 36px; border-radius: 50%;
+      font-size: 22px; line-height: 1; cursor: pointer; transition: background .15s;
+      display: flex; align-items: center; justify-content: center; padding: 0;
+    }
+    .leg-arrow:hover { background: #dbeafe; border-color: #93c5fd; }
+    .leg-arrow-l { left: 10px; }
+    .leg-arrow-r { right: 10px; }
+    /* 우상단 메타 */
+    .leg-banner-meta {
+      position: absolute; top: 12px; right: 14px;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .leg-slide-count { font-size: 11px; color: #94a3b8; }
+    .leg-banner-meta .home-more-btn-sm {
+      background: #f1f5f9; border-color: #e2e8f0; color: #1e3a8a;
+    }
+    .leg-banner-meta .home-more-btn-sm:hover { background: #dbeafe; color: #1d4ed8; border-color: #93c5fd; }
+    /* 닷 네비게이션 */
+    .leg-banner-dots {
+      position: absolute; bottom: 10px; left: 50%; transform: translateX(-50%);
+      display: flex; gap: 5px; align-items: center;
+    }
+    .leg-dot {
+      width: 6px; height: 6px; border-radius: 50%;
+      background: #cbd5e1; cursor: pointer; transition: all .2s;
+    }
+    .leg-dot-active { background: #2563eb; width: 18px; border-radius: 3px; }
+
+    /* ── 카테고리 태그 ── */
+    .cat-tag {
+      font-size: 10px; font-weight: 700; padding: 1px 7px; border-radius: 8px; flex-shrink: 0;
+    }
+    .cat-data { background: var(--accent-lt); color: var(--accent); }
+    .cat-pay  { background: var(--pay-lt);    color: var(--pay-color); }
+    .cat-aml  { background: var(--aml-lt);    color: var(--aml-color); }
 
     /* ── HOME 리디자인 ── */
     .home-top-bar {
@@ -1195,20 +1454,26 @@
       padding: 10px 14px; border-bottom: 1px solid var(--bd);
       display: flex; flex-direction: column; gap: 5px; transition: background .12s;
     }
-    .home-mini-card:last-of-type { border-bottom: none; }
+    .home-mini-card:last-child { border-bottom: none; }
     .home-mini-card:hover { background: #f8faff; }
     .home-mini-top { display: flex; align-items: center; gap: 6px; }
     .home-mini-title {
       font-size: 13px; font-weight: 600; color: var(--t1); line-height: 1.45;
-      display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
     }
-    .home-mini-foot { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+    .home-mini-foot { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-top: auto; }
     .home-more-btn {
       width: 100%; padding: 9px; text-align: center;
       background: #f8faff; border: none; border-top: 1px solid var(--bd);
       font-size: 11px; font-weight: 600; color: var(--t3); cursor: pointer; transition: all .15s;
     }
     .home-more-btn:hover { background: var(--accent-lt); color: var(--accent); }
+    .home-more-btn-sm {
+      padding: 3px 10px; border-radius: 12px; border: 1px solid var(--bd);
+      background: #f8faff; font-size: 11px; font-weight: 600; color: var(--t3);
+      cursor: pointer; transition: all .15s; white-space: nowrap;
+    }
+    .home-more-btn-sm:hover { background: var(--accent-lt); color: var(--accent); border-color: var(--accent); }
 
     /* ── HOME 달력 + 오늘 보도자료 2분할 ── */
     .home-cal-layout {
@@ -1235,7 +1500,7 @@
     .home-daily-3col {
       display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;
     }
-    .home-daily-col { display: flex; flex-direction: column; gap: 6px; }
+    .home-daily-col { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
     .home-daily-col-hdr {
       font-size: 11px; font-weight: 700; text-align: center;
       padding: 6px 8px; border-radius: 7px;
@@ -1243,14 +1508,14 @@
     }
     .home-daily-mini-card {
       background: #fff; border: 1px solid var(--bd); border-radius: 8px;
-      padding: 9px 11px; display: flex; flex-direction: column; gap: 4px;
+      padding: 9px 11px; display: flex; flex-direction: column; gap: 4px; min-width: 0; overflow: hidden;
       transition: box-shadow .12s, border-color .12s;
     }
     .home-daily-mini-card:hover { box-shadow: var(--sh); border-color: var(--bd2); }
     .home-daily-mini-top { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
     .home-daily-mini-title {
       font-size: 12px; font-weight: 600; color: var(--t1); line-height: 1.4;
-      display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
     }
     .home-daily-mini-foot { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; margin-top: 2px; }
     .home-daily-empty-col {
@@ -1388,6 +1653,14 @@
       <!-- HOME 서브메뉴 -->
       <template x-if="currentPage === 'home' || currentPage === 'articles'">
         <div class="nav-sub-group">
+          <div class="nav-sub-item"
+               :class="currentPage==='articles' && articlesCategory==='전체' ? 'active' : ''"
+               @click="openArticlesPage('전체')">
+            <span class="nav-sub-dot" style="background:#64748b"></span>
+            <span>전체</span>
+            <span class="nav-sub-count"
+                  x-text="['데이터','페이먼트','AML'].reduce((s,c)=>s+(allArticles[c]||[]).length,0)"></span>
+          </div>
           <template x-for="cat in ['데이터','페이먼트','AML']" :key="cat">
             <div class="nav-sub-item"
                  :class="[
@@ -1472,54 +1745,95 @@
                     @click="togglePriority('하')">하</button>
           </div>
 
-          <!-- 통계 스트립 (가로 1줄) -->
-          <div class="home-stats-strip">
-            <div class="home-strip-card"
-                 :class="activeCategory==='데이터' ? 'strip-active-data' : ''"
-                 @click="switchCategory('데이터')">
-              <span class="home-strip-label home-stat-data">데이터</span>
-              <div class="home-strip-bar-wrap">
-                <div class="home-strip-bar home-bar-data"
-                     :style="`width:${totalCount>0 ? Math.round(allArticles['데이터'].length/totalCount*100) : 0}%`"></div>
+          <!-- 주요 입법현황 캐러셀 배너 -->
+          <div class="home-leg-banner" x-show="lawTimelines.length > 0"
+               @mouseenter="bannerStopAuto()" @mouseleave="bannerStartAuto()">
+
+            <!-- 좌/우 화살표 -->
+            <button class="leg-arrow leg-arrow-l"
+                    @click="bannerPrev(); bannerStopAuto(); bannerStartAuto()">‹</button>
+            <button class="leg-arrow leg-arrow-r"
+                    @click="bannerNext(); bannerStopAuto(); bannerStartAuto()">›</button>
+
+            <!-- 우상단: 인덱스 + 이동 버튼 -->
+            <div class="leg-banner-meta">
+              <span class="leg-slide-count"
+                    x-text="`${bannerIdx + 1} / ${lawTimelines.length}`"></span>
+              <button class="home-more-btn-sm"
+                      @click="currentPage='policy'; polTab='gantt'">연간 시행현황 →</button>
+            </div>
+
+            <!-- 슬라이드 본문 -->
+            <div class="leg-slide-area">
+              <!-- 카테고리 + 주무부처 -->
+              <div class="leg-slide-top">
+                <span class="leg-cat-badge"
+                      :class="lawTimelines[bannerIdx]?.category === '페이먼트' ? 'leg-cat-pay'
+                            : lawTimelines[bannerIdx]?.category === 'AML' ? 'leg-cat-aml' : 'leg-cat-data'"
+                      x-text="lawTimelines[bannerIdx]?.category || '데이터'"></span>
+                <span class="leg-slide-ministry"
+                      x-text="normalizeMinistry(lawTimelines[bannerIdx]?.items?.slice(-1)[0]?.ministry)"></span>
               </div>
-              <span class="home-strip-num" x-text="allArticles['데이터'].length + '건'"></span>
-            </div>
-            <div class="home-strip-card"
-                 :class="activeCategory==='페이먼트' ? 'strip-active-pay' : ''"
-                 @click="switchCategory('페이먼트')">
-              <span class="home-strip-label home-stat-pay">페이먼트</span>
-              <div class="home-strip-bar-wrap">
-                <div class="home-strip-bar home-bar-pay"
-                     :style="`width:${totalCount>0 ? Math.round(allArticles['페이먼트'].length/totalCount*100) : 0}%`"></div>
+
+              <!-- 법령명 (클릭 → 입법현황 탭 + 법령 필터) -->
+              <div class="leg-slide-lawname" x-text="lawTimelines[bannerIdx]?.law"
+                   style="cursor:pointer;text-decoration:underline;text-underline-offset:4px;text-decoration-color:rgba(255,255,255,0.3)"
+                   @click="goToLegislation(lawTimelines[bannerIdx].law)"></div>
+
+              <!-- 연도별 타임라인 (연도 1개 = 노드 1개) -->
+              <div class="leg-tl-area">
+                <div class="leg-tl-track">
+                  <div class="leg-tl-line"></div>
+                  <template x-for="(yr, i) in (lawTimelines[bannerIdx]?.years || [])" :key="yr.year">
+                    <div class="leg-tl-node-wrap"
+                         :style="`left: calc(${tlBannerNodePos(i, (lawTimelines[bannerIdx]?.years || []).length)}% - 8px)`"
+                         :title="yr.year + '년 — ' + yr.items.length + '건'"
+                         @click.stop="bannerYear = yr.year"
+                         style="cursor:pointer">
+                      <div class="leg-tl-node"
+                           :class="[
+                             bannerSelectedYear === yr.year ? 'node-selected' : '',
+                             yr.items.some(it => it.status && it.status.includes('공포')) ? 'node-enacted'
+                               : yr.items.some(it => it.status && it.status.includes('가결')) ? 'node-passed' : ''
+                           ]"></div>
+                      <div class="leg-tl-node-year"
+                           :class="bannerSelectedYear === yr.year ? 'yr-selected' : ''"
+                           x-text="yr.year"></div>
+                    </div>
+                  </template>
+                </div>
               </div>
-              <span class="home-strip-num" x-text="allArticles['페이먼트'].length + '건'"></span>
-            </div>
-            <div class="home-strip-card"
-                 :class="activeCategory==='AML' ? 'strip-active-aml' : ''"
-                 @click="switchCategory('AML')">
-              <span class="home-strip-label home-stat-aml">AML</span>
-              <div class="home-strip-bar-wrap">
-                <div class="home-strip-bar home-bar-aml"
-                     :style="`width:${totalCount>0 ? Math.round(allArticles['AML'].length/totalCount*100) : 0}%`"></div>
+
+              <!-- 선택 연도 개정 내용 -->
+              <div class="leg-slide-bills">
+                <div style="font-size:11px;color:#64748b;margin-bottom:4px;padding-left:2px"
+                     x-text="bannerSelectedYear + '년 개정 내용 (' + bannerYearItems.length + '건)'"></div>
+                <template x-for="item in bannerYearItems" :key="item.id || item.bill_title">
+                  <div class="leg-bill-row" style="cursor:pointer"
+                       @click="goToLegislation(item.target_law, item)"
+                       @mouseenter="$el.style.background='#eff6ff'"
+                       @mouseleave="$el.style.background='#f8faff'">
+                    <span class="leg-bill-status" x-text="item.status || '진행'"></span>
+                    <span class="leg-bill-title" x-text="item.bill_title"></span>
+                    <span class="leg-bill-date"
+                          x-text="(item.propose_date || '').slice(0,7)"></span>
+                    <span style="color:#94a3b8;font-size:11px;flex-shrink:0">→</span>
+                  </div>
+                </template>
               </div>
-              <span class="home-strip-num" x-text="allArticles['AML'].length + '건'"></span>
             </div>
-            <div class="home-strip-divider"></div>
-            <div class="home-strip-info">
-              <div class="home-strip-info-label">우선:상</div>
-              <div class="home-strip-info-num" x-text="highPriorityCount + '건'"></div>
+
+            <!-- 닷 네비게이션 -->
+            <div class="leg-banner-dots">
+              <template x-for="(_, i) in lawTimelines" :key="i">
+                <span class="leg-dot" :class="i === bannerIdx ? 'leg-dot-active' : ''"
+                      @click="bannerIdx = i; bannerYear = ''; bannerStopAuto(); bannerStartAuto()"></span>
+              </template>
             </div>
-            <div class="home-strip-info">
-              <div class="home-strip-info-label">보도자료</div>
-              <div class="home-strip-info-num" x-text="pressCount + '건'"></div>
-            </div>
-            <div class="home-strip-info">
-              <div class="home-strip-info-label">언론기사</div>
-              <div class="home-strip-info-num" x-text="newsCount + '건'"></div>
-            </div>
+
           </div>
 
-          <!-- 달력 + 오늘 우선:상 보도자료 2분할 -->
+          <!-- 달력 + 유형별 일자 현황 2분할 -->
           <div class="home-cal-layout">
 
             <!-- 왼쪽: 월간 달력 -->
@@ -1551,10 +1865,10 @@
               <button class="cal-today-btn" @click="calGoToday()">오늘 뉴스 보기</button>
             </div>
 
-            <!-- 오른쪽: 선택일 우선:상 기사 — 3열 그리드 -->
+            <!-- 오른쪽: 선택일 카테고리별 현황 — 3열 그리드 -->
             <div class="home-daily-right">
               <div class="home-daily-header">
-                <span class="home-daily-date" x-text="calSelectedDate + ' — 우선순위 상 보도자료'"></span>
+                <span class="home-daily-date" x-text="calSelectedDate + ' 주요 뉴스'"></span>
               </div>
               <div class="home-daily-3col">
                 <template x-for="cat in ['데이터','페이먼트','AML']" :key="cat">
@@ -1566,7 +1880,7 @@
                                : 'color:var(--aml-color);border-color:var(--aml-color);background:var(--aml-lt)'"
                          x-text="cat"></div>
                     <!-- 기사 카드 -->
-                    <template x-for="a in homeDailyColItems(cat)" :key="a._uid">
+                    <template x-for="a in homeDailyCatItems(cat)" :key="a._uid">
                       <div class="home-daily-mini-card">
                         <div class="home-daily-mini-top">
                           <span class="cal-type-badge"
@@ -1586,8 +1900,8 @@
                       </div>
                     </template>
                     <!-- 빈 열 -->
-                    <template x-if="homeDailyColItems(cat).length === 0">
-                      <div class="home-daily-empty-col">보도자료 없음</div>
+                    <template x-if="homeDailyCatItems(cat).length === 0">
+                      <div class="home-daily-empty-col" x-text="cat + ' 기사 없음'"></div>
                     </template>
                   </div>
                 </template>
@@ -1596,48 +1910,115 @@
 
           </div>
 
-          <!-- 하단 3열: 카테고리별 최신 기사 -->
-          <div class="home-cat-grid" :style="catGridStyle">
-            <template x-for="col in kanbanCols" :key="col.key">
-              <div class="home-cat-col" :class="catColClass(col.key)">
-                <div class="home-cat-header">
-                  <span class="home-cat-title" :class="'kc-' + col.key" x-text="col.label"></span>
-                  <span class="kanban-col-count" x-text="col.articles.length + '건'"></span>
-                </div>
-                <template x-if="col.articles.length === 0">
-                  <div class="empty-col">수집된 기사가 없습니다</div>
-                </template>
-                <template x-for="a in col.articles.slice(0, 5)" :key="a._uid">
-                  <div class="home-mini-card">
-                    <div class="home-mini-top">
-                      <span class="agency-badge"
-                            :class="sourceType(a)==='언론기사' ? 'badge-news' : badgeClass(col.key)"
-                            x-text="a['기관']"></span>
-                      <span class="pri-badge"
-                            :class="a['우선순위']==='상' ? 'pri-high' : a['우선순위']==='하' ? 'pri-low' : 'pri-mid'"
-                            x-text="a['우선순위'] || '중'"></span>
-                    </div>
-                    <div class="home-mini-title" x-html="highlight(a['제목'])"></div>
-                    <div class="home-mini-foot">
-                      <span class="art-card-date" x-text="a['날짜']"></span>
-                      <div class="art-card-btns">
-                        <a x-show="a['링크']" :href="a['링크']" target="_blank" rel="noopener noreferrer"
-                           @click.stop class="link-btn">원문</a>
-                        <button class="row-btn" :disabled="formatting"
-                          @click="formatSingle(a._idx, col.key)">
-                          <span x-text="(formattingIdx === a._uid && formatting) ? '...' : '요약'"></span>
-                        </button>
-                      </div>
+          <!-- 하단 3열: 유형별 최신 기사 -->
+          <div class="home-cat-grid" style="grid-template-columns: repeat(3, 1fr)">
+
+            <!-- 최신 보도자료 -->
+            <div class="home-cat-col">
+              <div class="home-cat-header">
+                <span class="home-cat-title kc-데이터">📋 최신 보도자료</span>
+                <button class="home-more-btn-sm" @click="openArticlesPage('전체','보도자료')">전체 보도자료 →</button>
+              </div>
+              <template x-if="latestPress.length === 0">
+                <div class="empty-col">수집된 보도자료가 없습니다</div>
+              </template>
+              <template x-for="a in latestPress" :key="a._uid">
+                <div class="home-mini-card">
+                  <div class="home-mini-top">
+                    <span class="agency-badge" :class="badgeClass(a._cat)" x-text="a['기관']"></span>
+                    <span class="cat-tag"
+                          :class="a._cat==='페이먼트'?'cat-pay':a._cat==='AML'?'cat-aml':'cat-data'"
+                          x-text="a._cat || '데이터'"></span>
+                    <span class="pri-badge"
+                          :class="a['우선순위']==='상'?'pri-high':a['우선순위']==='하'?'pri-low':'pri-mid'"
+                          x-text="a['우선순위'] || '중'"></span>
+                  </div>
+                  <div class="home-mini-title" x-html="highlight(a['제목'])"></div>
+                  <div class="home-mini-foot">
+                    <span class="art-card-date" x-text="a['날짜']"></span>
+                    <div class="art-card-btns">
+                      <a x-show="a['링크']" :href="a['링크']" target="_blank" rel="noopener noreferrer"
+                         @click.stop class="link-btn">원문</a>
+                      <button class="row-btn" :disabled="formatting"
+                        @click="formatSingle(a._idx, a._cat)">
+                        <span x-text="(formattingIdx === a._uid && formatting) ? '...' : '요약'"></span>
+                      </button>
                     </div>
                   </div>
-                </template>
-                <template x-if="col.articles.length > 5">
-                  <button class="home-more-btn" @click="openArticlesPage(col.key)">
-                    + <span x-text="col.articles.length - 5"></span>건 더 보기
-                  </button>
-                </template>
+                </div>
+              </template>
+            </div>
+
+            <!-- 최신 언론기사 -->
+            <div class="home-cat-col">
+              <div class="home-cat-header">
+                <span class="home-cat-title kc-페이먼트">📰 최신 언론기사</span>
+                <button class="home-more-btn-sm" @click="openArticlesPage('전체','언론기사')">전체 언론기사 →</button>
               </div>
-            </template>
+              <template x-if="latestNews.length === 0">
+                <div class="empty-col">수집된 언론기사가 없습니다</div>
+              </template>
+              <template x-for="a in latestNews" :key="a._uid">
+                <div class="home-mini-card">
+                  <div class="home-mini-top">
+                    <span class="agency-badge badge-news" x-text="a['기관']"></span>
+                    <span class="cat-tag"
+                          :class="a._cat==='페이먼트'?'cat-pay':a._cat==='AML'?'cat-aml':'cat-data'"
+                          x-text="a._cat || '데이터'"></span>
+                    <span class="pri-badge"
+                          :class="a['우선순위']==='상'?'pri-high':a['우선순위']==='하'?'pri-low':'pri-mid'"
+                          x-text="a['우선순위'] || '중'"></span>
+                  </div>
+                  <div class="home-mini-title" x-html="highlight(a['제목'])"></div>
+                  <div class="home-mini-foot">
+                    <span class="art-card-date" x-text="a['날짜']"></span>
+                    <div class="art-card-btns">
+                      <a x-show="a['링크']" :href="a['링크']" target="_blank" rel="noopener noreferrer"
+                         @click.stop class="link-btn">원문</a>
+                      <button class="row-btn" :disabled="formatting"
+                        @click="formatSingle(a._idx, a._cat)">
+                        <span x-text="(formattingIdx === a._uid && formatting) ? '...' : '요약'"></span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </template>
+            </div>
+
+            <!-- 최신 입법현황 -->
+            <div class="home-cat-col">
+              <div class="home-cat-header">
+                <span class="home-cat-title kc-AML">⚖️ 최신 입법현황</span>
+                <button class="home-more-btn-sm" @click="currentPage='policy'; polTab='legislation'">전체 입법현황 →</button>
+              </div>
+              <template x-if="latestLeg.length === 0">
+                <div class="empty-col">수집된 입법현황이 없습니다</div>
+              </template>
+              <template x-for="a in latestLeg" :key="a.id">
+                <div class="home-mini-card leg-card" style="cursor:pointer"
+                     @click="goToLegislation(a.target_law, a)">
+                  <div class="home-mini-top">
+                    <span class="agency-badge badge-aml"
+                          style="max-width:80px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"
+                          x-text="normalizeMinistry(a.ministry) || '-'"></span>
+                    <span class="cat-tag"
+                          :class="a.category==='페이먼트'?'cat-pay':a.category==='AML'?'cat-aml':'cat-data'"
+                          x-text="a.category || '-'"></span>
+                    <span class="pri-badge"
+                          :class="a.status&&a.status.includes('공포')?'pri-high':a.status&&(a.status.includes('가결')||a.status.includes('시행'))?'pri-mid':'pri-low'"
+                          x-text="a.status || '-'"></span>
+                  </div>
+                  <div class="home-mini-title" x-text="a.bill_title"></div>
+                  <div class="home-mini-foot">
+                    <span class="art-card-date" x-text="(a.propose_date || '').slice(0,10)"></span>
+                    <a x-show="a.url || a.link" :href="a.url || a.link" target="_blank" rel="noopener noreferrer"
+                       @click.stop class="link-btn">원문</a>
+                    <button class="row-btn" @click.stop="goToLegislation(a.target_law, a)">요약</button>
+                  </div>
+                </div>
+              </template>
+            </div>
+
           </div>
 
         </div><!-- /HOME -->
@@ -1654,7 +2035,7 @@
                   :style="articlesCategory==='페이먼트' ? 'color:var(--pay-color)'
                         : articlesCategory==='AML'      ? 'color:var(--aml-color)'
                         : 'color:var(--accent)'"
-                  x-text="articlesCategory + ' 보도자료 · 언론기사'"></span>
+                  x-text="articlesCategory==='전체' ? (articlesTypeFilter!=='전체' ? '전체 '+articlesTypeFilter : '전체 보도자료 · 언론기사') : articlesCategory+' 보도자료 · 언론기사'"></span>
           </div>
 
           <!-- 타입 탭 -->
@@ -1686,39 +2067,88 @@
             </div>
           </div>
 
-          <!-- 기사 목록 -->
-          <template x-if="articlesFiltered.length === 0">
-            <div class="empty-list">수집된 기사가 없습니다</div>
+          <!-- 기사 목록: 전체 = 3열 그리드 / 단일 카테고리 = 리스트 -->
+          <template x-if="articlesCategory === '전체'">
+            <div class="articles-3col-grid">
+              <template x-for="cat in ['데이터','페이먼트','AML']" :key="cat">
+                <div class="articles-col">
+                  <!-- 열 헤더 -->
+                  <div class="articles-col-hdr"
+                       :style="cat==='데이터' ? 'color:var(--accent);border-color:var(--accent);background:var(--accent-lt)'
+                             : cat==='페이먼트' ? 'color:var(--pay-color);border-color:var(--pay-color);background:var(--pay-lt)'
+                             : 'color:var(--aml-color);border-color:var(--aml-color);background:var(--aml-lt)'">
+                    <span x-text="cat"></span>
+                    <span style="font-size:11px;font-weight:600;opacity:.7" x-text="articlesColItems(cat).length + '건'"></span>
+                  </div>
+                  <template x-if="articlesColItems(cat).length === 0">
+                    <div class="empty-list" style="font-size:12px;padding:16px">해당 기사가 없습니다</div>
+                  </template>
+                  <template x-for="a in articlesColItems(cat)" :key="a._uid">
+                    <div class="article-row">
+                      <div class="row-top">
+                        <span class="cal-type-badge"
+                              :class="sourceType(a)==='언론기사' ? 'cal-type-언론기사' : 'cal-type-보도자료'"
+                              x-text="sourceType(a)"></span>
+                        <span class="agency-badge"
+                              :class="cat==='페이먼트' ? 'badge-pay' : cat==='AML' ? 'badge-aml' : 'badge-data'"
+                              x-text="a['기관']"></span>
+                        <span class="pri-badge"
+                              :class="a['우선순위']==='상' ? 'pri-high' : a['우선순위']==='하' ? 'pri-low' : 'pri-mid'"
+                              x-text="a['우선순위'] || '중'"></span>
+                        <span class="row-date" x-text="a['날짜']"></span>
+                      </div>
+                      <div class="row-title" x-html="highlightQ(a['제목'], articlesSearchQ)"></div>
+                      <div class="row-lead" x-html="highlightQ(a['내용'], articlesSearchQ)"></div>
+                      <div class="row-bottom">
+                        <a x-show="a['링크']" :href="a['링크']" target="_blank"
+                           rel="noopener noreferrer" class="link-btn">원문</a>
+                        <button class="row-btn" :disabled="formatting"
+                                @click="formatSingle(a._idx, cat)">
+                          <span x-text="(formattingIdx===a._uid && formatting) ? '...' : '요약'"></span>
+                        </button>
+                      </div>
+                    </div>
+                  </template>
+                </div>
+              </template>
+            </div>
           </template>
-          <div class="article-list">
-            <template x-for="a in articlesFiltered" :key="a._uid">
-              <div class="article-row">
-                <div class="row-top">
-                  <span class="cal-type-badge"
-                        :class="sourceType(a)==='언론기사' ? 'cal-type-언론기사' : 'cal-type-보도자료'"
-                        x-text="sourceType(a)"></span>
-                  <span class="agency-badge"
-                        :class="articlesCategory==='데이터' ? 'badge-data'
-                              : articlesCategory==='페이먼트' ? 'badge-pay' : 'badge-aml'"
-                        x-text="a['기관']"></span>
-                  <span class="pri-badge"
-                        :class="a['우선순위']==='상' ? 'pri-high' : a['우선순위']==='하' ? 'pri-low' : 'pri-mid'"
-                        x-text="a['우선순위'] || '중'"></span>
-                  <span class="row-date" x-text="a['날짜']"></span>
-                </div>
-                <div class="row-title" x-html="highlightQ(a['제목'], articlesSearchQ)"></div>
-                <div class="row-lead" x-html="highlightQ(a['내용'], articlesSearchQ)"></div>
-                <div class="row-bottom">
-                  <a x-show="a['링크']" :href="a['링크']" target="_blank"
-                     rel="noopener noreferrer" class="link-btn">원문</a>
-                  <button class="row-btn" :disabled="formatting"
-                          @click="formatSingle(a._idx, articlesCategory)">
-                    <span x-text="(formattingIdx===a._uid && formatting) ? '...' : '요약'"></span>
-                  </button>
-                </div>
+
+          <template x-if="articlesCategory !== '전체'">
+            <div>
+              <template x-if="articlesFiltered.length === 0">
+                <div class="empty-list">수집된 기사가 없습니다</div>
+              </template>
+              <div class="article-list">
+                <template x-for="a in articlesFiltered" :key="a._uid">
+                  <div class="article-row">
+                    <div class="row-top">
+                      <span class="cal-type-badge"
+                            :class="sourceType(a)==='언론기사' ? 'cal-type-언론기사' : 'cal-type-보도자료'"
+                            x-text="sourceType(a)"></span>
+                      <span class="agency-badge"
+                            :class="a._cat==='페이먼트' ? 'badge-pay' : a._cat==='AML' ? 'badge-aml' : 'badge-data'"
+                            x-text="a['기관']"></span>
+                      <span class="pri-badge"
+                            :class="a['우선순위']==='상' ? 'pri-high' : a['우선순위']==='하' ? 'pri-low' : 'pri-mid'"
+                            x-text="a['우선순위'] || '중'"></span>
+                      <span class="row-date" x-text="a['날짜']"></span>
+                    </div>
+                    <div class="row-title" x-html="highlightQ(a['제목'], articlesSearchQ)"></div>
+                    <div class="row-lead" x-html="highlightQ(a['내용'], articlesSearchQ)"></div>
+                    <div class="row-bottom">
+                      <a x-show="a['링크']" :href="a['링크']" target="_blank"
+                         rel="noopener noreferrer" class="link-btn">원문</a>
+                      <button class="row-btn" :disabled="formatting"
+                              @click="formatSingle(a._idx, a._cat || articlesCategory)">
+                        <span x-text="(formattingIdx===a._uid && formatting) ? '...' : '요약'"></span>
+                      </button>
+                    </div>
+                  </div>
+                </template>
               </div>
-            </template>
-          </div>
+            </div>
+          </template>
 
         </div>
       </template>
@@ -1803,8 +2233,6 @@
           <div class="pol-tabs">
             <button class="pol-tab" :class="polTab==='legislation' ? 'active' : ''"
                     @click="polTab='legislation'">⚖️ 입법현황</button>
-            <button class="pol-tab" :class="polTab==='assembly' ? 'active' : ''"
-                    @click="polTab='assembly'">📰 국회의원 보도자료</button>
             <button class="pol-tab" :class="polTab==='gantt' ? 'active' : ''"
                     @click="polTab='gantt'">📊 연간 시행현황</button>
           </div>
@@ -1820,7 +2248,7 @@
                 <template x-for="law in legAllLaws" :key="law">
                   <div class="pol-sidebar-item" :class="legSideLaw===law ? 'active' : ''"
                        @click="legSideLaw=law; legLaw=law; legCat='전체'"
-                       x-text="law"></div>
+                       x-text="normalizeLawName(law)"></div>
                 </template>
                 <div class="pol-sidebar-divider"></div>
                 <div class="pol-sidebar-title">카테고리</div>
@@ -1845,10 +2273,6 @@
                     <button class="src-btn" :class="legSource===s ? 'active-press' : ''"
                             @click="legSource=s" x-text="s"></button>
                   </template>
-                  <button class="collect-btn primary" style="font-size:11px;padding:5px 12px"
-                          :disabled="legLoading" @click="collectLegislation()">
-                    <span x-text="legLoading ? '수집 중...' : '수집'"></span>
-                  </button>
                   <span class="pol-count" x-text="filteredLegislation.length + '건'"></span>
                   <span class="pol-fetched" x-text="legLastFetched ? '수집: ' + legLastFetched : ''"></span>
                 </div>
@@ -1857,57 +2281,80 @@
                     <div class="panel-loading">입법현황 수집 중...</div>
                   </template>
                   <template x-if="!legLoading && filteredLegislation.length===0">
-                    <div class="panel-empty">수집된 입법현황이 없습니다.<br><small>'수집' 버튼을 눌러주세요.</small></div>
+                    <div class="panel-empty">수집된 입법현황이 없습니다.</div>
                   </template>
                   <template x-if="!legLoading && filteredLegislation.length > 0">
                     <table class="pol-table">
                       <thead>
                         <tr>
-                          <th style="width:36px">No</th>
-                          <th style="width:84px">날짜</th>
-                          <th style="width:44px">유형</th>
+                          <th style="width:32px">No</th>
+                          <th style="width:88px;cursor:pointer;user-select:none"
+                              @click="legDateSort = legDateSort==='desc' ? 'asc' : 'desc'">
+                            날짜
+                            <span x-text="legDateSort==='asc' ? '↑' : legDateSort==='desc' ? '↓' : '↕'"
+                                  style="font-size:10px;color:var(--t3);margin-left:2px"></span>
+                          </th>
+                          <th style="width:46px">유형</th>
                           <th>제목 / 소관·발의</th>
-                          <th style="width:88px">대상 법령</th>
-                          <th style="width:108px">진행 상황</th>
-                          <th style="width:44px">링크</th>
+                          <th style="width:96px">대상 법령</th>
+                          <th style="width:112px">진행 상황</th>
+                          <th style="width:52px;white-space:nowrap">링크</th>
                         </tr>
                       </thead>
-                      <tbody>
-                        <template x-for="(a, i) in filteredLegislation" :key="a.id">
-                          <tr class="pol-row" :class="polSelectedId===a.id ? 'selected' : ''"
-                              @click="polSelectedId = polSelectedId===a.id ? null : a.id">
-                            <td class="pol-no" x-text="i+1"></td>
-                            <td class="pol-date" x-text="a.propose_date || a.scraped_at"></td>
-                            <td>
-                              <span class="pol-src-badge"
-                                    :class="a.source==='gov' ? 'src-gov' : 'src-congress'"
-                                    x-text="a.source==='gov' ? '정부' : '국회'"></span>
-                            </td>
-                            <td>
-                              <div class="pol-title" x-html="highlightQ(a.bill_title, legSearch)"></div>
-                              <div class="pol-meta" x-show="a.ministry || a.proposer">
-                                <span x-text="a.source==='gov' ? a.ministry : a.proposer"></span>
-                                <template x-if="a.amendment_type">
-                                  <span x-text="' · ' + a.amendment_type"></span>
-                                </template>
-                              </div>
-                            </td>
-                            <td>
-                              <span class="pol-law-chip"
-                                    :class="a.category==='데이터'?'tag-data':a.category==='페이먼트'?'tag-pay':'tag-aml'"
-                                    x-text="a.target_law"></span>
-                            </td>
-                            <td>
-                              <span class="pol-status-badge" :style="legStatusStyle(a.status)"
-                                    x-text="a.status || '-'"></span>
-                            </td>
-                            <td>
-                              <a x-show="a.link" :href="a.link" target="_blank"
-                                 rel="noopener noreferrer" class="link-btn" @click.stop>원문</a>
-                            </td>
-                          </tr>
+                        <template x-for="row in legTableRows" :key="row._id">
+                          <tbody>
+                          <template x-if="row._type === 'year'">
+                            <tr class="pol-year-row">
+                              <td colspan="7" x-text="row.year + '년'"></td>
+                            </tr>
+                          </template>
+                          <template x-if="row._type === 'item'">
+                            <tr class="pol-row" :class="polSelectedId===row.id ? 'selected' : ''"
+                                @click="polSelectedId = polSelectedId===row.id ? null : row.id; if(polSelectedId) fetchBillSummary(row.id, row.link)">
+                              <td class="pol-no" x-text="row._rowNum"></td>
+                              <td class="pol-date" x-text="row.propose_date || row.scraped_at"></td>
+                              <td>
+                                <span class="pol-src-badge"
+                                      :class="row.source==='gov' ? 'src-gov' : 'src-congress'"
+                                      x-text="row.source==='gov' ? '정부' : '국회'"></span>
+                              </td>
+                              <td>
+                                <div class="pol-title" x-html="highlightQ(row.bill_title, legSearch)"></div>
+                                <div class="pol-meta" x-show="row.ministry || row.proposer">
+                                  <span x-text="row.source==='gov' ? row.ministry : row.proposer"></span>
+                                  <template x-if="row.amendment_type">
+                                    <span x-text="' · ' + row.amendment_type"></span>
+                                  </template>
+                                </div>
+                              </td>
+                              <td>
+                                <span class="pol-law-chip"
+                                      :class="row.category==='데이터'?'tag-data':row.category==='페이먼트'?'tag-pay':'tag-aml'"
+                                      x-text="normalizeLawName(row.target_law)"></span>
+                              </td>
+                              <td>
+                                <span class="pol-status-badge" :style="legStatusStyle(row.status)"
+                                      x-text="row.status || '-'"></span>
+                              </td>
+                              <td style="white-space:nowrap">
+                                <a x-show="row.link" :href="row.link" target="_blank"
+                                   rel="noopener noreferrer" class="link-btn" @click.stop>원문</a>
+                              </td>
+                            </tr>
+                          </template>
+                          <template x-if="row._type === 'item' && polSelectedId===row.id">
+                            <tr class="pol-row-expand">
+                              <td colspan="7">
+                                <div class="pol-summary-box">
+                                  <span class="pol-summary-label">주요내용</span>
+                                  <span class="pol-summary-text"
+                                        x-html="legSummaries[row.id] === undefined ? '' : (legSummaries[row.id] === '...' ? '불러오는 중...' : (legSummaries[row.id] ? formatSummary(legSummaries[row.id], legDetails[row.id], row) : '<span style=\'color:var(--t3)\'>주요내용이 없습니다.</span>'))"></span>
+                                </div>
+                              </td>
+                            </tr>
+                          </template>
+                          </tbody>
                         </template>
-                      </tbody>
                     </table>
                   </template>
                 </div>
@@ -1915,138 +2362,188 @@
             </div>
           </template>
 
-          <!-- ── 국회의원 보도자료 탭 ── -->
-          <template x-if="polTab === 'assembly'">
-            <div class="pol-layout">
-              <div class="pol-sidebar">
-                <div class="pol-sidebar-title">카테고리</div>
-                <template x-for="c in ['전체','데이터','페이먼트','AML']" :key="c">
-                  <div class="pol-sidebar-item" :class="assemblyPressCat===c ? 'active' : ''"
-                       @click="assemblyPressCat=c" x-text="c"></div>
+          <!-- ── 연간 시행현황 탭 (세로 타임라인) ── -->
+          <template x-if="polTab === 'gantt'">
+          <div class="pol-layout">
+
+            <!-- 좌측 사이드바 -->
+            <div class="pol-sidebar" :style="`width:${sidebarW}px`">
+              <div class="pol-sidebar-title">연도</div>
+              <div class="pol-sidebar-item" :class="tlYear==='전체' ? 'active' : ''"
+                   @click="tlYear='전체'">전체</div>
+              <template x-for="yr in tlAllYears" :key="yr">
+                <div class="pol-sidebar-item" :class="tlYear===yr ? 'active' : ''"
+                     @click="tlYear=yr" x-text="yr + '년'"></div>
+              </template>
+
+              <div class="pol-sidebar-divider"></div>
+              <div class="pol-sidebar-title">법령명</div>
+              <div class="pol-sidebar-item" :class="tlSideLaw==='' ? 'active' : ''"
+                   @click="tlSideLaw=''">전체</div>
+              <template x-for="law in legAllLaws" :key="law">
+                <div class="pol-sidebar-item" :class="tlSideLaw===law ? 'active' : ''"
+                     @click="tlSideLaw=law; tlCat='전체'" x-text="normalizeLawName(law)"></div>
+              </template>
+
+              <div class="pol-sidebar-divider"></div>
+              <div class="pol-sidebar-title">카테고리</div>
+              <template x-for="c in ['전체','데이터','페이먼트','AML']" :key="c">
+                <div class="pol-sidebar-item"
+                     :class="tlCat===c && tlSideLaw==='' ? 'active' : ''"
+                     @click="tlCat=c; tlSideLaw=''" x-text="c"></div>
+              </template>
+            </div>
+            <!-- 사이드바 ↔ 본문 리사이즈 핸들 -->
+            <div class="resize-handle" @mousedown="startResize($event,'sidebar')"></div>
+
+            <!-- 우측 타임라인 본문 + 상세 패널 -->
+            <div class="pol-main" style="flex-direction:row;overflow:hidden;">
+
+              <!-- 타임라인 스크롤 영역 -->
+              <div class="tl-scroll" :style="tlSelectedItem ? `width:${tlScrollW}px;flex-shrink:0;border-right:1px solid var(--bd)` : 'flex:1'">
+                <template x-if="timelineGroups.length === 0">
+                  <div class="panel-empty">표시할 입법현황이 없습니다.<br><small>입법현황 탭에서 수집 후 확인하세요.</small></div>
                 </template>
-              </div>
-              <div class="pol-main">
-                <div class="pol-filter-bar">
-                  <div class="articles-search" style="flex:1;max-width:300px">
-                    <span style="font-size:12px;color:var(--t3)">🔍</span>
-                    <input type="text" x-model="assemblyPressSearch" placeholder="의원명·법안명 검색..."/>
-                    <template x-if="assemblyPressSearch">
-                      <span @click="assemblyPressSearch=''" style="cursor:pointer;color:var(--t3);font-size:11px">✕</span>
+
+                <template x-for="grp in timelineGroups" :key="grp.year">
+                  <div>
+                    <div class="tl-year-row">
+                      <div class="tl-year-badge" x-text="grp.year"></div>
+                    </div>
+
+                    <template x-for="(a, i) in grp.items" :key="a.id">
+                      <div class="tl-item" :class="tlSelectedItem && tlSelectedItem.id===a.id ? 'tl-item-selected' : ''">
+                        <!-- 왼쪽 카드 슬롯 -->
+                        <div class="tl-slot tl-slot-left">
+                          <template x-if="i % 2 === 0">
+                            <div class="tl-card tl-card-left" @click="tlSelectItem(a)"
+                                 :class="tlSelectedItem && tlSelectedItem.id===a.id ? 'tl-card-active' : ''">
+                              <div class="tl-card-title" x-text="a.bill_title"></div>
+                              <div class="tl-card-meta">
+                                <span x-text="a.source==='gov' ? a.ministry : a.proposer"></span>
+                                <span x-show="a.amendment_type" x-text="' · ' + a.amendment_type"></span>
+                              </div>
+                              <div class="tl-card-footer">
+                                <span class="pol-law-chip"
+                                      :class="a.category==='데이터'?'tag-data':a.category==='페이먼트'?'tag-pay':'tag-aml'"
+                                      x-text="normalizeLawName(a.target_law)"></span>
+                                <span class="pol-status-badge" :style="legStatusStyle(a.status)"
+                                      x-text="a.status||'-'"></span>
+                              </div>
+                            </div>
+                          </template>
+                        </div>
+
+                        <!-- 중앙 날짜 노드 -->
+                        <div class="tl-center">
+                          <div class="tl-line-top"></div>
+                          <div class="tl-node"
+                               :class="tlSelectedItem && tlSelectedItem.id===a.id ? 'tl-node-active' : ''"
+                               x-text="(a.propose_date||a.scraped_at||'').slice(5).replace('-','.')"></div>
+                          <div class="tl-line-bot"></div>
+                        </div>
+
+                        <!-- 오른쪽 카드 슬롯 -->
+                        <div class="tl-slot tl-slot-right">
+                          <template x-if="i % 2 !== 0">
+                            <div class="tl-card tl-card-right" @click="tlSelectItem(a)"
+                                 :class="tlSelectedItem && tlSelectedItem.id===a.id ? 'tl-card-active' : ''">
+                              <div class="tl-card-title" x-text="a.bill_title"></div>
+                              <div class="tl-card-meta">
+                                <span x-text="a.source==='gov' ? a.ministry : a.proposer"></span>
+                                <span x-show="a.amendment_type" x-text="' · ' + a.amendment_type"></span>
+                              </div>
+                              <div class="tl-card-footer">
+                                <span class="pol-law-chip"
+                                      :class="a.category==='데이터'?'tag-data':a.category==='페이먼트'?'tag-pay':'tag-aml'"
+                                      x-text="normalizeLawName(a.target_law)"></span>
+                                <span class="pol-status-badge" :style="legStatusStyle(a.status)"
+                                      x-text="a.status||'-'"></span>
+                              </div>
+                            </div>
+                          </template>
+                        </div>
+                      </div>
                     </template>
                   </div>
-                  <button class="collect-btn primary" style="font-size:11px;padding:5px 12px"
-                          :disabled="assemblyPressLoading" @click="collectAssemblyPress()">
-                    <span x-text="assemblyPressLoading ? '수집 중...' : '수집'"></span>
-                  </button>
-                  <span class="pol-count" x-text="filteredAssemblyPress.length + '건'"></span>
-                  <span class="pol-fetched" x-text="assemblyPressLastFetched ? '수집: ' + assemblyPressLastFetched : ''"></span>
-                </div>
-                <div class="pol-table-wrap">
-                  <template x-if="assemblyPressLoading">
-                    <div class="panel-loading">수집 중...</div>
-                  </template>
-                  <template x-if="!assemblyPressLoading && filteredAssemblyPress.length===0">
-                    <div class="panel-empty">수집된 보도자료가 없습니다.<br><small>보도자료 수집 시 함께 갱신됩니다.</small></div>
-                  </template>
-                  <template x-if="!assemblyPressLoading && filteredAssemblyPress.length > 0">
-                    <table class="pol-table">
-                      <thead>
-                        <tr>
-                          <th style="width:36px">No</th>
-                          <th style="width:84px">날짜</th>
-                          <th style="width:72px">카테고리</th>
-                          <th style="width:120px">발의처</th>
-                          <th>제목</th>
-                          <th style="width:44px">링크</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        <template x-for="(a, i) in filteredAssemblyPress" :key="a.id">
-                          <tr class="pol-row" :class="polSelectedId===a.id ? 'selected' : ''"
-                              @click="polSelectedId = polSelectedId===a.id ? null : a.id">
-                            <td class="pol-no" x-text="i+1"></td>
-                            <td class="pol-date" x-text="a.pub_date"></td>
-                            <td>
-                              <span class="pol-law-chip"
-                                    :class="a.category==='데이터'?'tag-data':a.category==='페이먼트'?'tag-pay':'tag-aml'"
-                                    x-text="a.category"></span>
-                            </td>
-                            <td>
-                              <div class="pol-meta" x-text="a.org"></div>
-                              <div class="pol-meta" x-text="a.part"></div>
-                            </td>
-                            <td>
-                              <div class="pol-title" x-html="highlightQ(a.title, assemblyPressSearch)"></div>
-                            </td>
-                            <td>
-                              <a :href="a.link" target="_blank" rel="noopener noreferrer"
-                                 class="link-btn" @click.stop>원문</a>
-                            </td>
-                          </tr>
-                        </template>
-                      </tbody>
-                    </table>
-                  </template>
-                </div>
-              </div>
-            </div>
-          </template>
-
-          <!-- ── 연간 시행현황 탭 (간트차트) ── -->
-          <template x-if="polTab === 'gantt'">
-          <div style="margin-bottom:18px">
-            <div class="policy-section-title" style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
-              📊 연간 정책 시행현황
-              <div class="gantt-year-nav">
-                <button class="gantt-year-btn" @click="policyGanttYear--">‹</button>
-                <span class="gantt-year-label" x-text="policyGanttYear + '년'"></span>
-                <button class="gantt-year-btn" @click="policyGanttYear++">›</button>
-              </div>
-            </div>
-            <div class="gantt-legend" style="margin-bottom:8px">
-              <span class="gantt-legend-item" style="background:#94a3b8">지남</span>
-              <span class="gantt-legend-item" style="background:#16a34a">시행 중</span>
-              <span class="gantt-legend-item" style="background:#dc2626">D-30↓</span>
-              <span class="gantt-legend-item" style="background:#d97706">D-90↓</span>
-              <span class="gantt-legend-item" style="background:#2563eb">시행 예정</span>
-              <span class="gantt-legend-item" style="background:#7c3aed">계류/예정</span>
-            </div>
-            <div class="gantt-card">
-              <div class="gantt-header">
-                <div class="gantt-row-label"><span class="gantt-label-text" style="color:var(--t3)">구분</span></div>
-                <template x-for="m in 12" :key="m">
-                  <div class="gantt-month-cell"
-                    :style="m === policyGanttCurrentMonth ? 'background:var(--accent-lt);color:var(--accent);font-weight:800' : ''"
-                    x-text="m + '월'"></div>
                 </template>
               </div>
-              <template x-for="row in policyGanttRows" :key="row.cat">
-                <div class="gantt-row">
-                  <div class="gantt-row-label">
-                    <span class="gantt-label-text"
-                      :style="row.cat==='데이터'?'color:var(--accent)':row.cat==='페이먼트'?'color:var(--pay-color)':'color:var(--aml-color)'"
-                      x-text="row.cat"></span>
-                  </div>
-                  <template x-for="m in 12" :key="m">
-                    <div class="gantt-cell"
-                      :style="m === policyGanttCurrentMonth ? 'background:rgba(37,99,235,.04)' : ''">
-                      <template x-for="p in row.byMonth[m]" :key="p.id">
-                        <div class="gantt-pill"
-                          :style="ganttPillStyle(p) + (p['출처URL'] ? ';cursor:pointer' : '')"
-                          :title="p['정책명'] + '\n공포일: ' + (p['공포일']||'-') + '\n시행일: ' + (p['시행일']||'-') + '\n상태: ' + p['상태']"
-                          @click="p['출처URL'] && window.open(p['출처URL'], '_blank')"
-                          x-text="p['정책명'].length > 9 ? p['정책명'].slice(0,9)+'…' : p['정책명']">
-                        </div>
-                      </template>
+
+              <!-- 타임라인 ↔ 상세 패널 리사이즈 핸들 -->
+              <template x-if="tlSelectedItem">
+                <div class="resize-handle" @mousedown="startResize($event,'tl')"></div>
+              </template>
+
+              <!-- 우측 상세 패널 -->
+              <template x-if="tlSelectedItem">
+                <div class="tl-detail-panel">
+                  <!-- 헤더 -->
+                  <div class="tl-detail-header">
+                    <div style="flex:1;min-width:0">
+                      <div class="tl-detail-law">
+                        <span class="pol-law-chip"
+                              :class="tlSelectedItem.category==='데이터'?'tag-data':tlSelectedItem.category==='페이먼트'?'tag-pay':'tag-aml'"
+                              x-text="tlSelectedItem.target_law"></span>
+                        <span class="pol-status-badge" :style="legStatusStyle(tlSelectedItem.status)"
+                              x-text="tlSelectedItem.status||'-'"></span>
+                      </div>
+                      <div class="tl-detail-title" x-text="tlSelectedItem.bill_title"></div>
+                      <div class="tl-detail-meta">
+                        <span x-text="tlSelectedItem.source==='gov' ? tlSelectedItem.ministry : tlSelectedItem.proposer"></span>
+                        <span x-text="' · ' + (tlSelectedItem.propose_date||tlSelectedItem.scraped_at||'').slice(0,10)"></span>
+                        <a x-show="tlSelectedItem.link" :href="tlSelectedItem.link" target="_blank"
+                           rel="noopener noreferrer" class="link-btn" style="margin-left:6px" @click.stop>원문</a>
+                      </div>
                     </div>
-                  </template>
+                    <button class="tl-detail-close" @click="tlSelectedItem=null">✕</button>
+                  </div>
+
+                  <!-- 탭 -->
+                  <div class="tl-detail-tabs">
+                    <button class="tl-detail-tab" :class="tlDetailTab==='policy' ? 'active' : ''"
+                            @click="tlDetailTab='policy'">📋 정책내용</button>
+                    <button class="tl-detail-tab" :class="tlDetailTab==='news' ? 'active' : ''"
+                            @click="tlDetailTab='news'; if(tlNewsItems.length===0) tlLoadNews(tlSelectedItem.target_law || tlSelectedItem.bill_title, tlSelectedItem.propose_date)">📰 언론동향</button>
+                  </div>
+
+                  <!-- 정책내용 탭 -->
+                  <div class="tl-detail-body" x-show="tlDetailTab==='policy'">
+                    <template x-if="legSummaries[tlSelectedItem.id] === undefined">
+                      <div class="panel-loading">정책내용 불러오는 중...</div>
+                    </template>
+                    <template x-if="legSummaries[tlSelectedItem.id] !== undefined">
+                      <div class="pol-summary-text"
+                           style="font-size:13px;line-height:1.8;color:var(--t1);padding:4px 0"
+                           x-html="legSummaries[tlSelectedItem.id] ? formatSummary(legSummaries[tlSelectedItem.id], legDetails[tlSelectedItem.id], tlSelectedItem) : '<span style=\'color:var(--t3)\'>주요내용이 없습니다.</span>'"></div>
+                    </template>
+                  </div>
+
+                  <!-- 언론동향 탭 -->
+                  <div class="tl-detail-body" x-show="tlDetailTab==='news'">
+                    <template x-if="tlNewsLoading">
+                      <div class="panel-loading">뉴스 불러오는 중...</div>
+                    </template>
+                    <template x-if="!tlNewsLoading && tlNewsItems.length === 0">
+                      <div class="panel-empty">관련 언론기사가 없습니다.</div>
+                    </template>
+                    <template x-if="!tlNewsLoading && tlNewsItems.length > 0">
+                      <div style="display:flex;flex-direction:column;gap:12px">
+                        <template x-for="(n, ni) in tlNewsItems" :key="ni">
+                          <div class="tl-news-item">
+                            <a :href="n.originallink || n.link" target="_blank" rel="noopener noreferrer"
+                               class="tl-news-title" x-html="n.title"></a>
+                            <div class="tl-news-desc" x-html="n.description"></div>
+                            <div class="tl-news-date" x-text="new Date(n.pubDate).toLocaleDateString('ko-KR',{year:'numeric',month:'2-digit',day:'2-digit'})"></div>
+                          </div>
+                        </template>
+                      </div>
+                    </template>
+                  </div>
                 </div>
               </template>
-              <template x-if="!policyGanttHasData">
-                <div style="padding:20px;text-align:center;font-size:12px;color:var(--t3)"
-                     x-text="policyGanttYear + '년 시행일이 설정된 정책이 없습니다.'"></div>
-              </template>
+
             </div>
+
           </div>
           </template>
 
@@ -2125,7 +2622,7 @@
                         @click="legLaw=''" style="font-size:10px">전체 법령</button>
                 <template x-for="law in legAllLaws" :key="law">
                   <button class="src-btn" :class="legLaw===law ? 'active-press' : ''"
-                          @click="legLaw=law" x-text="law" style="font-size:10px"></button>
+                          @click="legLaw=law" x-text="normalizeLawName(law)" style="font-size:10px"></button>
                 </template>
               </div>
               <div class="panel-list">
@@ -2144,7 +2641,7 @@
                       <span class="cat-tag"
                             :class="a.category==='데이터' ? 'tag-data' : a.category==='페이먼트' ? 'tag-pay' : 'tag-aml'"
                             x-text="a.category"></span>
-                      <span style="font-size:10px;color:var(--t3);font-weight:600" x-text="a.target_law"></span>
+                      <span style="font-size:10px;color:var(--t3);font-weight:600" x-text="normalizeLawName(a.target_law)"></span>
                       <span class="pri-badge" :style="legStatusStyle(a.status)" x-text="a.status || '-'"></span>
                       <span class="row-date" x-text="a.scraped_at"></span>
                     </div>
@@ -2559,7 +3056,7 @@
                         @click="legLaw=''" style="font-size:10px">전체 법령</button>
                 <template x-for="law in legAllLaws" :key="law">
                   <button class="src-btn" :class="legLaw===law ? 'active-press' : ''"
-                          @click="legLaw=law" x-text="law" style="font-size:10px"></button>
+                          @click="legLaw=law" x-text="normalizeLawName(law)" style="font-size:10px"></button>
                 </template>
               </div>
 
@@ -2584,7 +3081,7 @@
                       <span class="cat-tag"
                             :class="a.category==='데이터' ? 'tag-data' : a.category==='페이먼트' ? 'tag-pay' : 'tag-aml'"
                             x-text="a.category"></span>
-                      <span style="font-size:10px;color:var(--t3);font-weight:600" x-text="a.target_law"></span>
+                      <span style="font-size:10px;color:var(--t3);font-weight:600" x-text="normalizeLawName(a.target_law)"></span>
                       <span class="pri-badge" :style="legStatusStyle(a.status)" x-text="a.status || '-'"></span>
                       <span class="row-date" x-text="a.scraped_at"></span>
                     </div>
@@ -2835,6 +3332,14 @@
       assemblyPressSearch: '',
       assemblyPressLastFetched: '',
 
+      // 브라우저 뒤로가기 플래그
+      _skipHistoryPush: false,
+
+      // 홈 입법현황 캐러셀
+      bannerIdx: 0,
+      bannerYear: '',
+      bannerTimer: null,
+
       // 법규/정책 — 입법현황 (opinion.lawmaking.go.kr)
       legItems: [],
       legCat: '전체',
@@ -2848,6 +3353,20 @@
       polTab: 'legislation',
       polSelectedId: null,
       legSideLaw: '',
+      legSummaries: {},
+      legDetails: {},
+      sidebarW: 200,
+      tlScrollW: 380,
+      legEnriching: false,
+      legEnrichProgress: '',
+      legDateSort: 'desc',
+      tlYear: '전체',
+      tlCat:  '전체',
+      tlSideLaw: '',
+      tlSelectedItem: null,
+      tlDetailTab: 'policy',
+      tlNewsItems: [],
+      tlNewsLoading: false,
 
       // 하위 호환 (dead zone HTML 참조용 — 실제 사용 안 함)
       policyTab: 'dashboard',
@@ -2948,22 +3467,74 @@
         }
         return result;
       },
-      homeDailyColItems(cat) {
+      homeDailyCatItems(cat) {
         const date = this.calSelectedDate;
         if (!date) return [];
         const seen = new Set();
         return (this.allArticles[cat] || [])
           .filter(a => {
-            if (!(a['날짜']||'').startsWith(date)) return false;
-            if (a['우선순위'] !== '상') return false;
-            if (this.sourceType(a) !== '보도자료') return false;
-            const key = (a['제목']||'').trim();
+            if (!(a['날짜'] || '').startsWith(date)) return false;
+            const key = (a['제목'] || '').trim();
             if (seen.has(key)) return false;
             seen.add(key);
             return true;
           })
           .slice(0, 3)
           .map((a, i) => ({ ...a, _idx: i, _cat: cat, _uid: `${cat}-${i}` }));
+      },
+      homeDailyByType(type) {
+        const date = this.calSelectedDate;
+        if (!date) return [];
+        if (type === '입법현황') {
+          return this.legItems
+            .filter(a => (a.propose_date || a.scraped_at || '').slice(0, 10) === date)
+            .slice(0, 5);
+        }
+        const all = ['데이터','페이먼트','AML'].flatMap(cat =>
+          (this.allArticles[cat] || []).map((a, i) => ({ ...a, _idx: i, _cat: cat, _uid: `${cat}-${i}` }))
+        );
+        const seen = new Set();
+        return all.filter(a => {
+          if (!(a['날짜'] || '').startsWith(date)) return false;
+          if (this.sourceType(a) !== type) return false;
+          const key = (a['제목'] || '').trim();
+          if (seen.has(key)) return false;
+          seen.add(key);
+          return true;
+        }).slice(0, 5);
+      },
+      get homeTypeColumns() {
+        return [
+          { key: '보도자료', label: '보도자료', icon: '📋', colorVar: 'var(--accent)', bgVar: 'var(--accent-lt)' },
+          { key: '언론기사', label: '언론기사', icon: '📰', colorVar: 'var(--pay-color)', bgVar: 'var(--pay-lt)' },
+          { key: '입법현황', label: '입법현황', icon: '⚖️', colorVar: 'var(--aml-color)', bgVar: 'var(--aml-lt)' },
+        ];
+      },
+      get latestPress() {
+        return ['데이터','페이먼트','AML'].flatMap(cat =>
+          (this.allArticles[cat] || []).map((a, i) => ({ ...a, _idx: i, _cat: cat, _uid: `${cat}-${i}` }))
+        ).filter(a => this.sourceType(a) === '보도자료')
+          .sort((a, b) => (b['날짜'] || '').localeCompare(a['날짜'] || ''))
+          .slice(0, 5);
+      },
+      get latestNews() {
+        return ['데이터','페이먼트','AML'].flatMap(cat =>
+          (this.allArticles[cat] || []).map((a, i) => ({ ...a, _idx: i, _cat: cat, _uid: `${cat}-${i}` }))
+        ).filter(a => this.sourceType(a) === '언론기사')
+          .sort((a, b) => (b['날짜'] || '').localeCompare(a['날짜'] || ''))
+          .slice(0, 5);
+      },
+      get latestLeg() {
+        const parseLegDate = d => {
+          if (!d) return '';
+          const m = d.match(/(\d{4})\.(\d{1,2})\.(\d{1,2})/);
+          if (m) return `${m[1]}-${m[2].padStart(2,'0')}-${m[3].padStart(2,'0')}`;
+          return d;
+        };
+        return [...this.legItems]
+          .sort((a, b) => parseLegDate(b.propose_date || b.scraped_at)
+                        .localeCompare(parseLegDate(a.propose_date || a.scraped_at)))
+          .slice(0, 5);
       },
       get homeCalDotDates() {
         const set = new Set();
@@ -3029,18 +3600,30 @@
         return 'tag-data';
       },
 
-      openArticlesPage(cat) {
+      openArticlesPage(cat, typeFilter = '전체') {
         this.articlesCategory = cat;
-        this.articlesTypeFilter = '전체';
+        this.articlesTypeFilter = typeFilter;
         this.articlesPriFilter = '';
         this.articlesSearchQ = '';
         this.currentPage = 'articles';
       },
 
+      articlesColItems(cat) {
+        const q = this.articlesSearchQ.trim().toLowerCase();
+        return (this.allArticles[cat] || [])
+          .map((a, i) => ({ ...a, _idx: i, _cat: cat, _uid: `${cat}-${i}` }))
+          .filter(a => this.articlesTypeFilter === '전체' || this.sourceType(a) === this.articlesTypeFilter)
+          .filter(a => !this.articlesPriFilter || a['우선순위'] === this.articlesPriFilter)
+          .filter(a => !q || (a['제목']||'').toLowerCase().includes(q) || (a['내용']||'').toLowerCase().includes(q));
+      },
       articlesPageItems(typeFilter) {
-        return (this.allArticles[this.articlesCategory] || [])
-          .map((a, i) => ({ ...a, _idx: i, _cat: this.articlesCategory, _uid: `${this.articlesCategory}-${i}` }))
-          .filter(a => typeFilter === '전체' || this.sourceType(a) === typeFilter);
+        const items = this.articlesCategory === '전체'
+          ? ['데이터','페이먼트','AML'].flatMap(cat =>
+              (this.allArticles[cat] || []).map((a, i) => ({ ...a, _idx: i, _cat: cat, _uid: `${cat}-${i}` }))
+            )
+          : (this.allArticles[this.articlesCategory] || [])
+              .map((a, i) => ({ ...a, _idx: i, _cat: this.articlesCategory, _uid: `${this.articlesCategory}-${i}` }));
+        return items.filter(a => typeFilter === '전체' || this.sourceType(a) === typeFilter);
       },
 
       get articlesFiltered() {
@@ -3338,9 +3921,140 @@
         const c = {'시행중':'#16a34a','시행예정':'#dc2626','계류중':'#7c3aed','입법예정':'#7c3aed','모니터링':'#6b7280'}[val] || '#6b7280';
         return `background:${c}22;color:${c};border:1px solid ${c}44`;
       },
+      // ── 홈 배너 캐러셀 ──
+      get lawTimelines() {
+        const groups = {};
+        for (const a of this.legItems) {
+          if (!a.target_law) continue;
+          if (!groups[a.target_law]) {
+            groups[a.target_law] = { law: a.target_law, category: a.category, items: [] };
+          }
+          groups[a.target_law].items.push(a);
+        }
+        return Object.values(groups).map(g => {
+          g.items.sort((a, b) => (a.propose_date || '').localeCompare(b.propose_date || ''));
+          const dated = g.items.filter(i => i.propose_date);
+          g.minDate = dated[0]?.propose_date || '';
+          g.maxDate = dated.slice(-1)[0]?.propose_date || '';
+          g.minYear = g.minDate.slice(0, 4);
+          g.maxYear = g.maxDate.slice(0, 4);
+          // 연도별 그룹
+          const yrMap = {};
+          for (const item of g.items) {
+            const yr = (item.propose_date || item.scraped_at || '').slice(0, 4);
+            if (!yr || !/^\d{4}$/.test(yr)) continue;
+            if (!yrMap[yr]) yrMap[yr] = [];
+            yrMap[yr].push(item);
+          }
+          g.years = Object.keys(yrMap).sort().map(yr => ({ year: yr, items: yrMap[yr] }));
+          return g;
+        }).filter(g => g.items.length > 0)
+          .sort((a, b) => b.maxDate.localeCompare(a.maxDate));
+      },
+      get bannerYearItems() {
+        const tl = this.lawTimelines[this.bannerIdx];
+        if (!tl || !tl.years || !tl.years.length) return [];
+        const found = this.bannerYear
+          ? tl.years.find(y => y.year === this.bannerYear)
+          : tl.years.slice(-1)[0];
+        return (found?.items || []).slice().sort((a, b) => (a.propose_date || '').localeCompare(b.propose_date || ''));
+      },
+      get bannerSelectedYear() {
+        const tl = this.lawTimelines[this.bannerIdx];
+        if (!tl || !tl.years || !tl.years.length) return '';
+        return this.bannerYear || tl.years.slice(-1)[0]?.year || '';
+      },
+      bannerNext() {
+        if (!this.lawTimelines.length) return;
+        this.bannerIdx = (this.bannerIdx + 1) % this.lawTimelines.length;
+        this.bannerYear = '';
+      },
+      bannerPrev() {
+        if (!this.lawTimelines.length) return;
+        this.bannerIdx = (this.bannerIdx - 1 + this.lawTimelines.length) % this.lawTimelines.length;
+        this.bannerYear = '';
+      },
+      bannerStartAuto() {
+        this.bannerStopAuto();
+        this.bannerTimer = setInterval(() => this.bannerNext(), 5000);
+      },
+      bannerStopAuto() {
+        if (this.bannerTimer) { clearInterval(this.bannerTimer); this.bannerTimer = null; }
+      },
+      tlBannerNodePos(idx, total) {
+        if (total <= 1) return 50;
+        return (idx / (total - 1)) * 100;
+      },
+      normalizeLawName(name) {
+        if (!name) return '';
+        const map = {
+          '신용정보의 이용 및 보호에 관한 법률': '신용정보법',
+          '정보통신망이용촉진및정보보호등에관한법률': '정보통신망법',
+          '특정 금융거래정보의 보고 및 이용 등에 관한 법률': '특정금융정보법',
+          '공중 등 협박목적을 위한 자금조달행위의 금지에 관한 법률': '테러자금방지법',
+        };
+        return map[name] || name;
+      },
+      normalizeMinistry(m) {
+        if (!m) return '';
+        const cleaned = m.replace(/\.+$/, '');
+        const completions = {
+          '개인정보보호위원': '개인정보보호위원회',
+          '금융위원': '금융위원회',
+          '방송통신위원': '방송통신위원회',
+          '공정거래위원': '공정거래위원회',
+          '원자력안전위원': '원자력안전위원회',
+          '국민권익위원': '국민권익위원회',
+        };
+        return completions[cleaned] || cleaned;
+      },
+      goToLegislation(law, item = null) {
+        this.currentPage = 'policy';
+        this.polTab = 'legislation';
+        this.legLaw = law;
+        this.legSideLaw = law;
+        this.legCat = '전체';
+        this.polSelectedId = null;
+        if (item) {
+          this.$nextTick(() => {
+            this.polSelectedId = item.id;
+            this.fetchBillSummary(item.id, item.link);
+          });
+        }
+      },
+
       // ── 입법현황 ──
       get legAllLaws() {
         return [...new Set(this.legItems.map(a => a.target_law).filter(Boolean))];
+      },
+      get tlAllYears() {
+        const yrs = this.legItems
+          .map(a => (a.propose_date || a.scraped_at || '').slice(0, 4))
+          .filter(y => /^\d{4}$/.test(y));
+        return [...new Set(yrs)].sort((a, b) => b - a);
+      },
+      get timelineGroups() {
+        let items = this.legItems.filter(a => {
+          if (this.tlCat !== '전체' && a.category !== this.tlCat) return false;
+          if (this.tlSideLaw && a.target_law !== this.tlSideLaw) return false;
+          const yr = (a.propose_date || a.scraped_at || '').slice(0, 4);
+          if (this.tlYear !== '전체' && yr !== this.tlYear) return false;
+          return true;
+        });
+        items = items.slice().sort((a, b) => {
+          const da = a.propose_date || a.scraped_at || '';
+          const db = b.propose_date || b.scraped_at || '';
+          return db.localeCompare(da);
+        });
+        const groups = {};
+        for (const item of items) {
+          const yr = (item.propose_date || item.scraped_at || '????').slice(0, 4);
+          if (!groups[yr]) groups[yr] = [];
+          groups[yr].push(item);
+        }
+        return Object.keys(groups)
+          .sort((a, b) => b - a)
+          .map(yr => ({ year: yr, items: groups[yr] }));
       },
       get filteredLegislation() {
         return this.legItems.filter(a => {
@@ -3355,7 +4069,34 @@
                  && !(a.ministry||'').toLowerCase().includes(q)
                  && !(a.target_law||'').toLowerCase().includes(q)) return false;
           return true;
+        }).sort((a, b) => {
+          if (this.legDateSort === 'asc' || this.legDateSort === 'desc') {
+            const da = a.propose_date || a.scraped_at || '';
+            const db = b.propose_date || b.scraped_at || '';
+            return this.legDateSort === 'asc' ? da.localeCompare(db) : db.localeCompare(da);
+          }
+          const catOrd = {데이터:0, 페이먼트:1, AML:2};
+          const ca = catOrd[a.category] ?? 9, cb = catOrd[b.category] ?? 9;
+          if (ca !== cb) return ca - cb;
+          if (a.target_law !== b.target_law) return (a.target_law||'').localeCompare(b.target_law||'');
+          return (a.bill_title||'').localeCompare(b.bill_title||'');
         });
+      },
+      get legTableRows() {
+        const items = this.filteredLegislation;
+        const parseYear = d => (d || '').match(/^(\d{4})/)?.[1] || '';
+        const rows = [];
+        let lastYear = null, num = 0;
+        for (const item of items) {
+          const yr = parseYear(item.propose_date || item.scraped_at);
+          if (yr && yr !== lastYear) {
+            rows.push({ _type: 'year', year: yr, _id: 'yr-' + yr + '-' + rows.length });
+            lastYear = yr;
+          }
+          num++;
+          rows.push({ ...item, _type: 'item', _rowNum: num, _id: item.id });
+        }
+        return rows;
       },
       legStatusStyle(status) {
         const map = {
@@ -3454,6 +4195,116 @@
         finally { this.assemblyPressLoading = false; }
       },
 
+      async enrichLegislation() {
+        this.legEnriching = true;
+        this.legEnrichProgress = '시작 중...';
+        try {
+          const resp = await fetch('/api/legislation/enrich', { method: 'POST' });
+          const reader = resp.body.getReader();
+          const dec = new TextDecoder();
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            const lines = dec.decode(value).split('\n');
+            for (const line of lines) {
+              if (line.startsWith('data: ')) {
+                this.legEnrichProgress = line.slice(6).trim();
+              }
+            }
+          }
+          await this.loadLegislation();
+        } catch(e) {
+          this.legEnrichProgress = '오류';
+        } finally {
+          this.legEnriching = false;
+        }
+      },
+
+      async fetchBillSummary(id, link) {
+        if (!link || this.legSummaries[id] !== undefined) return;
+        this.legSummaries = { ...this.legSummaries, [id]: '...' };
+        try {
+          const r = await fetch('/api/bill-summary?link=' + encodeURIComponent(link)).then(r => r.json());
+          this.legSummaries = { ...this.legSummaries, [id]: r.summary || '' };
+          this.legDetails = { ...this.legDetails, [id]: { reason: r.reason || '', flow_status: r.flow_status || '', flow_date: r.flow_date || '' } };
+        } catch {
+          this.legSummaries = { ...this.legSummaries, [id]: '' };
+        }
+      },
+
+      formatSummary(text, detail = null, item = null) {
+        const esc = s => (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+        const ALPHA = '가나다라마바사아자차카타파하';
+        let bodyHtml = '';
+        if (text && text !== '...') {
+          let t = text
+            .replace(new RegExp(`([^\\n])\\s+([${ALPHA}]\\.)\\s`, 'g'), '$1\n$2 ')
+            .replace(/([^\n])\s+([-－]\s)/g, '$1\n$2')
+            .trim();
+          for (const line of t.split('\n').map(l => l.trim()).filter(Boolean)) {
+            if (new RegExp(`^[${ALPHA}]\\.`).test(line)) {
+              bodyHtml += `<div class="sum-item-hdr">${esc(line)}</div>`;
+            } else {
+              bodyHtml += `<div class="sum-item-body">${esc(line)}</div>`;
+            }
+          }
+        }
+        let html = '';
+        if (detail?.reason) {
+          html += `<div class="sum-sec"><div class="sum-sec-hdr"><span class="sum-dot"></span><span class="sum-sec-title">제·개정 이유</span></div><div class="sum-sec-body sum-reason">${esc(detail.reason)}</div></div>`;
+        }
+        if (bodyHtml) {
+          html += `<div class="sum-sec"><div class="sum-sec-hdr"><span class="sum-dot"></span><span class="sum-sec-title">주요내용</span></div><div class="sum-sec-body">${bodyHtml}</div></div>`;
+        }
+        // 입법현황: API flow_status 우선, 없으면 item.status 사용
+        const flowStatus = detail?.flow_status || item?.status || '';
+        const flowDate   = detail?.flow_date   || item?.propose_date || '';
+        if (flowStatus || flowDate) {
+          const badge = esc([flowStatus, flowDate].filter(Boolean).join('  '));
+          html += `<div class="sum-sec"><div class="sum-sec-hdr"><span class="sum-dot"></span><span class="sum-sec-title">입법현황</span></div><div class="sum-sec-body"><span class="sum-flow-badge">${badge}</span></div></div>`;
+        }
+        return html || '<span style="color:var(--t3)">주요내용이 없습니다.</span>';
+      },
+
+      startResize(e, which) {
+        e.preventDefault();
+        const startX = e.clientX;
+        const startW = which === 'sidebar' ? this.sidebarW : this.tlScrollW;
+        const onMove = ev => {
+          const dx = ev.clientX - startX;
+          if (which === 'sidebar') this.sidebarW = Math.max(160, Math.min(420, startW + dx));
+          else this.tlScrollW = Math.max(220, Math.min(640, startW + dx));
+        };
+        const onUp = () => { window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp); };
+        window.addEventListener('mousemove', onMove);
+        window.addEventListener('mouseup', onUp);
+      },
+
+      async tlSelectItem(a) {
+        if (this.tlSelectedItem && this.tlSelectedItem.id === a.id) {
+          this.tlSelectedItem = null;
+          return;
+        }
+        this.tlSelectedItem = a;
+        this.tlDetailTab = 'policy';
+        this.tlNewsItems = [];
+        if (a.link && this.legSummaries[a.id] === undefined) {
+          await this.fetchBillSummary(a.id, a.link);
+        }
+      },
+
+      async tlLoadNews(q, propose_date = '') {
+        this.tlNewsLoading = true;
+        this.tlNewsItems = [];
+        try {
+          let url = '/api/news?q=' + encodeURIComponent(q) + '&display=15';
+          if (propose_date) url += '&propose_date=' + encodeURIComponent(propose_date);
+          const r = await fetch(url).then(r => r.json());
+          this.tlNewsItems = r.items || [];
+        } catch { this.tlNewsItems = []; }
+        finally { this.tlNewsLoading = false; }
+      },
+
       // ── 하위 호환 stubs (dead zone HTML 참조용) ──
       get assemblyFiltered() {
         return this.assemblyItems.filter(a => {
@@ -3497,6 +4348,33 @@
       async init() {
         await this.loadAll();
         setInterval(() => this.loadAll(), 10000);
+        this.bannerStartAuto();
+
+        // ── 브라우저 히스토리 관리 ──
+        // 최초 상태 등록
+        history.replaceState({ page: 'home', polTab: 'legislation', cat: '데이터' }, '', '#home');
+
+        // 뒤로/앞으로 버튼 처리
+        window.addEventListener('popstate', e => {
+          if (!e.state) return;
+          this._skipHistoryPush = true;
+          this.currentPage = e.state.page || 'home';
+          if (e.state.polTab) this.polTab = e.state.polTab;
+          if (e.state.cat)    this.articlesCategory = e.state.cat;
+          this._skipHistoryPush = false;
+          if (e.state.page === 'policy')  { this.loadPolicy(); this.loadLegislation(); this.loadAssemblyPress(); }
+          if (e.state.page === 'history') { this.loadHistory(); }
+        });
+
+        // currentPage 변경 시 히스토리 추가
+        this.$watch('currentPage', page => {
+          if (this._skipHistoryPush) return;
+          history.pushState(
+            { page, polTab: this.polTab, cat: this.articlesCategory },
+            '',
+            '#' + page
+          );
+        });
       },
 
       async loadAll() {
@@ -3504,6 +4382,11 @@
           const data = await fetch('/api/articles/all').then(r => r.json());
           this.allArticles = { '데이터': data['데이터'] || [], '페이먼트': data['페이먼트'] || [], 'AML': data['AML'] || [] };
         } catch(_) {}
+        // 홈 배너용 — 아직 미로드 시 항상 로드
+        if (this.legItems.length === 0) {
+          await this.loadLegislation();
+          this.bannerIdx = 0;
+        }
         if (this.currentPage === 'policy') {
           await Promise.all([this.loadLegislation(), this.loadAssemblyPress()]);
         }
