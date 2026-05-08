@@ -3790,15 +3790,9 @@
           .slice(0, 5);
       },
       get latestLeg() {
-        const parseLegDate = d => {
-          if (!d) return '';
-          const m = d.match(/(\d{4})\.(\d{1,2})\.(\d{1,2})/);
-          if (m) return `${m[1]}-${m[2].padStart(2,'0')}-${m[3].padStart(2,'0')}`;
-          return d;
-        };
         return [...this.legItems]
-          .sort((a, b) => parseLegDate(b.propose_date || b.scraped_at)
-                        .localeCompare(parseLegDate(a.propose_date || a.scraped_at)))
+          .sort((a, b) => this.parseLegDate(b.propose_date || b.scraped_at)
+                        .localeCompare(this.parseLegDate(a.propose_date || a.scraped_at)))
           .slice(0, 5);
       },
       get homeCalDotDates() {
@@ -4210,7 +4204,7 @@
           groups[a.target_law].items.push(a);
         }
         this.lawTimelines = Object.values(groups).map(g => {
-          g.items.sort((a, b) => (a.propose_date || '').localeCompare(b.propose_date || ''));
+          g.items.sort((a, b) => this.parseLegDate(a.propose_date || '').localeCompare(this.parseLegDate(b.propose_date || '')));
           const dated = g.items.filter(i => i.propose_date);
           g.minDate = dated[0]?.propose_date || '';
           g.maxDate = dated.slice(-1)[0]?.propose_date || '';
@@ -4226,7 +4220,7 @@
           g.years = Object.keys(yrMap).sort().map(yr => ({ year: yr, items: yrMap[yr] }));
           return g;
         }).filter(g => g.items.length > 0)
-          .sort((a, b) => b.maxDate.localeCompare(a.maxDate));
+          .sort((a, b) => this.parseLegDate(b.maxDate).localeCompare(this.parseLegDate(a.maxDate)));
       },
       get bannerYearItems() {
         const tl = this.lawTimelines[this.bannerIdx];
@@ -4234,7 +4228,7 @@
         const found = this.bannerYear
           ? tl.years.find(y => y.year === this.bannerYear)
           : tl.years.slice(-1)[0];
-        return (found?.items || []).slice().sort((a, b) => (a.propose_date || '').localeCompare(b.propose_date || ''));
+        return (found?.items || []).slice().sort((a, b) => this.parseLegDate(a.propose_date || '').localeCompare(this.parseLegDate(b.propose_date || '')));
       },
       get bannerSelectedYear() {
         const tl = this.lawTimelines[this.bannerIdx];
@@ -4367,8 +4361,8 @@
           return true;
         });
         items = items.slice().sort((a, b) => {
-          const da = a.propose_date || a.scraped_at || '';
-          const db = b.propose_date || b.scraped_at || '';
+          const da = this.parseLegDate(a.propose_date || a.scraped_at || '');
+          const db = this.parseLegDate(b.propose_date || b.scraped_at || '');
           return db.localeCompare(da);
         });
         const groups = {};
@@ -4396,8 +4390,8 @@
           return true;
         }).sort((a, b) => {
           if (this.legDateSort === 'asc' || this.legDateSort === 'desc') {
-            const da = a.propose_date || a.scraped_at || '';
-            const db = b.propose_date || b.scraped_at || '';
+            const da = this.parseLegDate(a.propose_date || a.scraped_at || '');
+            const db = this.parseLegDate(b.propose_date || b.scraped_at || '');
             return this.legDateSort === 'asc' ? da.localeCompare(db) : db.localeCompare(da);
           }
           const catOrd = {데이터:0, 페이먼트:1, AML:2};
@@ -4422,6 +4416,13 @@
           rows.push({ ...item, _type: 'item', _rowNum: num, _id: item.id });
         }
         return rows;
+      },
+      parseLegDate(d) {
+        if (!d) return '';
+        // "2026.2.25." or "2026. 02. 25." → "2026-02-25"
+        const m = d.match(/(\d{4})[\.\s]+(\d{1,2})[\.\s]+(\d{1,2})/);
+        if (m) return `${m[1]}-${m[2].padStart(2,'0')}-${m[3].padStart(2,'0')}`;
+        return d; // already ISO or unknown format
       },
       legStatusStyle(status) {
         const map = {
