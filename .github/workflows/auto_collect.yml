@@ -1,23 +1,17 @@
-name: 보도자료 자동 수집 (08:30 KST)
+name: 보도자료 자동 수집 (09:00 KST)
 
 on:
   schedule:
-    - cron: '30 23 * * *'   # 23:30 UTC = 08:30 KST
-  workflow_dispatch:          # 수동 실행 버튼
+    - cron: '0 0 * * *'   # 00:00 UTC = 09:00 KST
+  workflow_dispatch:         # 수동 실행 버튼
 
 jobs:
   collect:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     timeout-minutes: 40
 
     steps:
       - uses: actions/checkout@v4
-
-      - name: Python 설치
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-          cache: 'pip'
 
       - name: 패키지 설치
         run: pip install requests beautifulsoup4 lxml python-dotenv
