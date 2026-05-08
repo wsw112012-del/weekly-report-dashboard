@@ -4332,16 +4332,24 @@
       },
       normalizeMinistry(m) {
         if (!m) return '';
-        const cleaned = m.replace(/\.+$/, '');
-        const completions = {
-          '개인정보보호위원': '개인정보보호위원회',
-          '금융위원': '금융위원회',
-          '방송통신위원': '방송통신위원회',
-          '공정거래위원': '공정거래위원회',
-          '원자력안전위원': '원자력안전위원회',
-          '국민권익위원': '국민권익위원회',
+        let s = m.replace(/\.+$/, '').trim();
+        // "정무(기관명)" → "기관명"
+        const polMatch = s.match(/^정무\((.+?)\)/);
+        if (polMatch) s = polMatch[1].trim();
+        // "XXX(서브부서)" → "XXX" (괄호 제거)
+        else s = s.replace(/\s*\(.*?\)$/, '').trim();
+        // 이름 보정 맵 (잘린 이름 → 정식 명칭)
+        const map = {
+          '개인정보보호위원':   '개인정보보호위원회',
+          '금융위원':          '금융위원회',
+          '방송통신위원':      '방송통신위원회',
+          '공정거래위원':      '공정거래위원회',
+          '원자력안전위원':    '원자력안전위원회',
+          '국민권익위원':      '국민권익위원회',
+          '과학기술정보방':    '과학기술정보통신부',
+          '과학기술정보통신':  '과학기술정보통신부',
         };
-        return completions[cleaned] || cleaned;
+        return map[s] || s;
       },
       goToLegislation(law, item = null) {
         this.currentPage = 'policy';
