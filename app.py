@@ -773,15 +773,25 @@ _bill_detail_cache: dict[str, dict] = {}
 
 
 def _parse_lawflow(soup) -> tuple[str, str]:
-    """ul.lawflowStep 마지막 항목에서 (상태명, 날짜) 추출"""
-    ul = soup.find('ul', class_='lawflowStep')
+    """입법현황 ul 마지막 li에서 (상태명, 날짜) 추출.
+    실제 govLm 페이지는 ul에 class가 없으므로 h3='입법현황' 이후 첫 ul로 탐색."""
+    import re as _re
+    ul = None
+    # 1) class 기반 (구버전 호환)
+    ul = soup.find('ul', class_=_re.compile(r'lawflow|flowStep', _re.I))
+    # 2) h3='입법현황' 이후 가장 가까운 ul
+    if not ul:
+        for h3 in soup.find_all('h3'):
+            if '입법현황' in h3.get_text(strip=True):
+                ul = h3.find_next('ul')
+                if ul:
+                    break
     if not ul:
         return '', ''
     items = ul.find_all('li')
     if not items:
         return '', ''
     last_text = items[-1].get_text(strip=True)
-    import re as _re
     status = _re.split(r'\s*\(', last_text)[0].strip()
     date_m = _re.search(r'(\d{4})\.\s*(\d{1,2})\.\s*(\d{1,2})\.', last_text)
     date = f"{date_m.group(1)}.{date_m.group(2)}.{date_m.group(3)}." if date_m else ''
@@ -971,24 +981,39 @@ def _fetch_govlm_detail(link: str) -> dict:
                     if not reason and not summary:
                         summary = combined
 
-        # ── 전략 2: h3 헤더 + 다음 sibling div (기존 방식 fallback) ──
+        # ── 전략 2: h3 헤더 이후 콘텐츠 탐색 (govLm 실제 페이지 구조) ──
+        def _content_after_h3(h3_tag):
+            """h3 이후 텍스트 있는 형제 또는 부모 next-sibling div를 탐색"""
+            # 같은 컨테이너 내 h3 이후 형제 div/p/ul 중 첫 텍스트 블록
+            for sib in h3_tag.find_next_siblings():
+                if sib.name in ('h3', 'h2', 'h4'):  # 다음 섹션 헤더면 중단
+                    break
+                txt = sib.get_text(separator='\n', strip=True)
+                if txt:
+                    return txt
+            # 부모 div의 next-sibling div
+            parent = h3_tag.find_parent('div')
+            if parent:
+                nxt = parent.find_next_sibling('div')
+                if nxt:
+                    txt = nxt.get_text(separator='\n', strip=True)
+                    if txt:
+                        return txt
+            return ''
+
         if not summary:
             for h3 in soup.find_all('h3'):
                 h3_n = _norm(h3.get_text(strip=True))
                 if any(_norm(k) in h3_n for k in _SUMMARY_KW):
-                    parent = h3.find_parent('div')
-                    nxt = parent.find_next_sibling('div') if parent else None
-                    if nxt:
-                        summary = nxt.get_text(separator='\n', strip=True)
+                    summary = _content_after_h3(h3)
+                    if summary:
                         break
         if not reason:
             for h3 in soup.find_all('h3'):
                 h3_n = _norm(h3.get_text(strip=True))
                 if any(_norm(k) in h3_n for k in _REASON_KW):
-                    parent = h3.find_parent('div')
-                    nxt = parent.find_next_sibling('div') if parent else None
-                    if nxt:
-                        reason = nxt.get_text(separator='\n', strip=True)
+                    reason = _content_after_h3(h3)
+                    if reason:
                         break
 
         # ── 전략 3: dl/dt/dd 구조 ──
@@ -1210,16 +1235,12 @@ def _scrape_govlm(law_name: str, category: str) -> list[dict]:
         bill_title = cells[1].get_text(strip=True)
         if not bill_title:
             continue
-        # lsNmKo 검색은 법령명 포함 여부로 필터 (검색어가 제목에 포함되어야 함)
+        # 서버측 lsNmKo 필터 후 클라이언트에서 법령명 핵심어 재검증
         kw = law_name.replace(' ', '')[:6]
-        if kw not in bill_title.replace(' ', '') and kw not in cells[4].get_text(strip=True).replace(' ', ''):
+        if kw not in bill_title.replace(' ', ''):
             continue
+        # 목록 테이블에 발의일자 컬럼 없음 — 상세 enrich(_parse_lawflow) 시 채워짐
         propose_date = ''
-        for ci in range(6, min(len(cells), 10)):
-            txt = cells[ci].get_text(strip=True)
-            if txt and (txt[0].isdigit() and len(txt) >= 8):
-                propose_date = txt
-                break
         items.append({
             "id": hashlib.md5(f"gov-{href or (law_name + bill_title + cells[2].get_text(strip=True))}".encode()).hexdigest()[:12],
             "source": "gov",
@@ -1460,8 +1481,33 @@ async def get_bill_summary(link: str = ""):
             "GET",
             f"legislation_status?link=eq.{encoded}&select=summary,reason,status,propose_date,propose_info,committee_review&limit=1",
         )
-        if cached and cached[0].get("summary"):
-            row = cached[0]
+        row = cached[0] if cached else None
+        # summary가 비어도 reason/status/propose_date 중 하나라도 있으면 부분 캐시 히트
+        cache_hit = row and any(row.get(k) for k in ("summary", "reason", "status", "propose_date"))
+        if cache_hit and row.get("summary"):
+            is_asm = '/gcom/nsmLmSts/out/' in link
+            return JSONResponse({
+                "summary":          row.get("summary", ""),
+                "reason":           row.get("reason", ""),
+                "flow_status":      row.get("status", ""),
+                "flow_date":        row.get("propose_date", ""),
+                "propose_info":     row.get("propose_info", ""),
+                "committee_review": row.get("committee_review") or [],
+                "is_assembly":      is_asm,
+            })
+        # summary 누락된 부분 캐시 — 실시간 스크래핑 후 Supabase 보강
+        if cache_hit and not row.get("summary"):
+            loop2 = asyncio.get_running_loop()
+            fresh = await loop2.run_in_executor(None, _fetch_bill_detail, link)
+            if fresh.get("summary"):
+                encoded2 = urllib.parse.quote(link, safe='')
+                patch: dict = {"summary": fresh["summary"], "reason": fresh.get("reason", "") or row.get("reason", "")}
+                if fresh.get("flow_date"):   patch["propose_date"] = fresh["flow_date"]
+                if fresh.get("flow_status"): patch["status"]       = fresh["flow_status"]
+                if fresh.get("propose_info"): patch["propose_info"] = fresh["propose_info"]
+                if fresh.get("committee_review"): patch["committee_review"] = fresh["committee_review"]
+                _supabase_request("PATCH", f"legislation_status?link=eq.{encoded2}", patch)
+                row = {**row, **patch}
             is_asm = '/gcom/nsmLmSts/out/' in link
             return JSONResponse({
                 "summary":          row.get("summary", ""),
