@@ -366,6 +366,118 @@ def _fetch_assembly_detail(link: str) -> dict:
         return {}
 
 
+def _fetch_govlm_detail(link: str) -> dict:
+    """정부입법현황 govLm 상세 페이지 파싱 (table th/td → h3 → dl/dt/dd 순 시도)"""
+    try:
+        _ensure_lawmaking_session()
+        resp = SESSION.get(link, timeout=20)
+        html = resp.content.decode("utf-8", errors="replace")
+        from bs4 import BeautifulSoup
+        soup = BeautifulSoup(html, "lxml")
+
+        import re as _re
+        def _norm(s: str) -> str:
+            return _re.sub(r"[\s··‧・·]+", "", s)
+
+        _REASON_KW  = ["제·개정이유", "제개정이유", "개정이유", "제정이유", "제안이유"]
+        _SUMMARY_KW = ["주요내용", "주요 내용"]
+
+        reason = ""
+        summary = ""
+
+        # 전략 1: table th/td
+        for tbl in soup.find_all("table"):
+            for row in tbl.find_all("tr"):
+                th = row.find("th")
+                td = row.find("td")
+                if not th or not td:
+                    continue
+                th_n = _norm(th.get_text(strip=True))
+                td_txt = td.get_text(separator="\n", strip=True)
+                if any(_norm(k) in th_n for k in _REASON_KW) and not reason:
+                    reason = td_txt
+                elif any(_norm(k) in th_n for k in _SUMMARY_KW) and not summary:
+                    summary = td_txt
+                elif _norm("제안이유및주요내용") in th_n or _norm("제·개정이유및주요내용") in th_n:
+                    combined = td_txt
+                    for sep in ["주요내용", "주요 내용"]:
+                        if sep in combined:
+                            parts = combined.split(sep, 1)
+                            reason = reason or parts[0].strip()
+                            summary = summary or parts[1].strip()
+                            break
+                    if not reason and not summary:
+                        summary = combined
+
+        # 전략 2: h3 sibling div
+        if not summary:
+            for h3 in soup.find_all("h3"):
+                if any(_norm(k) in _norm(h3.get_text(strip=True)) for k in _SUMMARY_KW):
+                    parent = h3.find_parent("div")
+                    nxt = parent.find_next_sibling("div") if parent else None
+                    if nxt:
+                        summary = nxt.get_text(separator=" ", strip=True)
+                        break
+
+        # 전략 3: dl/dt/dd
+        if not summary:
+            for dl in soup.find_all("dl"):
+                for dt in dl.find_all("dt"):
+                    dd = dt.find_next_sibling("dd")
+                    if not dd:
+                        continue
+                    dt_n = _norm(dt.get_text(strip=True))
+                    dd_txt = dd.get_text(separator="\n", strip=True)
+                    if any(_norm(k) in dt_n for k in _SUMMARY_KW) and not summary:
+                        summary = dd_txt
+                    elif any(_norm(k) in dt_n for k in _REASON_KW) and not reason:
+                        reason = dd_txt
+
+        return {"summary": summary, "reason": reason}
+    except Exception as e:
+        print(f"  [WARN] govlm detail ({link[:60]}): {e}")
+        return {}
+
+
+def enrich_gov_details() -> None:
+    """Supabase의 정부입법현황 항목 중 summary 없는 것들을 govLm 상세 페이지에서 채워넣기"""
+    if not SUPABASE_URL or not SUPABASE_KEY:
+        print("[INFO] SUPABASE_URL 없음 — gov 상세 수집 생략")
+        return
+
+    print("=== 정부입법현황 상세 수집 시작 ===")
+    null_items  = _supabase_get("legislation_status", "source=eq.gov&summary=is.null&select=id,link&limit=500")
+    empty_items = _supabase_get("legislation_status", "source=eq.gov&summary=eq.&select=id,link&limit=500")
+    all_items = null_items + empty_items
+
+    seen: set[str] = set()
+    targets: list[dict] = []
+    for it in all_items:
+        lk = it.get("link", "")
+        if lk and lk not in seen and "/lmSts/govLm/" in lk:
+            seen.add(lk)
+            targets.append(it)
+
+    print(f"  대상: {len(targets)}건")
+    enriched = 0
+    for it in targets:
+        lk = it["link"]
+        detail = _fetch_govlm_detail(lk)
+        if not detail.get("summary") and not detail.get("reason"):
+            time.sleep(0.3)
+            continue
+        patch: dict = {
+            "summary": detail.get("summary", ""),
+            "reason":  detail.get("reason", ""),
+        }
+        encoded = urllib.parse.quote(lk, safe="")
+        _supabase_patch("legislation_status", f"link=eq.{encoded}", patch)
+        enriched += 1
+        time.sleep(0.5)
+
+    print(f"  상세 수집 완료: {enriched}건")
+
+
 def enrich_assembly_details() -> None:
     """Supabase의 국회입법현황 항목 중 summary 없는 것들을 상세 페이지에서 채워넣기"""
     if not SUPABASE_URL or not SUPABASE_KEY:
@@ -431,6 +543,7 @@ if __name__ == "__main__":
             print("업로드 완료")
         else:
             print("[INFO] SUPABASE_URL 없음 — 로컬 저장 생략")
+        enrich_gov_details()
         enrich_assembly_details()
 
     if run_press:

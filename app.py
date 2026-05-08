@@ -930,6 +930,94 @@ def _fetch_kofiu_detail(link: str) -> dict:
         return {}
 
 
+def _fetch_govlm_detail(link: str) -> dict:
+    """정부입법현황 govLm 상세 페이지 파싱 (opinion.lawmaking.go.kr/lmSts/govLm/.../detailRP)"""
+    try:
+        _ensure_lawmaking_session()
+        resp = _APP_SESSION.get(link, timeout=20)
+        html = resp.content.decode('utf-8', errors='replace')
+        soup = BeautifulSoup(html, 'lxml')
+
+        def _norm(s: str) -> str:
+            return re.sub(r'[\s··‧・·]+', '', s)
+
+        reason = ''
+        summary = ''
+
+        # ── 전략 1: table th/td 구조 (govLm 상세 페이지 주요 포맷) ──
+        _REASON_KW  = ['제·개정이유', '제개정이유', '개정이유', '제정이유', '제안이유']
+        _SUMMARY_KW = ['주요내용', '주요 내용']
+        for tbl in soup.find_all('table'):
+            for row in tbl.find_all('tr'):
+                th = row.find('th')
+                td = row.find('td')
+                if not th or not td:
+                    continue
+                th_n = _norm(th.get_text(strip=True))
+                td_txt = td.get_text(separator='\n', strip=True)
+                if any(_norm(k) in th_n for k in _REASON_KW) and not reason:
+                    reason = td_txt
+                elif any(_norm(k) in th_n for k in _SUMMARY_KW) and not summary:
+                    summary = td_txt
+                elif _norm('제안이유및주요내용') in th_n or _norm('제·개정이유및주요내용') in th_n:
+                    # 하나의 th에 둘 다 있는 경우
+                    combined = td_txt
+                    for sep in ['주요내용', '주요 내용']:
+                        if sep in combined:
+                            parts = combined.split(sep, 1)
+                            reason = reason or parts[0].strip()
+                            summary = summary or parts[1].strip()
+                            break
+                    if not reason and not summary:
+                        summary = combined
+
+        # ── 전략 2: h3 헤더 + 다음 sibling div (기존 방식 fallback) ──
+        if not summary:
+            for h3 in soup.find_all('h3'):
+                h3_n = _norm(h3.get_text(strip=True))
+                if any(_norm(k) in h3_n for k in _SUMMARY_KW):
+                    parent = h3.find_parent('div')
+                    nxt = parent.find_next_sibling('div') if parent else None
+                    if nxt:
+                        summary = nxt.get_text(separator=' ', strip=True)
+                        break
+        if not reason:
+            for h3 in soup.find_all('h3'):
+                h3_n = _norm(h3.get_text(strip=True))
+                if any(_norm(k) in h3_n for k in _REASON_KW):
+                    parent = h3.find_parent('div')
+                    nxt = parent.find_next_sibling('div') if parent else None
+                    if nxt:
+                        reason = nxt.get_text(separator=' ', strip=True)
+                        break
+
+        # ── 전략 3: dl/dt/dd 구조 ──
+        if not summary:
+            for dl in soup.find_all('dl'):
+                for dt in dl.find_all('dt'):
+                    dt_n = _norm(dt.get_text(strip=True))
+                    dd = dt.find_next_sibling('dd')
+                    if not dd:
+                        continue
+                    dd_txt = dd.get_text(separator='\n', strip=True)
+                    if any(_norm(k) in dt_n for k in _SUMMARY_KW) and not summary:
+                        summary = dd_txt
+                    elif any(_norm(k) in dt_n for k in _REASON_KW) and not reason:
+                        reason = dd_txt
+
+        flow_status, flow_date = _parse_lawflow(soup)
+        return {
+            'summary': summary,
+            'reason': reason,
+            'flow_status': flow_status,
+            'flow_date': flow_date,
+            'is_assembly': False,
+        }
+    except Exception as e:
+        print(f'[WARN] govlm detail error ({link[:60]}): {e}')
+        return {}
+
+
 def _fetch_assembly_bill_detail(link: str) -> dict:
     """국회입법현황 상세 페이지 파싱 (opinion.lawmaking.go.kr/gcom/nsmLmSts/out/.../detailRP)"""
     try:
@@ -1012,6 +1100,11 @@ def _fetch_bill_detail(link: str) -> dict:
     # 국회입법현황 링크는 별도 처리
     if '/gcom/nsmLmSts/out/' in link:
         result = _fetch_assembly_bill_detail(link)
+        _bill_detail_cache[link] = result
+        return result
+    # 정부입법현황 govLm 링크는 전용 파서 사용
+    if '/lmSts/govLm/' in link:
+        result = _fetch_govlm_detail(link)
         _bill_detail_cache[link] = result
         return result
     try:
