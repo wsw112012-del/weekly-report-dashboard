@@ -646,6 +646,15 @@
       background: #fff; cursor: pointer; outline: none;
     }
     .tl-year-select:focus { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-lt); }
+    .agency-filter-select {
+      height: 32px; padding: 0 24px 0 10px; border: 1px solid var(--bd);
+      border-radius: 7px; font-size: 12px; font-family: inherit;
+      color: var(--t1); background: #fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23999'/%3E%3C/svg%3E") no-repeat right 8px center;
+      appearance: none; -webkit-appearance: none; cursor: pointer;
+      min-width: 110px; max-width: 200px; flex-shrink: 0;
+    }
+    .agency-filter-select:focus { outline: none; border-color: var(--accent2); }
+    .agency-filter-select.has-value { border-color: var(--accent2); color: var(--accent2); font-weight: 600; }
     .pol-sidebar-item {
       padding: 6px 10px; border-radius: 7px; font-size: 12px; font-weight: 600;
       color: var(--t2); cursor: pointer; transition: all .15s;
@@ -901,6 +910,17 @@
     .sum-item-hdr:first-child { margin-top: 0; }
     .sum-item-body { font-size: 12px; color: var(--t2); line-height: 1.65; padding-left: 4px; }
     .sum-flow-badge { display: inline-block; padding: 4px 12px; background: #eff6ff; border: 1px solid #93c5fd; border-radius: 6px; font-size: 12px; color: #1d4ed8; font-weight: 600; }
+    /* 국회입법 상세 */
+    .sum-sub-row { display: flex; gap: 10px; padding-left: 18px; margin-bottom: 10px; }
+    .sum-sub-label { font-size: 11px; font-weight: 700; color: var(--accent); white-space: nowrap; min-width: 110px; padding-top: 2px; }
+    .sum-sub-val { font-size: 12px; color: var(--t2); line-height: 1.75; white-space: pre-wrap; flex: 1; }
+    .sum-review-block { margin-bottom: 10px; padding: 8px 10px; background: #f8faff; border-left: 3px solid var(--accent2); border-radius: 0 6px 6px 0; }
+    .sum-review-head { font-size: 12px; font-weight: 700; color: var(--t1); margin-bottom: 4px; }
+    .sum-review-list { margin: 0; padding-left: 16px; }
+    .sum-review-list li { font-size: 12px; color: var(--t2); line-height: 1.65; }
+    .sum-review-result-label { font-size: 11px; font-weight: 700; color: #7c3aed; margin: 6px 0 2px; }
+    /* 배너 국회/정부 출처 뱃지 */
+    .leg-bill-source { font-size: 10px; padding: 1px 5px; border-radius: 3px; flex-shrink: 0; }
     /* 리사이즈 핸들 */
     .resize-handle {
       width: 5px; cursor: col-resize; flex-shrink: 0; position: relative; z-index: 2;
@@ -1863,16 +1883,25 @@
               <div class="leg-slide-bills">
                 <div style="font-size:11px;color:#64748b;margin-bottom:4px;padding-left:2px"
                      x-text="bannerSelectedYear + '년 개정 내용 (' + bannerYearItems.length + '건)'"></div>
-                <template x-for="item in bannerYearItems" :key="item.id || item.bill_title">
-                  <div class="leg-bill-row" style="cursor:pointer"
-                       @click="goToLegislation(item.target_law, item)"
-                       @mouseenter="$el.style.background='#eff6ff'"
-                       @mouseleave="$el.style.background='#f8faff'">
-                    <span class="leg-bill-status" x-text="item.status || '진행'"></span>
-                    <span class="leg-bill-title" x-text="item.bill_title"></span>
-                    <span class="leg-bill-date"
-                          x-text="(item.propose_date || '').slice(0,7)"></span>
-                    <span style="color:#94a3b8;font-size:11px;flex-shrink:0">→</span>
+                <template x-for="grp in bannerMonthGroups" :key="grp.month">
+                  <div>
+                    <!-- 월 헤더 -->
+                    <div style="font-size:10px;font-weight:600;color:#94a3b8;padding:4px 2px 2px;letter-spacing:.04em"
+                         x-text="bannerSelectedYear + '.' + grp.month"></div>
+                    <template x-for="item in grp.items" :key="item.id || item.bill_title">
+                      <div class="leg-bill-row" style="cursor:pointer"
+                           @click="goToLegislation(item.target_law, item)"
+                           @mouseenter="$el.style.background='#eff6ff'"
+                           @mouseleave="$el.style.background='#f8faff'">
+                        <span class="leg-bill-status" x-text="item.status || '진행'"></span>
+                        <span class="leg-bill-source"
+                              x-text="item.source === 'assembly' ? '국회' : '정부'"
+                              :style="item.source === 'assembly' ? 'color:#7c3aed;background:#f3e8ff' : 'color:#0369a1;background:#e0f2fe'"
+                              style="font-size:10px;padding:1px 5px;border-radius:3px;flex-shrink:0"></span>
+                        <span class="leg-bill-title" x-text="item.bill_title"></span>
+                        <span style="color:#94a3b8;font-size:11px;flex-shrink:0">→</span>
+                      </div>
+                    </template>
                   </div>
                 </template>
               </div>
@@ -2090,11 +2119,11 @@
           <!-- 타입 탭 -->
           <div class="articles-type-tabs">
             <button class="articles-type-tab" :class="articlesTypeFilter==='전체' ? 'active' : ''"
-                    @click="articlesTypeFilter='전체'">전체</button>
+                    @click="articlesTypeFilter='전체'; articlesAgencyFilter=''">전체</button>
             <button class="articles-type-tab" :class="articlesTypeFilter==='보도자료' ? 'active' : ''"
-                    @click="articlesTypeFilter='보도자료'">보도자료</button>
+                    @click="articlesTypeFilter='보도자료'; articlesAgencyFilter=''">보도자료</button>
             <button class="articles-type-tab tab-news" :class="articlesTypeFilter==='언론기사' ? 'active tab-news' : ''"
-                    @click="articlesTypeFilter='언론기사'">언론기사</button>
+                    @click="articlesTypeFilter='언론기사'; articlesAgencyFilter=''">언론기사</button>
           </div>
 
           <!-- 필터 바 -->
@@ -2107,6 +2136,13 @@
                     @click="articlesPriFilter='중'">중</button>
             <button class="pri-btn" :class="articlesPriFilter==='하' ? 'active-low' : ''"
                     @click="articlesPriFilter='하'">하</button>
+            <select x-model="articlesAgencyFilter"
+                    :class="articlesAgencyFilter ? 'agency-filter-select has-value' : 'agency-filter-select'">
+              <option value="">전체 기관</option>
+              <template x-for="ag in articlesAgencies" :key="ag">
+                <option :value="ag" x-text="ag"></option>
+              </template>
+            </select>
             <div class="articles-search">
               <span style="font-size:12px;color:var(--t3)">🔍</span>
               <input type="text" x-model="articlesSearchQ" placeholder="기사 검색..." />
@@ -3431,6 +3467,7 @@
       articlesTypeFilter: '전체',
       articlesPriFilter: '',
       articlesSearchQ: '',
+      articlesAgencyFilter: '',
 
       // 법규/정책 — 연간 정책 시행현황 (수동 관리 데이터)
       annualStatusItems: [],
@@ -3718,7 +3755,17 @@
         this.articlesTypeFilter = typeFilter;
         this.articlesPriFilter = '';
         this.articlesSearchQ = '';
+        this.articlesAgencyFilter = '';
         this.currentPage = 'articles';
+      },
+
+      get articlesAgencies() {
+        const cats = this.articlesCategory === '전체'
+          ? ['데이터','페이먼트','AML'] : [this.articlesCategory];
+        const all = cats.flatMap(cat => this.allArticles[cat] || []);
+        const pool = this.articlesTypeFilter === '전체' ? all
+          : all.filter(a => this.sourceType(a) === this.articlesTypeFilter);
+        return [...new Set(pool.map(a => a['기관'] || '').filter(Boolean))].sort();
       },
 
       articlesColItems(cat) {
@@ -3727,6 +3774,7 @@
           .map((a, i) => ({ ...a, _idx: i, _cat: cat, _uid: `${cat}-${i}` }))
           .filter(a => this.articlesTypeFilter === '전체' || this.sourceType(a) === this.articlesTypeFilter)
           .filter(a => !this.articlesPriFilter || a['우선순위'] === this.articlesPriFilter)
+          .filter(a => !this.articlesAgencyFilter || a['기관'] === this.articlesAgencyFilter)
           .filter(a => !q || (a['제목']||'').toLowerCase().includes(q) || (a['내용']||'').toLowerCase().includes(q));
       },
       articlesPageItems(typeFilter) {
@@ -3742,6 +3790,7 @@
       get articlesFiltered() {
         let items = this.articlesPageItems(this.articlesTypeFilter);
         if (this.articlesPriFilter) items = items.filter(a => a['우선순위'] === this.articlesPriFilter);
+        if (this.articlesAgencyFilter) items = items.filter(a => a['기관'] === this.articlesAgencyFilter);
         const q = this.articlesSearchQ.trim().toLowerCase();
         if (q) items = items.filter(a =>
           (a['제목']||'').toLowerCase().includes(q) || (a['내용']||'').toLowerCase().includes(q)
@@ -4077,6 +4126,18 @@
         if (!tl || !tl.years || !tl.years.length) return '';
         return this.bannerYear || tl.years.slice(-1)[0]?.year || '';
       },
+      get bannerMonthGroups() {
+        // bannerYearItems를 월별로 그룹화
+        const items = this.bannerYearItems;
+        const groups = {};
+        for (const item of items) {
+          const dateStr = item.propose_date || item.scraped_at || '';
+          const month = dateStr.slice(5, 7) || '??';
+          if (!groups[month]) groups[month] = [];
+          groups[month].push(item);
+        }
+        return Object.keys(groups).sort().map(m => ({ month: m, items: groups[m] }));
+      },
       bannerNext() {
         if (!this.lawTimelines.length) return;
         this.bannerIdx = (this.bannerIdx + 1) % this.lawTimelines.length;
@@ -4353,7 +4414,14 @@
         try {
           const r = await fetch('/api/bill-summary?link=' + encodeURIComponent(link)).then(r => r.json());
           this.legSummaries = { ...this.legSummaries, [id]: r.summary || '' };
-          this.legDetails = { ...this.legDetails, [id]: { reason: r.reason || '', flow_status: r.flow_status || '', flow_date: r.flow_date || '' } };
+          this.legDetails = { ...this.legDetails, [id]: {
+            reason:           r.reason || '',
+            flow_status:      r.flow_status || '',
+            flow_date:        r.flow_date || '',
+            propose_info:     r.propose_info || '',
+            committee_review: r.committee_review || [],
+            is_assembly:      r.is_assembly || false,
+          }};
         } catch {
           this.legSummaries = { ...this.legSummaries, [id]: '' };
         }
@@ -4378,8 +4446,53 @@
       },
 
       formatSummary(text, detail = null, item = null) {
-        const esc = s => (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+        const esc = s => (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>');
+        const escPlain = s => (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
         const ALPHA = '가나다라마바사아자차카타파하';
+
+        // ── 국회입법현황 레이아웃 ──
+        if (detail?.is_assembly) {
+          let html = '';
+          // 기본정보
+          html += `<div class="sum-sec"><div class="sum-sec-hdr"><span class="sum-dot"></span><span class="sum-sec-title">기본정보</span></div>`;
+          if (detail.propose_info) {
+            html += `<div class="sum-sub-row"><span class="sum-sub-label">발의정보</span><span class="sum-sub-val">${esc(detail.propose_info)}</span></div>`;
+          }
+          if (text) {
+            html += `<div class="sum-sub-row"><span class="sum-sub-label">제안이유 및 주요내용</span><span class="sum-sub-val">${esc(text)}</span></div>`;
+          }
+          html += `</div>`;
+          // 국회진행상황
+          if (detail.committee_review && detail.committee_review.length) {
+            html += `<div class="sum-sec"><div class="sum-sec-hdr"><span class="sum-dot"></span><span class="sum-sec-title">국회진행상황</span></div>`;
+            html += `<div class="sum-sub-row"><span class="sum-sub-label">소관위 심사</span><div class="sum-sub-val">`;
+            for (const blk of detail.committee_review) {
+              html += `<div class="sum-review-block">`;
+              if (blk.head) html += `<div class="sum-review-head">${escPlain(blk.head)}</div>`;
+              if (blk.items && blk.items.length) {
+                html += `<ul class="sum-review-list">${blk.items.map(x => `<li>${escPlain(x)}</li>`).join('')}</ul>`;
+              }
+              if (blk.result_label) {
+                html += `<div class="sum-review-result-label">${escPlain(blk.result_label)}</div>`;
+                if (blk.result_items && blk.result_items.length) {
+                  html += `<ul class="sum-review-list">${blk.result_items.map(x => `<li>${escPlain(x)}</li>`).join('')}</ul>`;
+                }
+              }
+              html += `</div>`;
+            }
+            html += `</div></div></div>`;
+          }
+          // 진행현황 배지
+          const flowStatus = item?.status || '';
+          const flowDate   = item?.propose_date || '';
+          if (flowStatus || flowDate) {
+            const badge = escPlain([flowStatus, flowDate].filter(Boolean).join('  '));
+            html += `<div class="sum-sec"><div class="sum-sec-hdr"><span class="sum-dot"></span><span class="sum-sec-title">진행현황</span></div><div class="sum-sec-body"><span class="sum-flow-badge">${badge}</span></div></div>`;
+          }
+          return html || '<span style="color:var(--t3)">내용이 없습니다.</span>';
+        }
+
+        // ── 정부입법현황 레이아웃 (기존) ──
         let bodyHtml = '';
         if (text && text !== '...') {
           let t = text
@@ -4388,24 +4501,23 @@
             .trim();
           for (const line of t.split('\n').map(l => l.trim()).filter(Boolean)) {
             if (new RegExp(`^[${ALPHA}]\\.`).test(line)) {
-              bodyHtml += `<div class="sum-item-hdr">${esc(line)}</div>`;
+              bodyHtml += `<div class="sum-item-hdr">${escPlain(line)}</div>`;
             } else {
-              bodyHtml += `<div class="sum-item-body">${esc(line)}</div>`;
+              bodyHtml += `<div class="sum-item-body">${escPlain(line)}</div>`;
             }
           }
         }
         let html = '';
         if (detail?.reason) {
-          html += `<div class="sum-sec"><div class="sum-sec-hdr"><span class="sum-dot"></span><span class="sum-sec-title">제·개정 이유</span></div><div class="sum-sec-body sum-reason">${esc(detail.reason)}</div></div>`;
+          html += `<div class="sum-sec"><div class="sum-sec-hdr"><span class="sum-dot"></span><span class="sum-sec-title">제·개정 이유</span></div><div class="sum-sec-body sum-reason">${escPlain(detail.reason)}</div></div>`;
         }
         if (bodyHtml) {
           html += `<div class="sum-sec"><div class="sum-sec-hdr"><span class="sum-dot"></span><span class="sum-sec-title">주요내용</span></div><div class="sum-sec-body">${bodyHtml}</div></div>`;
         }
-        // 입법현황: API flow_status 우선, 없으면 item.status 사용
         const flowStatus = detail?.flow_status || item?.status || '';
         const flowDate   = detail?.flow_date   || item?.propose_date || '';
         if (flowStatus || flowDate) {
-          const badge = esc([flowStatus, flowDate].filter(Boolean).join('  '));
+          const badge = escPlain([flowStatus, flowDate].filter(Boolean).join('  '));
           html += `<div class="sum-sec"><div class="sum-sec-hdr"><span class="sum-dot"></span><span class="sum-sec-title">입법현황</span></div><div class="sum-sec-body"><span class="sum-flow-badge">${badge}</span></div></div>`;
         }
         return html || '<span style="color:var(--t3)">주요내용이 없습니다.</span>';

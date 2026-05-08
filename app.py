@@ -930,6 +930,74 @@ def _fetch_kofiu_detail(link: str) -> dict:
         return {}
 
 
+def _fetch_assembly_bill_detail(link: str) -> dict:
+    """국회입법현황 상세 페이지 파싱 (opinion.lawmaking.go.kr/gcom/nsmLmSts/out/.../detailRP)"""
+    try:
+        _ensure_lawmaking_session()
+        resp = _APP_SESSION.get(link, timeout=20)
+        html = resp.content.decode('utf-8', errors='replace')
+        soup = BeautifulSoup(html, 'lxml')
+
+        tables = soup.find_all('table')
+
+        # ── 기본정보 (table[0]) ──
+        propose_info = ''
+        main_content = ''
+        if tables:
+            for row in tables[0].find_all('tr'):
+                th = row.find('th')
+                td = row.find('td')
+                if not th or not td:
+                    continue
+                th_txt = th.get_text(strip=True)
+                td_txt = td.get_text(separator='\n', strip=True)
+                if '발의정보' in th_txt:
+                    propose_info = td_txt
+                elif '제안이유' in th_txt or '주요내용' in th_txt:
+                    main_content = td_txt
+
+        # ── 국회진행상황 (div.nsmCnt 블록들) ──
+        committee_review: list[dict] = []
+        for block in soup.find_all('div', class_='nsmCnt'):
+                head_el = block.find('p', class_='head')
+                head = head_el.get_text(strip=True) if head_el else ''
+                items: list[str] = []
+                result_label = ''
+                result_items: list[str] = []
+                in_result = False
+                for child in block.children:
+                    if not hasattr(child, 'name'):
+                        continue
+                    if child.name == 'p' and 'tit' in (child.get('class') or []):
+                        in_result = True
+                        result_label = child.get_text(strip=True)
+                    elif child.name == 'ul':
+                        texts = [li.get_text(strip=True) for li in child.find_all('li') if li.get_text(strip=True)]
+                        if in_result:
+                            result_items.extend(texts)
+                        else:
+                            items.extend(texts)
+                entry: dict = {'head': head, 'items': items}
+                if result_label:
+                    entry['result_label'] = result_label
+                    entry['result_items'] = result_items
+                if head:
+                    committee_review.append(entry)
+
+        return {
+            'propose_info': propose_info,
+            'summary': main_content,
+            'reason': '',
+            'committee_review': committee_review,
+            'flow_status': '',
+            'flow_date': '',
+            'is_assembly': True,
+        }
+    except Exception as e:
+        print(f'[WARN] assembly bill detail error ({link[:60]}): {e}')
+        return {}
+
+
 def _fetch_bill_detail(link: str) -> dict:
     """법안 상세 페이지에서 제·개정이유 + 주요내용 + 입법현황(상태, 날짜) 추출"""
     if not link:
@@ -939,6 +1007,11 @@ def _fetch_bill_detail(link: str) -> dict:
     # kofiu.go.kr 링크는 별도 처리
     if 'kofiu.go.kr' in link:
         result = _fetch_kofiu_detail(link)
+        _bill_detail_cache[link] = result
+        return result
+    # 국회입법현황 링크는 별도 처리
+    if '/gcom/nsmLmSts/out/' in link:
+        result = _fetch_assembly_bill_detail(link)
         _bill_detail_cache[link] = result
         return result
     try:
@@ -1266,15 +1339,19 @@ async def get_bill_summary(link: str = ""):
         encoded = urllib.parse.quote(link, safe='')
         cached = _supabase_request(
             "GET",
-            f"legislation_status?link=eq.{encoded}&select=summary,reason,status,propose_date&limit=1",
+            f"legislation_status?link=eq.{encoded}&select=summary,reason,status,propose_date,propose_info,committee_review&limit=1",
         )
         if cached and cached[0].get("summary"):
             row = cached[0]
+            is_asm = '/gcom/nsmLmSts/out/' in link
             return JSONResponse({
-                "summary":     row.get("summary", ""),
-                "reason":      row.get("reason", ""),
-                "flow_status": row.get("status", ""),
-                "flow_date":   row.get("propose_date", ""),
+                "summary":          row.get("summary", ""),
+                "reason":           row.get("reason", ""),
+                "flow_status":      row.get("status", ""),
+                "flow_date":        row.get("propose_date", ""),
+                "propose_info":     row.get("propose_info", ""),
+                "committee_review": row.get("committee_review") or [],
+                "is_assembly":      is_asm,
             })
 
     # 실시간 스크래핑 (캐시 미적중 또는 Supabase 없을 때)
@@ -1284,17 +1361,22 @@ async def get_bill_summary(link: str = ""):
     # 성공 시 Supabase write-back
     if detail.get("summary") and SUPABASE_URL and SUPABASE_KEY:
         encoded = urllib.parse.quote(link, safe='')
-        _supabase_request(
-            "PATCH",
-            f"legislation_status?link=eq.{encoded}",
-            {"summary": detail["summary"], "reason": detail.get("reason", "")},
-        )
+        patch_body: dict = {"summary": detail["summary"], "reason": detail.get("reason", "")}
+        if detail.get("propose_info"):
+            patch_body["propose_info"] = detail["propose_info"]
+        if detail.get("committee_review"):
+            import json as _json
+            patch_body["committee_review"] = _json.dumps(detail["committee_review"], ensure_ascii=False)
+        _supabase_request("PATCH", f"legislation_status?link=eq.{encoded}", patch_body)
 
     return JSONResponse({
-        "summary":     detail.get("summary", ""),
-        "reason":      detail.get("reason", ""),
-        "flow_status": detail.get("flow_status", ""),
-        "flow_date":   detail.get("flow_date", ""),
+        "summary":          detail.get("summary", ""),
+        "reason":           detail.get("reason", ""),
+        "flow_status":      detail.get("flow_status", ""),
+        "flow_date":        detail.get("flow_date", ""),
+        "propose_info":     detail.get("propose_info", ""),
+        "committee_review": detail.get("committee_review", []),
+        "is_assembly":      detail.get("is_assembly", False),
     })
 
 
