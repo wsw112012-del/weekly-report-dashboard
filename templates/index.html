@@ -2458,6 +2458,10 @@
                   </template>
                   <span class="pol-count" x-text="filteredLegislation.length + '건'"></span>
                   <span class="pol-fetched" x-text="legLastFetched ? '수집: ' + legLastFetched : ''"></span>
+                  <button class="src-btn" :disabled="legEnriching"
+                          @click="enrichLegislation()"
+                          x-text="legEnriching ? (legEnrichProgress || '수집 중...') : '상세 일괄 수집'"
+                          style="margin-left:auto;background:var(--accent);color:#fff;border-color:var(--accent)"></button>
                 </div>
                 <div class="pol-table-wrap">
                   <template x-if="legLoading">
