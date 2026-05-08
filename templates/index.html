@@ -919,6 +919,12 @@
     .sum-review-list { margin: 0; padding-left: 16px; }
     .sum-review-list li { font-size: 12px; color: var(--t2); line-height: 1.65; }
     .sum-review-result-label { font-size: 11px; font-weight: 700; color: #7c3aed; margin: 6px 0 2px; }
+    /* 국회 제안이유/주요내용 구조 포매팅 */
+    .asm-content { display: flex; flex-direction: column; gap: 2px; }
+    .asm-sec-hdr { font-size: 12px; font-weight: 800; color: var(--accent); margin: 10px 0 3px; letter-spacing: .02em; }
+    .asm-sec-hdr:first-child { margin-top: 0; }
+    .asm-sub-item { font-size: 12px; color: var(--t1); line-height: 1.7; padding: 4px 8px; margin: 2px 0; border-left: 3px solid var(--accent2); background: #f8faff; border-radius: 0 4px 4px 0; }
+    .asm-body { font-size: 12px; color: var(--t2); line-height: 1.75; }
     /* 배너 국회/정부 출처 뱃지 */
     .leg-bill-source { font-size: 10px; padding: 1px 5px; border-radius: 3px; flex-shrink: 0; }
     /* 리사이즈 핸들 */
@@ -4488,6 +4494,24 @@
 
         // ── 국회입법현황 레이아웃 ──
         if (detail?.is_assembly) {
+          // 제안이유/주요내용/가나다라/참고사항 구조 파싱
+          const formatAssemblyText = (raw) => {
+            if (!raw) return '';
+            const ALPHA_KO = '가나다라마바사아자차카타파하';
+            const SEC_HDR = ['제안이유', '주요내용', '참고사항', '주요 내용', '제안 이유'];
+            let out = '';
+            for (const line of raw.split('\n').map(l => l.trim()).filter(Boolean)) {
+              if (SEC_HDR.some(h => line === h)) {
+                out += `<div class="asm-sec-hdr">${escPlain(line)}</div>`;
+              } else if (new RegExp(`^[${ALPHA_KO}]\\.`).test(line)) {
+                out += `<div class="asm-sub-item">${escPlain(line)}</div>`;
+              } else {
+                out += `<div class="asm-body">${escPlain(line)}</div>`;
+              }
+            }
+            return out;
+          };
+
           let html = '';
           // 기본정보
           html += `<div class="sum-sec"><div class="sum-sec-hdr"><span class="sum-dot"></span><span class="sum-sec-title">기본정보</span></div>`;
@@ -4495,7 +4519,7 @@
             html += `<div class="sum-sub-row"><span class="sum-sub-label">발의정보</span><span class="sum-sub-val">${esc(detail.propose_info)}</span></div>`;
           }
           if (text) {
-            html += `<div class="sum-sub-row"><span class="sum-sub-label">제안이유 및 주요내용</span><span class="sum-sub-val">${esc(text)}</span></div>`;
+            html += `<div class="sum-sub-row"><span class="sum-sub-label">제안이유 및 주요내용</span><div class="sum-sub-val asm-content">${formatAssemblyText(text)}</div></div>`;
           }
           html += `</div>`;
           // 국회진행상황
