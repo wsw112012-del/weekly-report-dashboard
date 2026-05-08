@@ -2081,7 +2081,6 @@
                                 @click.stop="dailyNewsPages[cat] = p-1; dailyNewsStop()"></button>
                       </template>
                       <button class="daily-pager-btn"
-                              :disabled="(dailyNewsPages[cat]||0) >= dailyNewsCatMaxPage(cat)-1"
                               @click.stop="dailyNewsNext(cat)">›</button>
                     </div>
                   </div>
