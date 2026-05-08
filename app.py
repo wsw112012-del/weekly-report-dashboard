@@ -78,7 +78,7 @@ LEGISLATION_TARGETS: dict[str, list[str]] = {
     "페이먼트": ["전자금융거래법"],
     "AML": [
         "특정 금융거래정보의 보고 및 이용 등에 관한 법률",
-        "공중 등 협박목적을 위한 자금조달행위의 금지에 관한 법률",
+        "공중 등 협박목적 및 대량살상무기확산을 위한 자금조달행위의 금지에 관한 법률",
     ],
 }
 
@@ -126,7 +126,7 @@ _LAW_NAMES: list[str] = [
 _LAW_ALIASES: list[str] = [
     "특금법", "특정금융정보법", "특정금융거래법",
     "개인정보보호법", "신용정보법", "정보통신망법",
-    "전자금융거래법", "공협법",
+    "전자금융거래법", "공협법", "테러자금금지법", "테러자금방지법",
 ]
 # 법률 동작 키워드 — 가중치 ×1 (누적될수록 점수 상승)
 _LAW_ACTION_KW: list[str] = [
@@ -788,31 +788,199 @@ def _parse_lawflow(soup) -> tuple[str, str]:
     return status, date
 
 
+def _gemini_generate_reason(bill_title: str, summary: str) -> str:
+    """Gemini로 제·개정이유 간략 생성 (주요내용 기반)"""
+    if not GEMINI_API_KEY or not bill_title:
+        return ''
+    import requests as _req, ssl as _ssl
+    from requests.adapters import HTTPAdapter
+    from urllib3.util.ssl_ import create_urllib3_context
+
+    class _LaxSSL(HTTPAdapter):
+        def init_poolmanager(self, *a, **kw):
+            ctx = create_urllib3_context()
+            ctx.check_hostname = False
+            ctx.verify_mode = _ssl.CERT_NONE
+            kw['ssl_context'] = ctx
+            super().init_poolmanager(*a, **kw)
+
+    sess = _req.Session()
+    sess.verify = False
+    sess.mount('https://', _LaxSSL())
+
+    prompt = f"""아래 법령안의 '제·개정이유'를 2~3문장으로 간략히 작성해줘.
+설명·머리말·꼬리말 없이 이유 문장만 출력할 것.
+
+법령안명: {bill_title}
+주요내용: {summary[:500] if summary else '없음'}
+
+제·개정이유 (2~3문장):"""
+
+    for model_id in ('gemini-2.0-flash', 'gemini-flash-latest'):
+        try:
+            url = (f'https://generativelanguage.googleapis.com/v1beta/models/'
+                   f'{model_id}:generateContent?key={GEMINI_API_KEY}')
+            r = sess.post(url, json={'contents': [{'parts': [{'text': prompt}]}]}, timeout=20)
+            if r.status_code == 429:
+                continue
+            r.raise_for_status()
+            return r.json()['candidates'][0]['content']['parts'][0]['text'].strip()
+        except Exception:
+            continue
+    return ''
+
+
+def _fetch_kofiu_detail(link: str) -> dict:
+    """kofiu.go.kr 보도자료 상세에서 개정배경/주요내용/향후계획 추출"""
+    from urllib.parse import urlparse, parse_qs
+    parsed = urlparse(link)
+    item_no = parse_qs(parsed.query).get('ntcnYardOrdrNo', [''])[0]
+    if not item_no:
+        return {}
+    try:
+        resp = _APP_SESSION.get(
+            'https://www.kofiu.go.kr/cmn/board/selectBoardDetail.do',
+            params={'ntcnYardOrdrNo': item_no, 'seCd': ''},
+            headers={'X-Requested-With': 'XMLHttpRequest'},
+            timeout=15,
+        )
+        resp.raise_for_status()
+        item = resp.json().get('result', {})
+        html_cn = item.get('ntcnYardCn', '')
+        if not html_cn:
+            return {}
+
+        soup = BeautifulSoup(html_cn, 'lxml')
+
+        _REASON_KW   = ['개정 배경', '개정배경', '추진 배경', '추진배경', '제·개정 이유', '제개정이유']
+        _SUMMARY_KW  = ['주요 개정 내용', '주요개정내용', '주요 내용', '주요내용', '개정 내용', '개정내용']
+        _FUTURE_KW   = ['향후 계획', '향후계획', '향후 방향', '향후방향']
+        _ALL_SECTION = _REASON_KW + _SUMMARY_KW + _FUTURE_KW
+
+        def _norm(s: str) -> str:
+            return re.sub(r'[\s··‧・·]+', '', s)
+
+        def _is_section_hdr(line: str) -> bool:
+            t = _norm(line.strip())
+            return bool(t) and any(_norm(k) == t for k in _ALL_SECTION)
+
+        def _clean_full(raw: str) -> str:
+            # MS Word 조건부주석 제거
+            text = re.sub(r'\[if [^\]]+\].*?\[endif\]', '', raw, flags=re.DOTALL)
+            text = re.sub(r'[ \t]+', ' ', text)
+            text = re.sub(r'\n{3,}', '\n\n', text)
+            return text.strip()
+
+        # 블록 요소에만 개행 삽입, 인라인(span 등)은 텍스트 노드 그대로 이어붙임
+        _BLOCK = {'p', 'div', 'tr', 'li', 'br', 'h1', 'h2', 'h3', 'h4', 'td', 'th'}
+        from bs4 import NavigableString, Comment
+        def _extract_text(node) -> str:
+            if isinstance(node, Comment):
+                return ''
+            if isinstance(node, NavigableString):
+                return str(node)
+            if node.name in _BLOCK:
+                inner = ''.join(_extract_text(c) for c in node.children)
+                return '\n' + inner + '\n'
+            return ''.join(_extract_text(c) for c in node.children)
+
+        raw_text = _extract_text(soup)
+        raw_text = _clean_full(raw_text)
+        lines = [ln.strip() for ln in raw_text.split('\n')]
+
+        def _section_text(keywords: list[str]) -> str:
+            """full_text에서 섹션 헤더 사이 텍스트 추출"""
+            hdr_idx = None
+            for i, ln in enumerate(lines):
+                if any(_norm(k) == _norm(ln.strip()) for k in keywords):
+                    hdr_idx = i
+                    break
+            if hdr_idx is None:
+                return ''
+            parts = []
+            for ln in lines[hdr_idx + 1:]:
+                if _is_section_hdr(ln):
+                    break
+                parts.append(ln)
+            return _clean_full('\n'.join(parts))
+
+        reason  = _section_text(_REASON_KW)
+        summary = _section_text(_SUMMARY_KW)
+        future  = _section_text(_FUTURE_KW)
+
+        if future:
+            summary = (summary + '\n\n향후 계획\n' + future).strip() if summary else future
+
+        # 주요 내용 없으면 첫 단락(intro 박스) 사용
+        if not summary:
+            non_hdr_lines = [ln for ln in lines if ln and not _is_section_hdr(ln)]
+            summary = non_hdr_lines[0] if non_hdr_lines else ''
+
+        # flow_status: 제목에서 추출
+        title = item.get('ntcnYardSjNm', '')
+        flow_status = next(
+            (kw for kw in ['국무회의 의결', '시행', '공포', '입법예고'] if kw in title), ''
+        )
+        flow_date = (item.get('ntcnYardRgiDt') or '')[:10].replace('-', '.') + '.'
+
+        return {'summary': summary, 'reason': reason,
+                'flow_status': flow_status, 'flow_date': flow_date}
+    except Exception as e:
+        print(f'[WARN] kofiu detail error ({link[:60]}): {e}')
+        return {}
+
+
 def _fetch_bill_detail(link: str) -> dict:
     """법안 상세 페이지에서 제·개정이유 + 주요내용 + 입법현황(상태, 날짜) 추출"""
     if not link:
         return {}
     if link in _bill_detail_cache:
         return _bill_detail_cache[link]
+    # kofiu.go.kr 링크는 별도 처리
+    if 'kofiu.go.kr' in link:
+        result = _fetch_kofiu_detail(link)
+        _bill_detail_cache[link] = result
+        return result
     try:
         _ensure_lawmaking_session()
         resp = _APP_SESSION.get(link, timeout=20)
-        resp.encoding = 'utf-8'
-        soup = BeautifulSoup(resp.text, 'lxml')
+        html = resp.content.decode('utf-8', errors='replace')
+        soup = BeautifulSoup(html, 'lxml')
+
+        def _norm(s: str) -> str:
+            return re.sub(r'[\s··‧・]+', '', s)
 
         def _extract_section(keywords: list[str]) -> str:
-            for kw in keywords:
-                h3 = soup.find('h3', string=lambda t: t and kw in t)
-                if h3:
-                    parent = h3.find_parent('div')
-                    nxt = parent.find_next_sibling('div') if parent else None
-                    if nxt:
-                        return nxt.get_text(separator=' ', strip=True)
+            for h3 in soup.find_all('h3'):
+                h3_norm = _norm(h3.get_text(strip=True))
+                for kw in keywords:
+                    if _norm(kw) in h3_norm:
+                        parent = h3.find_parent('div')
+                        nxt = parent.find_next_sibling('div') if parent else None
+                        if nxt:
+                            return nxt.get_text(separator=' ', strip=True)
             return ''
 
         reason  = _extract_section(['제·개정이유', '제개정이유', '개정이유', '제정이유'])
         summary = _extract_section(['주요내용'])
         flow_status, flow_date = _parse_lawflow(soup)
+
+        # 페이지 제목에서 법령안명 추출
+        bill_title_from_page = ''
+        title_tag = soup.find('title')
+        if title_tag:
+            bill_title_from_page = title_tag.get_text(strip=True).split('|')[0].strip()
+        if not bill_title_from_page:
+            for sel in ['h2.pageTitle', 'h2', '.bill-title', '.lm-title']:
+                el = soup.select_one(sel)
+                if el:
+                    bill_title_from_page = el.get_text(strip=True)
+                    break
+
+        # 제·개정이유가 AJAX로 비어있으면 Gemini로 생성
+        if not reason and (summary or bill_title_from_page):
+            reason = _gemini_generate_reason(bill_title_from_page, summary)
+
         result = {'summary': summary, 'reason': reason, 'flow_status': flow_status, 'flow_date': flow_date}
         _bill_detail_cache[link] = result
         return result
@@ -1083,6 +1251,40 @@ async def get_bill_summary(link: str = ""):
         "flow_status": detail.get("flow_status", ""),
         "flow_date":   detail.get("flow_date", ""),
     })
+
+
+@app.get("/api/article-content")
+async def get_article_content(url: str = ""):
+    """외부 보도자료·언론기사 원문 텍스트 추출 프록시"""
+    if not url:
+        return JSONResponse({"text": "", "error": "no url"})
+    try:
+        resp = _APP_SESSION.get(url, timeout=10, allow_redirects=True)
+        soup = BeautifulSoup(
+            resp.content.decode(resp.apparent_encoding or 'utf-8', errors='replace'),
+            'lxml'
+        )
+        for tag in soup.find_all(['script', 'style', 'nav', 'header', 'footer',
+                                   'aside', 'iframe', 'noscript']):
+            tag.decompose()
+        SELECTORS = [
+            'article', '.article-body', '.article-content', '.news-content',
+            '.press-view', '.press-content', '.view-content', '.cont-area',
+            '#article-body', '#articleBody', '.articleBody',
+            '.article_body', '.article_view', 'main',
+        ]
+        for sel in SELECTORS:
+            el = soup.select_one(sel)
+            if el and len(el.get_text(strip=True)) > 100:
+                text = el.get_text(separator='\n', strip=True)
+                text = re.sub(r'\n{3,}', '\n\n', text)
+                return JSONResponse({"text": text[:4000]})
+        paras = [p.get_text(strip=True) for p in soup.find_all('p')
+                 if len(p.get_text(strip=True)) > 30]
+        text = '\n\n'.join(paras[:30])
+        return JSONResponse({"text": text[:4000] if text else ""})
+    except Exception as e:
+        return JSONResponse({"text": "", "error": str(e)})
 
 
 @app.get("/api/news")

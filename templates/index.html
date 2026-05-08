@@ -54,7 +54,9 @@
     }
     .hdr-logo {
       display: flex; align-items: center; gap: 9px; flex-shrink: 0;
+      cursor: pointer; user-select: none;
     }
+    .hdr-logo:hover .hdr-title { color: var(--accent); }
     .hdr-badge {
       width: 30px; height: 30px; border-radius: 8px;
       background: var(--accent-grd);
@@ -637,6 +639,13 @@
       padding: 6px 8px 3px; letter-spacing: .5px;
     }
     .pol-sidebar-divider { height: 1px; background: var(--bd); margin: 5px 4px; }
+    .tl-year-select {
+      display: block; width: calc(100% - 16px); margin: 2px 8px 6px;
+      padding: 5px 8px; border-radius: 7px; border: 1px solid var(--bd);
+      font-size: 12px; font-weight: 600; color: var(--t1);
+      background: #fff; cursor: pointer; outline: none;
+    }
+    .tl-year-select:focus { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-lt); }
     .pol-sidebar-item {
       padding: 6px 10px; border-radius: 7px; font-size: 12px; font-weight: 600;
       color: var(--t2); cursor: pointer; transition: all .15s;
@@ -887,7 +896,7 @@
     .sum-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--accent); flex-shrink: 0; }
     .sum-sec-title { font-size: 13px; font-weight: 800; color: var(--t1); }
     .sum-sec-body { padding-left: 18px; }
-    .sum-reason { font-size: 12px; color: var(--t2); line-height: 1.75; }
+    .sum-reason { font-size: 12px; color: var(--t2); line-height: 1.75; white-space: pre-wrap; }
     .sum-item-hdr { font-size: 13px; font-weight: 600; color: var(--accent); margin: 10px 0 3px; line-height: 1.4; }
     .sum-item-hdr:first-child { margin-top: 0; }
     .sum-item-body { font-size: 12px; color: var(--t2); line-height: 1.65; padding-left: 4px; }
@@ -1616,6 +1625,87 @@
     .row-org {
       font-size: 10px; color: var(--t2); font-weight: 600;
     }
+    /* ── Site Footer ── */
+    .site-footer {
+      padding: 18px 32px;
+      border-top: 1px solid var(--bd);
+      background: #f0f4fb;
+      text-align: center;
+      font-size: 11px;
+      color: var(--t3);
+      line-height: 1.7;
+    }
+    .site-footer .footer-ai {
+      display: inline-flex; align-items: center; gap: 5px;
+      background: rgba(37,99,235,.06);
+      border: 1px solid rgba(37,99,235,.15);
+      border-radius: 20px;
+      padding: 2px 10px;
+      font-size: 10px;
+      color: var(--accent);
+      font-weight: 600;
+      margin-bottom: 5px;
+    }
+
+    /* ── Article Side Panel Drawer ── */
+    .art-panel-drawer {
+      position: fixed; top: 0; right: 0; bottom: 0;
+      width: clamp(520px, 55vw, 860px);
+      max-width: 95vw;
+      background: #fff;
+      border-left: 1.5px solid var(--bd);
+      box-shadow: -6px 0 32px rgba(15,23,42,.12);
+      z-index: 400;
+      display: flex; flex-direction: column;
+      overflow: hidden;
+    }
+    @media (max-width: 640px) {
+      .art-panel-drawer { width: 100vw; max-width: 100vw; border-left: none; }
+    }
+    .art-panel-backdrop {
+      position: fixed; inset: 0; z-index: 399;
+      background: rgba(15,23,42,.25);
+    }
+    .art-panel-header {
+      display: flex; align-items: flex-start; gap: 8px;
+      padding: 14px 16px 10px; border-bottom: 1px solid var(--bd);
+      flex-shrink: 0;
+    }
+    .art-panel-meta {
+      flex: 1; display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+    }
+    .art-panel-date { font-size: 11px; color: var(--t3); }
+    .art-panel-title-row {
+      display: flex; align-items: flex-start; gap: 8px;
+      padding: 10px 16px; border-bottom: 1px solid var(--bd);
+      flex-shrink: 0;
+    }
+    .art-panel-title {
+      flex: 1;
+      font-size: 13px; font-weight: 700; color: var(--t1);
+      line-height: 1.5;
+    }
+    .art-panel-ext-btn {
+      flex-shrink: 0; align-self: center;
+      font-size: 11px; color: var(--accent); font-weight: 600;
+      text-decoration: none; white-space: nowrap;
+      padding: 3px 8px; border: 1px solid var(--accent);
+      border-radius: 4px; transition: background .15s;
+    }
+    .art-panel-ext-btn:hover { background: var(--accent-lt); }
+    .art-panel-blocked {
+      flex: 1; display: flex; flex-direction: column;
+      align-items: center; justify-content: center; gap: 16px;
+      padding: 40px 24px; text-align: center;
+    }
+    .art-panel-blocked-msg {
+      font-size: 13px; color: var(--t3); line-height: 1.6;
+    }
+    .art-panel-blocked-btn {
+      font-size: 13px; font-weight: 700; color: #fff;
+      background: var(--accent); text-decoration: none;
+      padding: 9px 20px; border-radius: 6px;
+    }
   </style>
 </head>
 
@@ -1623,7 +1713,7 @@
 
   <!-- ── HEADER ── -->
   <header>
-    <div class="hdr-logo">
+    <div class="hdr-logo" @click="currentPage='home'">
       <div class="hdr-badge">WR</div>
       <span class="hdr-title">쿠콘 보도자료/언론기사 모니터링</span>
     </div>
@@ -1709,41 +1799,6 @@
             </div>
           </div>
 
-          <!-- 필터 칩 바 -->
-          <div class="home-chip-bar">
-            <button class="home-chip chip-all" :class="activeCategory==='전체' ? 'active' : ''"
-                    @click="switchCategory('전체')">
-              전체 <span class="chip-count" x-text="totalCount + '건'"></span>
-            </button>
-            <button class="home-chip chip-data" :class="activeCategory==='데이터' ? 'active' : ''"
-                    @click="switchCategory('데이터')">
-              데이터 <span class="chip-count" x-text="allArticles['데이터'].length + '건'"></span>
-            </button>
-            <button class="home-chip chip-pay" :class="activeCategory==='페이먼트' ? 'active' : ''"
-                    @click="switchCategory('페이먼트')">
-              페이먼트 <span class="chip-count" x-text="allArticles['페이먼트'].length + '건'"></span>
-            </button>
-            <button class="home-chip chip-aml" :class="activeCategory==='AML' ? 'active' : ''"
-                    @click="switchCategory('AML')">
-              AML <span class="chip-count" x-text="allArticles['AML'].length + '건'"></span>
-            </button>
-            <div class="filter-divider"></div>
-            <button class="home-chip chip-press" :class="articleType==='보도자료' ? 'active' : ''"
-                    @click="articleType = articleType === '보도자료' ? '전체' : '보도자료'">
-              📋 보도자료
-            </button>
-            <button class="home-chip chip-news" :class="articleType==='언론기사' ? 'active' : ''"
-                    @click="articleType = articleType === '언론기사' ? '전체' : '언론기사'">
-              📰 언론기사
-            </button>
-            <div class="filter-divider"></div>
-            <button class="home-chip chip-pri-high" :class="priorityFilter==='상' ? 'active' : ''"
-                    @click="togglePriority('상')">상</button>
-            <button class="home-chip chip-pri-mid" :class="priorityFilter==='중' ? 'active' : ''"
-                    @click="togglePriority('중')">중</button>
-            <button class="home-chip chip-pri-low" :class="priorityFilter==='하' ? 'active' : ''"
-                    @click="togglePriority('하')">하</button>
-          </div>
 
           <!-- 주요 입법현황 캐러셀 배너 -->
           <div class="home-leg-banner" x-show="lawTimelines.length > 0"
@@ -1881,7 +1936,7 @@
                          x-text="cat"></div>
                     <!-- 기사 카드 -->
                     <template x-for="a in homeDailyCatItems(cat)" :key="a._uid">
-                      <div class="home-daily-mini-card">
+                      <div class="home-daily-mini-card" style="cursor:pointer" @click="openArtPanel(a)">
                         <div class="home-daily-mini-top">
                           <span class="cal-type-badge"
                                 :class="sourceType(a)==='언론기사' ? 'cal-type-언론기사' : 'cal-type-보도자료'"
@@ -1890,10 +1945,8 @@
                         </div>
                         <div class="home-daily-mini-title" x-html="highlight(a['제목'])"></div>
                         <div class="home-daily-mini-foot">
-                          <a x-show="a['링크']" :href="a['링크']" target="_blank"
-                             rel="noopener noreferrer" @click.stop class="link-btn">원문</a>
                           <button class="row-btn" :disabled="formatting"
-                            @click="formatSingle(a._idx, a._cat)">
+                            @click.stop="formatSingle(a._idx, a._cat)">
                             <span x-text="(formattingIdx === a._uid && formatting) ? '...' : '요약'"></span>
                           </button>
                         </div>
@@ -1923,7 +1976,7 @@
                 <div class="empty-col">수집된 보도자료가 없습니다</div>
               </template>
               <template x-for="a in latestPress" :key="a._uid">
-                <div class="home-mini-card">
+                <div class="home-mini-card" style="cursor:pointer" @click="openArtPanel(a)">
                   <div class="home-mini-top">
                     <span class="agency-badge" :class="badgeClass(a._cat)" x-text="a['기관']"></span>
                     <span class="cat-tag"
@@ -1937,10 +1990,8 @@
                   <div class="home-mini-foot">
                     <span class="art-card-date" x-text="a['날짜']"></span>
                     <div class="art-card-btns">
-                      <a x-show="a['링크']" :href="a['링크']" target="_blank" rel="noopener noreferrer"
-                         @click.stop class="link-btn">원문</a>
                       <button class="row-btn" :disabled="formatting"
-                        @click="formatSingle(a._idx, a._cat)">
+                        @click.stop="formatSingle(a._idx, a._cat)">
                         <span x-text="(formattingIdx === a._uid && formatting) ? '...' : '요약'"></span>
                       </button>
                     </div>
@@ -1959,7 +2010,7 @@
                 <div class="empty-col">수집된 언론기사가 없습니다</div>
               </template>
               <template x-for="a in latestNews" :key="a._uid">
-                <div class="home-mini-card">
+                <div class="home-mini-card" style="cursor:pointer" @click="openArtPanel(a)">
                   <div class="home-mini-top">
                     <span class="agency-badge badge-news" x-text="a['기관']"></span>
                     <span class="cat-tag"
@@ -1973,10 +2024,8 @@
                   <div class="home-mini-foot">
                     <span class="art-card-date" x-text="a['날짜']"></span>
                     <div class="art-card-btns">
-                      <a x-show="a['링크']" :href="a['링크']" target="_blank" rel="noopener noreferrer"
-                         @click.stop class="link-btn">원문</a>
                       <button class="row-btn" :disabled="formatting"
-                        @click="formatSingle(a._idx, a._cat)">
+                        @click.stop="formatSingle(a._idx, a._cat)">
                         <span x-text="(formattingIdx === a._uid && formatting) ? '...' : '요약'"></span>
                       </button>
                     </div>
@@ -2097,11 +2146,10 @@
                               x-text="a['우선순위'] || '중'"></span>
                         <span class="row-date" x-text="a['날짜']"></span>
                       </div>
-                      <div class="row-title" x-html="highlightQ(a['제목'], articlesSearchQ)"></div>
+                      <div class="row-title" x-html="highlightQ(a['제목'], articlesSearchQ)"
+                           style="cursor:pointer" @click="openArtPanel(a)"></div>
                       <div class="row-lead" x-html="highlightQ(a['내용'], articlesSearchQ)"></div>
                       <div class="row-bottom">
-                        <a x-show="a['링크']" :href="a['링크']" target="_blank"
-                           rel="noopener noreferrer" class="link-btn">원문</a>
                         <button class="row-btn" :disabled="formatting"
                                 @click="formatSingle(a._idx, cat)">
                           <span x-text="(formattingIdx===a._uid && formatting) ? '...' : '요약'"></span>
@@ -2134,11 +2182,10 @@
                             x-text="a['우선순위'] || '중'"></span>
                       <span class="row-date" x-text="a['날짜']"></span>
                     </div>
-                    <div class="row-title" x-html="highlightQ(a['제목'], articlesSearchQ)"></div>
+                    <div class="row-title" x-html="highlightQ(a['제목'], articlesSearchQ)"
+                         style="cursor:pointer" @click="openArtPanel(a)"></div>
                     <div class="row-lead" x-html="highlightQ(a['내용'], articlesSearchQ)"></div>
                     <div class="row-bottom">
-                      <a x-show="a['링크']" :href="a['링크']" target="_blank"
-                         rel="noopener noreferrer" class="link-btn">원문</a>
                       <button class="row-btn" :disabled="formatting"
                               @click="formatSingle(a._idx, a._cat || articlesCategory)">
                         <span x-text="(formattingIdx===a._uid && formatting) ? '...' : '요약'"></span>
@@ -2369,12 +2416,12 @@
             <!-- 좌측 사이드바 -->
             <div class="pol-sidebar" :style="`width:${sidebarW}px`">
               <div class="pol-sidebar-title">연도</div>
-              <div class="pol-sidebar-item" :class="tlYear==='전체' ? 'active' : ''"
-                   @click="tlYear='전체'">전체</div>
-              <template x-for="yr in tlAllYears" :key="yr">
-                <div class="pol-sidebar-item" :class="tlYear===yr ? 'active' : ''"
-                     @click="tlYear=yr" x-text="yr + '년'"></div>
-              </template>
+              <select class="tl-year-select" x-model="tlYear">
+                <option value="전체">전체</option>
+                <template x-for="yr in tlAllYears" :key="yr">
+                  <option :value="yr" x-text="yr + '년'"></option>
+                </template>
+              </select>
 
               <div class="pol-sidebar-divider"></div>
               <div class="pol-sidebar-title">법령명</div>
@@ -3265,6 +3312,61 @@
     </div>
   </div>
 
+  <!-- ── ARTICLE SIDE PANEL ── -->
+  <div x-show="artPanel"
+       x-transition:enter="transition ease-out duration-200"
+       x-transition:enter-start="opacity-0 translate-x-full"
+       x-transition:enter-end="opacity-100 translate-x-0"
+       x-transition:leave="transition ease-in duration-150"
+       x-transition:leave-start="opacity-100 translate-x-0"
+       x-transition:leave-end="opacity-0 translate-x-full"
+       class="art-panel-drawer"
+       @keydown.escape.window="closeArtPanel()">
+
+    <!-- 헤더 -->
+    <div class="art-panel-header">
+      <div class="art-panel-meta">
+        <span class="cal-type-badge"
+              :class="artPanel && sourceType(artPanel)==='언론기사' ? 'cal-type-언론기사' : 'cal-type-보도자료'"
+              x-text="artPanel ? sourceType(artPanel) : ''"></span>
+        <span class="agency-badge" :class="badgeClass(artPanel?._cat)" x-text="artPanel?.['기관'] || ''"></span>
+        <span class="art-panel-date" x-text="artPanel?.['날짜'] || ''"></span>
+      </div>
+      <button class="tl-detail-close" @click="closeArtPanel()">✕</button>
+    </div>
+
+    <div class="art-panel-title-row">
+      <div class="art-panel-title" x-text="artPanel?.['제목'] || ''"></div>
+      <a :href="artPanel?.['링크'] || '#'" target="_blank" rel="noopener noreferrer"
+         class="art-panel-ext-btn">외부 열기 ↗</a>
+    </div>
+
+    <!-- 차단 사이트 fallback -->
+    <template x-if="artPanelBlocked()">
+      <div class="art-panel-blocked">
+        <div class="art-panel-blocked-msg">이 사이트는 보안 정책으로 인해 패널 내에서 표시할 수 없습니다.</div>
+        <a :href="artPanel?.['링크'] || '#'" target="_blank" rel="noopener noreferrer"
+           class="art-panel-blocked-btn">새 탭에서 원문 열기 ↗</a>
+      </div>
+    </template>
+
+    <!-- 정상 iframe -->
+    <template x-if="!artPanelBlocked()">
+      <iframe :src="artPanel?.['링크'] || 'about:blank'"
+              style="flex:1;border:none;width:100%;height:100%;display:block;"></iframe>
+    </template>
+  </div>
+
+  <!-- 패널 열릴 때 반투명 backdrop -->
+  <div x-show="artPanel" class="art-panel-backdrop" @click="closeArtPanel()"></div>
+
+  <!-- ── SITE FOOTER ── -->
+  <footer class="site-footer">
+    <div class="footer-ai">AI-Generated Content</div><br>
+    본 사이트의 콘텐츠는 생성형 AI를 활용하여 제작되었습니다.<br>
+    Copyright 2026. 쿠콘전략실 / COOCON Corporation. All rights reserved.
+  </footer>
+
   <!-- ── ALPINE ── -->
   <script>
   function app() {
@@ -3355,6 +3457,8 @@
       legSideLaw: '',
       legSummaries: {},
       legDetails: {},
+      artPanel: null,
+      IFRAME_BLOCKED_DOMAINS: ['www.mt.co.kr','www.ajunews.com','www.dailian.co.kr','www.sidae.com','www.tokenpost.kr','zdnet.co.kr','www.chosun.com'],
       sidebarW: 200,
       tlScrollW: 380,
       legEnriching: false,
@@ -3992,6 +4096,7 @@
           '정보통신망이용촉진및정보보호등에관한법률': '정보통신망법',
           '특정 금융거래정보의 보고 및 이용 등에 관한 법률': '특정금융정보법',
           '공중 등 협박목적을 위한 자금조달행위의 금지에 관한 법률': '테러자금방지법',
+          '공중 등 협박목적 및 대량살상무기확산을 위한 자금조달행위의 금지에 관한 법률': '테러자금방지법',
         };
         return map[name] || name;
       },
@@ -4025,7 +4130,20 @@
 
       // ── 입법현황 ──
       get legAllLaws() {
-        return [...new Set(this.legItems.map(a => a.target_law).filter(Boolean))];
+        const ORDER = [
+          '개인정보보호법',
+          '신용정보의 이용 및 보호에 관한 법률',
+          '정보통신망이용촉진및정보보호등에관한법률',
+          '전자금융거래법',
+          '특정 금융거래정보의 보고 및 이용 등에 관한 법률',
+          '공중 등 협박목적 및 대량살상무기확산을 위한 자금조달행위의 금지에 관한 법률',
+          '공중 등 협박목적을 위한 자금조달행위의 금지에 관한 법률',
+        ];
+        const laws = [...new Set(this.legItems.map(a => a.target_law).filter(Boolean))];
+        return laws.sort((a, b) => {
+          const ia = ORDER.indexOf(a); const ib = ORDER.indexOf(b);
+          return (ia < 0 ? 999 : ia) - (ib < 0 ? 999 : ib);
+        });
       },
       get tlAllYears() {
         const yrs = this.legItems
@@ -4230,6 +4348,19 @@
         } catch {
           this.legSummaries = { ...this.legSummaries, [id]: '' };
         }
+      },
+
+      artPanelBlocked() {
+        const link = this.artPanel?.['링크'] || '';
+        if (!link) return false;
+        try { return this.IFRAME_BLOCKED_DOMAINS.includes(new URL(link).hostname); }
+        catch { return false; }
+      },
+      openArtPanel(article) {
+        this.artPanel = article;
+      },
+      closeArtPanel() {
+        this.artPanel = null;
       },
 
       formatSummary(text, detail = null, item = null) {
