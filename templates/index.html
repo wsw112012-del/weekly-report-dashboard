@@ -4481,12 +4481,15 @@
         try {
           const r = await fetch('/api/bill-summary?link=' + encodeURIComponent(link)).then(r => r.json());
           this.legSummaries = { ...this.legSummaries, [id]: r.summary || '' };
+          // committee_review: JSONB 배열 또는 문자열(구버전 캐시) 모두 대응
+          let cr = r.committee_review || [];
+          if (typeof cr === 'string') { try { cr = JSON.parse(cr); } catch { cr = []; } }
           this.legDetails = { ...this.legDetails, [id]: {
             reason:           r.reason || '',
             flow_status:      r.flow_status || '',
             flow_date:        r.flow_date || '',
             propose_info:     r.propose_info || '',
-            committee_review: r.committee_review || [],
+            committee_review: Array.isArray(cr) ? cr : [],
             is_assembly:      r.is_assembly || false,
           }};
         } catch {

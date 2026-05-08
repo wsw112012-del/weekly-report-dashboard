@@ -1458,8 +1458,7 @@ async def get_bill_summary(link: str = ""):
         if detail.get("propose_info"):
             patch_body["propose_info"] = detail["propose_info"]
         if detail.get("committee_review"):
-            import json as _json
-            patch_body["committee_review"] = _json.dumps(detail["committee_review"], ensure_ascii=False)
+            patch_body["committee_review"] = detail["committee_review"]
         _supabase_request("PATCH", f"legislation_status?link=eq.{encoded}", patch_body)
 
     return JSONResponse({
