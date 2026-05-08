@@ -4341,6 +4341,7 @@
         // 이름 보정 맵 (잘린 이름 → 정식 명칭)
         const map = {
           '개인정보보호위원':   '개인정보보호위원회',
+          '개인정보보호위':     '개인정보보호위원회',
           '금융위원':          '금융위원회',
           '방송통신위원':      '방송통신위원회',
           '공정거래위원':      '공정거래위원회',
@@ -4624,6 +4625,14 @@
             committee_review: Array.isArray(cr) ? cr : [],
             is_assembly:      r.is_assembly || false,
           };
+          // 입법현황 날짜/상태로 legItems 실시간 갱신 (테이블 날짜 즉시 반영)
+          if (r.flow_date || r.flow_status) {
+            const idx = this.legItems.findIndex(a => a.id === id);
+            if (idx !== -1) {
+              if (r.flow_date)   this.legItems[idx].propose_date = r.flow_date;
+              if (r.flow_status) this.legItems[idx].status       = r.flow_status;
+            }
+          }
         } catch {
           this.legSummaries[id] = '';
         }
