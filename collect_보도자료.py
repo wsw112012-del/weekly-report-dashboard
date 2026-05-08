@@ -553,6 +553,7 @@ def filter_by_keywords(articles: list[dict], report_type: str) -> list[dict]:
 
 
 def filter_by_agency(articles: list[dict], report_type: str) -> list[dict]:
+    from collections import Counter
     agencies = CONFIG[report_type]['agencies']
     if not agencies:
         print("3차 기관 필터: 전체 기관 수집")
@@ -565,6 +566,9 @@ def filter_by_agency(articles: list[dict], report_type: str) -> list[dict]:
         or a.get('source_type') == '언론기사'
     ]
     print(f"3차 기관 필터 후: {len(filtered)}건")
+    counts = Counter(a['agency'] for a in filtered)
+    for agency, cnt in sorted(counts.items(), key=lambda x: -x[1]):
+        print(f"  └ {agency}: {cnt}건")
     return filtered
 
 

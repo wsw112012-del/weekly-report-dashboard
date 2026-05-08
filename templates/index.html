@@ -1851,9 +1851,9 @@
 
             <!-- 좌/우 화살표 -->
             <button class="leg-arrow leg-arrow-l"
-                    @click="bannerPrev(); bannerStopAuto(); bannerStartAuto()">‹</button>
+                    @click="bannerPrev()">‹</button>
             <button class="leg-arrow leg-arrow-r"
-                    @click="bannerNext(); bannerStopAuto(); bannerStartAuto()">›</button>
+                    @click="bannerNext()">›</button>
 
             <!-- 우상단: 인덱스 + 이동 버튼 -->
             <div class="leg-banner-meta">
@@ -1959,7 +1959,7 @@
             <div class="leg-banner-dots">
               <template x-for="(_, i) in lawTimelines" :key="i">
                 <span class="leg-dot" :class="i === bannerIdx ? 'leg-dot-active' : ''"
-                      @click="bannerIdx = i; bannerYear = ''; bannerMonth = ''; bannerStopAuto(); bannerStartAuto()"></span>
+                      @click="bannerIdx = i; bannerYear = ''; bannerMonth = ''"></span>
               </template>
             </div>
 
@@ -1986,7 +1986,7 @@
                          'cal-day-today':    cell !== null && cell.dateStr === _calTodayStr(),
                          'cal-day-selected': cell !== null && cell.dateStr === calSelectedDate && cell.dateStr !== _calTodayStr()
                        }"
-                       @click="cell !== null && (calSelectedDate = cell.dateStr)">
+                       @click="cell !== null && (calSelectedDate = cell.dateStr, dailyNewsPage = 0, dailyNewsStart())">
                     <span class="cal-day-num" x-text="cell ? cell.d : ''"></span>
                     <div class="cal-dots" x-show="cell !== null && homeCalDotDates.has(cell.dateStr)">
                       <span class="cal-dot"></span>
@@ -1998,9 +1998,18 @@
             </div>
 
             <!-- 오른쪽: 선택일 카테고리별 현황 — 3열 그리드 -->
-            <div class="home-daily-right">
+            <div class="home-daily-right"
+                 @mouseenter="dailyNewsStop()" @mouseleave="dailyNewsStart()">
               <div class="home-daily-header">
                 <span class="home-daily-date" x-text="calSelectedDate + ' 주요 뉴스'"></span>
+                <div style="display:flex;align-items:center;gap:6px">
+                  <span style="font-size:11px;color:var(--t3)"
+                        x-text="`${dailyNewsPage + 1} / ${dailyNewsMaxPages}`"></span>
+                  <template x-for="p in dailyNewsMaxPages" :key="p">
+                    <span @click="dailyNewsPage = p - 1"
+                          :style="`width:6px;height:6px;border-radius:50%;cursor:pointer;background:${dailyNewsPage === p-1 ? 'var(--accent)' : '#cbd5e1'}`"></span>
+                  </template>
+                </div>
               </div>
               <div class="home-daily-3col">
                 <template x-for="cat in ['데이터','페이먼트','AML']" :key="cat">
@@ -3538,6 +3547,7 @@
 
       // 법규/정책 — 입법현황 (opinion.lawmaking.go.kr)
       legItems: [],
+      lawTimelines: [],
       legCat: '전체',
       legSource: '전체',
       legLaw: '',
@@ -3590,6 +3600,8 @@
       })(),
       calFilterOrg: '',
       calFilterCat: '',
+      dailyNewsPage: 0,
+      dailyNewsTimer: null,
 
       _applyFilters(list) {
         if (this.articleType !== '전체') {
@@ -3666,7 +3678,7 @@
         }
         return result;
       },
-      homeDailyCatItems(cat) {
+      _homeDailyAllItems(cat) {
         const date = this.calSelectedDate;
         if (!date) return [];
         const seen = new Set();
@@ -3678,8 +3690,29 @@
             seen.add(key);
             return true;
           })
-          .slice(0, 3)
           .map((a, i) => ({ ...a, _idx: i, _cat: cat, _uid: `${cat}-${i}` }));
+      },
+      homeDailyCatItems(cat) {
+        const all = this._homeDailyAllItems(cat);
+        const start = this.dailyNewsPage * 3;
+        return all.slice(start, start + 3);
+      },
+      get dailyNewsMaxPages() {
+        const counts = ['데이터','페이먼트','AML'].map(c => this._homeDailyAllItems(c).length);
+        return Math.max(1, Math.ceil(Math.max(...counts) / 3));
+      },
+      dailyNewsStart() {
+        this.dailyNewsStop();
+        const maxP = this.dailyNewsMaxPages;
+        console.log('[dailyNews] start, maxPages=', maxP, 'page=', this.dailyNewsPage);
+        if (maxP <= 1) return;   // 1페이지면 타이머 불필요
+        this.dailyNewsTimer = setInterval(() => {
+          this.dailyNewsPage = (this.dailyNewsPage + 1) % this.dailyNewsMaxPages;
+          console.log('[dailyNews] tick → page', this.dailyNewsPage);
+        }, 5000);
+      },
+      dailyNewsStop() {
+        if (this.dailyNewsTimer) { clearInterval(this.dailyNewsTimer); this.dailyNewsTimer = null; }
       },
       homeDailyByType(type) {
         const date = this.calSelectedDate;
@@ -3917,6 +3950,7 @@
         const n = new Date();
         this.calYear = n.getFullYear(); this.calMonth = n.getMonth() + 1;
         this.calSelectedDate = this._calTodayStr();
+        this.dailyNewsPage = 0; this.dailyNewsStart();
       },
 
       get calDays() {
@@ -4133,7 +4167,7 @@
         return `background:${c}22;color:${c};border:1px solid ${c}44`;
       },
       // ── 홈 배너 캐러셀 ──
-      get lawTimelines() {
+      _buildLawTimelines() {
         const groups = {};
         for (const a of this.legItems) {
           if (!a.target_law) continue;
@@ -4142,14 +4176,13 @@
           }
           groups[a.target_law].items.push(a);
         }
-        return Object.values(groups).map(g => {
+        this.lawTimelines = Object.values(groups).map(g => {
           g.items.sort((a, b) => (a.propose_date || '').localeCompare(b.propose_date || ''));
           const dated = g.items.filter(i => i.propose_date);
           g.minDate = dated[0]?.propose_date || '';
           g.maxDate = dated.slice(-1)[0]?.propose_date || '';
           g.minYear = g.minDate.slice(0, 4);
           g.maxYear = g.maxDate.slice(0, 4);
-          // 연도별 그룹
           const yrMap = {};
           for (const item of g.items) {
             const yr = (item.propose_date || item.scraped_at || '').slice(0, 4);
@@ -4261,6 +4294,10 @@
           this.$nextTick(() => {
             this.polSelectedId = item.id;
             this.fetchBillSummary(item.id, item.link);
+            this.$nextTick(() => {
+              const el = document.querySelector('tr.pol-row.selected');
+              if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            });
           });
         }
       },
@@ -4401,6 +4438,7 @@
           this.legItems = await fetch('/api/legislation').then(r => r.json());
           if (this.legItems.length) this.legLastFetched = new Date().toLocaleString('ko-KR');
           this._buildAnnualStatus();
+          this._buildLawTimelines();
         } catch(_) { this.legItems = []; }
         finally { this.legLoading = false; }
       },
@@ -4477,23 +4515,23 @@
 
       async fetchBillSummary(id, link) {
         if (!link || this.legSummaries[id] !== undefined) return;
-        this.legSummaries = { ...this.legSummaries, [id]: '...' };
+        this.legSummaries[id] = '...';
         try {
           const r = await fetch('/api/bill-summary?link=' + encodeURIComponent(link)).then(r => r.json());
-          this.legSummaries = { ...this.legSummaries, [id]: r.summary || '' };
+          this.legSummaries[id] = r.summary || '';
           // committee_review: JSONB 배열 또는 문자열(구버전 캐시) 모두 대응
           let cr = r.committee_review || [];
           if (typeof cr === 'string') { try { cr = JSON.parse(cr); } catch { cr = []; } }
-          this.legDetails = { ...this.legDetails, [id]: {
+          this.legDetails[id] = {
             reason:           r.reason || '',
             flow_status:      r.flow_status || '',
             flow_date:        r.flow_date || '',
             propose_info:     r.propose_info || '',
             committee_review: Array.isArray(cr) ? cr : [],
             is_assembly:      r.is_assembly || false,
-          }};
+          };
         } catch {
-          this.legSummaries = { ...this.legSummaries, [id]: '' };
+          this.legSummaries[id] = '';
         }
       },
 
@@ -4694,6 +4732,7 @@
         await this.loadAll();
         setInterval(() => this.loadAll(), 10000);
         this.bannerStartAuto();
+        this.dailyNewsStart();
 
         // ── 브라우저 히스토리 관리 ──
         // 최초 상태 등록

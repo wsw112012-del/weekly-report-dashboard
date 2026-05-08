@@ -319,19 +319,26 @@ def _fetch_assembly_detail(link: str) -> dict:
 
         tables = soup.find_all("table")
         propose_info = ""
-        main_content = ""
-        if tables:
-            for row in tables[0].find_all("tr"):
+        reason_part = ""
+        content_part = ""
+        for table in tables:
+            for row in table.find_all("tr"):
                 th = row.find("th")
                 td = row.find("td")
                 if not th or not td:
                     continue
                 th_txt = th.get_text(strip=True)
                 td_txt = td.get_text(separator="\n", strip=True)
-                if "발의정보" in th_txt:
+                if "발의정보" in th_txt and not propose_info:
                     propose_info = td_txt
-                elif "제안이유" in th_txt or "주요내용" in th_txt:
-                    main_content = td_txt
+                elif "제안이유및주요내용" in th_txt.replace(" ", ""):
+                    reason_part = td_txt
+                    content_part = ""
+                elif "제안이유" in th_txt and not reason_part:
+                    reason_part = td_txt
+                elif "주요내용" in th_txt and not content_part:
+                    content_part = td_txt
+        main_content = "\n".join(p for p in [reason_part, content_part] if p)
 
         committee_review: list[dict] = []
         for block in soup.find_all("div", class_="nsmCnt"):

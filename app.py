@@ -1028,21 +1028,30 @@ def _fetch_assembly_bill_detail(link: str) -> dict:
 
         tables = soup.find_all('table')
 
-        # ── 기본정보 (table[0]) ──
+        # ── 기본정보 (모든 테이블 순회 — 페이지마다 테이블 위치가 다를 수 있음) ──
         propose_info = ''
-        main_content = ''
-        if tables:
-            for row in tables[0].find_all('tr'):
+        reason_part = ''
+        content_part = ''
+        for table in tables:
+            for row in table.find_all('tr'):
                 th = row.find('th')
                 td = row.find('td')
                 if not th or not td:
                     continue
                 th_txt = th.get_text(strip=True)
                 td_txt = td.get_text(separator='\n', strip=True)
-                if '발의정보' in th_txt:
+                if '발의정보' in th_txt and not propose_info:
                     propose_info = td_txt
-                elif '제안이유' in th_txt or '주요내용' in th_txt:
-                    main_content = td_txt
+                elif '제안이유및주요내용' in th_txt.replace(' ', ''):
+                    # 통합 셀인 경우 전체를 main_content로
+                    reason_part = td_txt
+                    content_part = ''
+                elif '제안이유' in th_txt and not reason_part:
+                    reason_part = td_txt
+                elif '주요내용' in th_txt and not content_part:
+                    content_part = td_txt
+        # 제안이유 + 주요내용 합산
+        main_content = '\n'.join(p for p in [reason_part, content_part] if p)
 
         # ── 국회진행상황 (div.nsmCnt 블록들) ──
         committee_review: list[dict] = []
@@ -1100,7 +1109,8 @@ def _fetch_bill_detail(link: str) -> dict:
     # 국회입법현황 링크는 별도 처리
     if '/gcom/nsmLmSts/out/' in link:
         result = _fetch_assembly_bill_detail(link)
-        _bill_detail_cache[link] = result
+        if result:
+            _bill_detail_cache[link] = result
         return result
     # 정부입법현황 govLm 링크는 전용 파서 사용
     if '/lmSts/govLm/' in link:
