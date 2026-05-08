@@ -2495,7 +2495,7 @@
                             <tr class="pol-row" :class="polSelectedId===row.id ? 'selected' : ''"
                                 @click="polSelectedId = polSelectedId===row.id ? null : row.id; if(polSelectedId) fetchBillSummary(row.id, row.link)">
                               <td class="pol-no" x-text="row._rowNum"></td>
-                              <td class="pol-date" x-text="row.propose_date || row.scraped_at"></td>
+                              <td class="pol-date" x-text="legDetails[row.id]?.flow_date || row.propose_date || row.scraped_at"></td>
                               <td>
                                 <span class="pol-src-badge"
                                       :class="row.source==='gov' ? 'src-gov' : 'src-congress'"
@@ -2684,7 +2684,7 @@
                       <div class="tl-detail-title" x-text="tlSelectedItem.bill_title"></div>
                       <div class="tl-detail-meta">
                         <span x-text="tlSelectedItem.source==='gov' ? tlSelectedItem.ministry : tlSelectedItem.proposer"></span>
-                        <span x-text="' · ' + (tlSelectedItem.propose_date||tlSelectedItem.scraped_at||'').slice(0,10)"></span>
+                        <span x-text="' · ' + (legDetails[tlSelectedItem.id]?.flow_date || tlSelectedItem.propose_date || tlSelectedItem.scraped_at || '').slice(0,10)"></span>
                         <a x-show="tlSelectedItem.link" :href="tlSelectedItem.link" target="_blank"
                            rel="noopener noreferrer" class="link-btn" style="margin-left:6px" @click.stop>원문</a>
                       </div>
