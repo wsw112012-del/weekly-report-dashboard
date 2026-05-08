@@ -1541,6 +1541,10 @@ async def enrich_legislation():
                 item['summary'] = detail['summary']
             if detail.get('reason'):
                 item['reason'] = detail['reason']
+            if detail.get('propose_info'):
+                item['propose_info'] = detail['propose_info']
+            if detail.get('committee_review'):
+                item['committee_review'] = detail['committee_review']
             with lock:
                 done[0] += 1
 
