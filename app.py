@@ -979,7 +979,7 @@ def _fetch_govlm_detail(link: str) -> dict:
                     parent = h3.find_parent('div')
                     nxt = parent.find_next_sibling('div') if parent else None
                     if nxt:
-                        summary = nxt.get_text(separator=' ', strip=True)
+                        summary = nxt.get_text(separator='\n', strip=True)
                         break
         if not reason:
             for h3 in soup.find_all('h3'):
@@ -988,7 +988,7 @@ def _fetch_govlm_detail(link: str) -> dict:
                     parent = h3.find_parent('div')
                     nxt = parent.find_next_sibling('div') if parent else None
                     if nxt:
-                        reason = nxt.get_text(separator=' ', strip=True)
+                        reason = nxt.get_text(separator='\n', strip=True)
                         break
 
         # ── 전략 3: dl/dt/dd 구조 ──
@@ -1006,6 +1006,22 @@ def _fetch_govlm_detail(link: str) -> dict:
                         reason = dd_txt
 
         flow_status, flow_date = _parse_lawflow(soup)
+
+        # ── 제·개정이유 없으면 Gemini 생성 ──
+        if not reason and (summary or link):
+            bill_title_from_page = ''
+            title_tag = soup.find('title')
+            if title_tag:
+                bill_title_from_page = title_tag.get_text(strip=True).split('|')[0].strip()
+            if not bill_title_from_page:
+                for sel in ['h2.pageTitle', 'h2', '.bill-title']:
+                    el = soup.select_one(sel)
+                    if el:
+                        bill_title_from_page = el.get_text(strip=True)
+                        break
+            if bill_title_from_page or summary:
+                reason = _gemini_generate_reason(bill_title_from_page, summary)
+
         return {
             'summary': summary,
             'reason': reason,
@@ -1134,7 +1150,7 @@ def _fetch_bill_detail(link: str) -> dict:
                         parent = h3.find_parent('div')
                         nxt = parent.find_next_sibling('div') if parent else None
                         if nxt:
-                            return nxt.get_text(separator=' ', strip=True)
+                            return nxt.get_text(separator='\n', strip=True)
             return ''
 
         reason  = _extract_section(['제·개정이유', '제개정이유', '개정이유', '제정이유'])
@@ -1461,7 +1477,7 @@ async def get_bill_summary(link: str = ""):
     loop = asyncio.get_running_loop()
     detail = await loop.run_in_executor(None, _fetch_bill_detail, link)
 
-    # 성공 시 Supabase write-back
+    # 성공 시 Supabase write-back (summary + 입법현황 날짜/상태 포함)
     if detail.get("summary") and SUPABASE_URL and SUPABASE_KEY:
         encoded = urllib.parse.quote(link, safe='')
         patch_body: dict = {"summary": detail["summary"], "reason": detail.get("reason", "")}
@@ -1469,6 +1485,10 @@ async def get_bill_summary(link: str = ""):
             patch_body["propose_info"] = detail["propose_info"]
         if detail.get("committee_review"):
             patch_body["committee_review"] = detail["committee_review"]
+        if detail.get("flow_date"):
+            patch_body["propose_date"] = detail["flow_date"]   # 입법현황 날짜로 갱신
+        if detail.get("flow_status"):
+            patch_body["status"] = detail["flow_status"]       # 입법현황 상태로 갱신
         _supabase_request("PATCH", f"legislation_status?link=eq.{encoded}", patch_body)
 
     return JSONResponse({

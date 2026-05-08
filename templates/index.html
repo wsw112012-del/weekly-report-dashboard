@@ -909,6 +909,8 @@
     .sum-item-hdr { font-size: 13px; font-weight: 600; color: var(--accent); margin: 10px 0 3px; line-height: 1.4; }
     .sum-item-hdr:first-child { margin-top: 0; }
     .sum-item-body { font-size: 12px; color: var(--t2); line-height: 1.65; padding-left: 4px; }
+    .sum-item-sub  { font-size: 12px; color: var(--t2); line-height: 1.65; padding-left: 16px; }
+    .sum-item-note { font-size: 11px; color: var(--t3); line-height: 1.5; padding-left: 16px; }
     .sum-flow-badge { display: inline-block; padding: 4px 12px; background: #eff6ff; border: 1px solid #93c5fd; border-radius: 6px; font-size: 12px; color: #1d4ed8; font-weight: 600; }
     /* 국회입법 상세 */
     .sum-sub-row { display: flex; gap: 10px; padding-left: 18px; margin-bottom: 10px; }
@@ -4705,13 +4707,21 @@
         // ── 정부입법현황 레이아웃 (기존) ──
         let bodyHtml = '';
         if (text && text !== '...') {
-          let t = text
-            .replace(new RegExp(`([^\\n])\\s+([${ALPHA}]\\.)\\s`, 'g'), '$1\n$2 ')
-            .replace(/([^\n])\s+([-－]\s)/g, '$1\n$2')
-            .trim();
-          for (const line of t.split('\n').map(l => l.trim()).filter(Boolean)) {
+          // 이미 \n으로 구분된 텍스트를 그대로 사용하되, 연속 공백만 정리
+          const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+          for (const line of lines) {
             if (new RegExp(`^[${ALPHA}]\\.`).test(line)) {
+              // 가. 나. 다. → 섹션 헤더
               bodyHtml += `<div class="sum-item-hdr">${escPlain(line)}</div>`;
+            } else if (/^\d+\)/.test(line) || /^\d+\./.test(line)) {
+              // 1) 2) 3) 또는 1. 2. 3. → 들여쓰기 서브항목
+              bodyHtml += `<div class="sum-item-sub">${escPlain(line)}</div>`;
+            } else if (/^[-－·•]/.test(line)) {
+              // - 또는 · 글머리 → 들여쓰기 항목
+              bodyHtml += `<div class="sum-item-sub">${escPlain(line)}</div>`;
+            } else if (/^\*/.test(line)) {
+              // * 각주
+              bodyHtml += `<div class="sum-item-note">${escPlain(line)}</div>`;
             } else {
               bodyHtml += `<div class="sum-item-body">${escPlain(line)}</div>`;
             }
