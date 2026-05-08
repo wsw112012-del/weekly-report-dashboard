@@ -1253,6 +1253,43 @@ async def get_bill_summary(link: str = ""):
     })
 
 
+@app.get("/api/article-html")
+async def get_article_html(url: str = ""):
+    """외부 기사 HTML 프록시 — 여백 CSS 주입 후 반환 (srcdoc용)"""
+    if not url:
+        return HTMLResponse("")
+    try:
+        resp = _APP_SESSION.get(url, timeout=12, allow_redirects=True)
+        final_url = resp.url
+        content = resp.content.decode(resp.apparent_encoding or 'utf-8', errors='replace')
+        soup = BeautifulSoup(content, 'lxml')
+        # base 태그로 상대 URL 해결
+        existing_base = soup.find('base')
+        if existing_base:
+            existing_base['href'] = final_url
+            existing_base['target'] = '_blank'
+        else:
+            base_tag = soup.new_tag('base', href=final_url, target='_blank')
+            if soup.head:
+                soup.head.insert(0, base_tag)
+        # 여백 + 가독성 CSS 주입
+        style_tag = soup.new_tag('style')
+        style_tag.string = (
+            "body,#wrap,#container,.container,.wrapper,.contents,"
+            "#content,.content,.article-wrap,.news-wrap{"
+            "padding-left:20px!important;padding-right:20px!important;}"
+            "img{max-width:100%!important;height:auto!important;}"
+        )
+        if soup.head:
+            soup.head.append(style_tag)
+        return HTMLResponse(str(soup), media_type="text/html; charset=utf-8")
+    except Exception as e:
+        return HTMLResponse(
+            f"<html><body style='padding:20px;font-family:sans-serif;color:#666'>"
+            f"<p>원문을 불러올 수 없습니다.</p><p style='font-size:12px'>{e}</p></body></html>"
+        )
+
+
 @app.get("/api/article-content")
 async def get_article_content(url: str = ""):
     """외부 보도자료·언론기사 원문 텍스트 추출 프록시"""

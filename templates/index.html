@@ -3341,19 +3341,27 @@
          class="art-panel-ext-btn">외부 열기 ↗</a>
     </div>
 
-    <!-- 차단 사이트 fallback -->
-    <template x-if="artPanelBlocked()">
-      <div class="art-panel-blocked">
-        <div class="art-panel-blocked-msg">이 사이트는 보안 정책으로 인해 패널 내에서 표시할 수 없습니다.</div>
-        <a :href="artPanel?.['링크'] || '#'" target="_blank" rel="noopener noreferrer"
-           class="art-panel-blocked-btn">새 탭에서 원문 열기 ↗</a>
+    <!-- 로딩 -->
+    <div x-show="artPanelLoading"
+         style="flex:1;display:flex;align-items:center;justify-content:center;color:var(--t3);font-size:13px;">
+      원문 불러오는 중...
+    </div>
+
+    <!-- 본문 iframe (srcdoc) -->
+    <template x-if="!artPanelLoading && artPanelHtml">
+      <div style="flex:1;display:flex;padding:0 12px 12px;overflow:hidden;">
+        <iframe :srcdoc="artPanelHtml"
+                style="flex:1;border:none;width:100%;border-radius:8px;overflow:hidden;"></iframe>
       </div>
     </template>
 
-    <!-- 정상 iframe -->
-    <template x-if="!artPanelBlocked()">
-      <iframe :src="artPanel?.['링크'] || 'about:blank'"
-              style="flex:1;border:none;width:100%;height:100%;display:block;"></iframe>
+    <!-- 불러오기 실패 fallback -->
+    <template x-if="!artPanelLoading && !artPanelHtml">
+      <div class="art-panel-blocked">
+        <div class="art-panel-blocked-msg">원문을 패널에서 표시할 수 없습니다.</div>
+        <a :href="artPanel?.['링크'] || '#'" target="_blank" rel="noopener noreferrer"
+           class="art-panel-blocked-btn">새 탭에서 원문 열기 ↗</a>
+      </div>
     </template>
   </div>
 
@@ -3458,7 +3466,8 @@
       legSummaries: {},
       legDetails: {},
       artPanel: null,
-      IFRAME_BLOCKED_DOMAINS: ['www.mt.co.kr','www.ajunews.com','www.dailian.co.kr','www.sidae.com','www.tokenpost.kr','zdnet.co.kr','www.chosun.com'],
+      artPanelHtml: '',
+      artPanelLoading: false,
       sidebarW: 200,
       tlScrollW: 380,
       legEnriching: false,
@@ -4350,17 +4359,22 @@
         }
       },
 
-      artPanelBlocked() {
-        const link = this.artPanel?.['링크'] || '';
-        if (!link) return false;
-        try { return this.IFRAME_BLOCKED_DOMAINS.includes(new URL(link).hostname); }
-        catch { return false; }
-      },
-      openArtPanel(article) {
+      async openArtPanel(article) {
         this.artPanel = article;
+        this.artPanelHtml = '';
+        this.artPanelLoading = true;
+        const url = article['링크'] || '';
+        if (url) {
+          try {
+            const r = await fetch('/api/article-html?url=' + encodeURIComponent(url));
+            if (r.ok) this.artPanelHtml = await r.text();
+          } catch { }
+        }
+        this.artPanelLoading = false;
       },
       closeArtPanel() {
         this.artPanel = null;
+        this.artPanelHtml = '';
       },
 
       formatSummary(text, detail = null, item = null) {
