@@ -8,10 +8,10 @@
     "bill_type": "대통령령",
     "amendment_type": "일부개정",
     "ministry": "금융위원회",
-    "status": "공포",
+    "status": "국무회의 의결",
     "proposer": "",
     "bill_no": "",
-    "propose_date": "2025.8.26.",
+    "propose_date": "2025.08.18.",
     "link": "https://www.kofiu.go.kr/kor/notification/report_view.do?ntcnYardOrdrNo=375&seCd=",
     "scraped_at": "2026-05-07"
   },
@@ -27,7 +27,7 @@
     "status": "공포",
     "proposer": "",
     "bill_no": "",
-    "propose_date": "2025.1.21.",
+    "propose_date": "2026.01.14.",
     "link": "https://www.kofiu.go.kr/kor/notification/report_view.do?ntcnYardOrdrNo=388&seCd=",
     "scraped_at": "2026-05-07"
   },
@@ -40,12 +40,12 @@
     "bill_type": "대통령령",
     "amendment_type": "일부개정",
     "ministry": "개인정보보호위원...",
-    "status": "차관회의",
+    "status": "국무회의",
     "proposer": "",
     "bill_no": "",
     "link": "https://opinion.lawmaking.go.kr/lmSts/govLm/2000000325150/detailRP",
     "scraped_at": "2026-05-06",
-    "propose_date": "2026.5.7."
+    "propose_date": "2026.5.12."
   },
   {
     "id": "a5d7772de0fe",

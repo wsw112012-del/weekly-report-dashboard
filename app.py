@@ -1243,8 +1243,36 @@ async def get_bill_summary(link: str = ""):
     """법안 상세 페이지 요약 반환 (제·개정이유 + 주요내용 + 입법현황)"""
     if not link:
         return JSONResponse({"summary": "", "reason": "", "flow_status": "", "flow_date": ""})
+
+    # Supabase 캐시 우선 조회 (Render geo-block 우회)
+    if SUPABASE_URL and SUPABASE_KEY:
+        encoded = urllib.parse.quote(link, safe='')
+        cached = _supabase_request(
+            "GET",
+            f"legislation_status?link=eq.{encoded}&select=summary,reason,status,propose_date&limit=1",
+        )
+        if cached and cached[0].get("summary"):
+            row = cached[0]
+            return JSONResponse({
+                "summary":     row.get("summary", ""),
+                "reason":      row.get("reason", ""),
+                "flow_status": row.get("status", ""),
+                "flow_date":   row.get("propose_date", ""),
+            })
+
+    # 실시간 스크래핑 (캐시 미적중 또는 Supabase 없을 때)
     loop = asyncio.get_running_loop()
     detail = await loop.run_in_executor(None, _fetch_bill_detail, link)
+
+    # 성공 시 Supabase write-back
+    if detail.get("summary") and SUPABASE_URL and SUPABASE_KEY:
+        encoded = urllib.parse.quote(link, safe='')
+        _supabase_request(
+            "PATCH",
+            f"legislation_status?link=eq.{encoded}",
+            {"summary": detail["summary"], "reason": detail.get("reason", "")},
+        )
+
     return JSONResponse({
         "summary":     detail.get("summary", ""),
         "reason":      detail.get("reason", ""),
@@ -1410,6 +1438,10 @@ async def enrich_legislation():
                 item['status'] = detail['flow_status']
             if detail.get('flow_date'):
                 item['propose_date'] = detail['flow_date']
+            if detail.get('summary'):
+                item['summary'] = detail['summary']
+            if detail.get('reason'):
+                item['reason'] = detail['reason']
             with lock:
                 done[0] += 1
 
