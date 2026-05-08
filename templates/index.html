@@ -1594,6 +1594,25 @@
     }
     .daily-pager-dot.active { background: var(--accent); }
 
+    /* ── 입법현황 페이지네이션 ── */
+    .leg-pager {
+      display: flex; align-items: center; justify-content: center;
+      gap: 4px; padding: 10px 0 4px; flex-wrap: wrap;
+    }
+    .leg-pager-btn {
+      background: none; border: 1px solid var(--bd); border-radius: 6px;
+      padding: 4px 10px; font-size: 13px; cursor: pointer; color: var(--t2);
+      line-height: 1;
+    }
+    .leg-pager-btn:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+    .leg-pager-btn:disabled { opacity: .25; cursor: default; }
+    .leg-pager-page {
+      background: none; border: 1px solid var(--bd); border-radius: 6px;
+      padding: 4px 8px; font-size: 12px; cursor: pointer; color: var(--t2); min-width: 30px;
+    }
+    .leg-pager-page:hover { border-color: var(--accent); color: var(--accent); }
+    .leg-pager-page.active { background: var(--accent); color: #fff; border-color: var(--accent); font-weight: 600; }
+
     /* ── 정책DB 사업영역별 2×2 그리드 ── */
     .policy-db-grid {
       display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px;
@@ -2407,10 +2426,10 @@
               <div class="pol-sidebar">
                 <div class="pol-sidebar-title">대상 법령</div>
                 <div class="pol-sidebar-item" :class="legSideLaw==='' && legCat==='전체' ? 'active' : ''"
-                     @click="legSideLaw=''; legLaw=''; legCat='전체'">전체</div>
+                     @click="legSideLaw=''; legLaw=''; legCat='전체'; legPage=0">전체</div>
                 <template x-for="law in legAllLaws" :key="law">
                   <div class="pol-sidebar-item" :class="legSideLaw===law ? 'active' : ''"
-                       @click="legSideLaw=law; legLaw=law; legCat='전체'"
+                       @click="legSideLaw=law; legLaw=law; legCat='전체'; legPage=0"
                        x-text="normalizeLawName(law)"></div>
                 </template>
                 <div class="pol-sidebar-divider"></div>
@@ -2418,7 +2437,7 @@
                 <template x-for="c in ['전체','데이터','페이먼트','AML']" :key="c">
                   <div class="pol-sidebar-item"
                        :class="legCat===c && legSideLaw==='' ? 'active' : ''"
-                       @click="legCat=c; legSideLaw=''; legLaw=''"
+                       @click="legCat=c; legSideLaw=''; legLaw=''; legPage=0"
                        x-text="c"></div>
                 </template>
               </div>
@@ -2427,14 +2446,14 @@
                 <div class="pol-filter-bar">
                   <div class="articles-search" style="flex:1;max-width:300px">
                     <span style="font-size:12px;color:var(--t3)">🔍</span>
-                    <input type="text" x-model="legSearch" placeholder="법령명·기관·상태 검색..."/>
+                    <input type="text" x-model="legSearch" @input="legPage=0" placeholder="법령명·기관·상태 검색..."/>
                     <template x-if="legSearch">
                       <span @click="legSearch=''" style="cursor:pointer;color:var(--t3);font-size:11px">✕</span>
                     </template>
                   </div>
                   <template x-for="s in ['전체','정부','국회']" :key="s">
                     <button class="src-btn" :class="legSource===s ? 'active-press' : ''"
-                            @click="legSource=s" x-text="s"></button>
+                            @click="legSource=s; legPage=0" x-text="s"></button>
                   </template>
                   <span class="pol-count" x-text="filteredLegislation.length + '건'"></span>
                   <span class="pol-fetched" x-text="legLastFetched ? '수집: ' + legLastFetched : ''"></span>
@@ -2452,7 +2471,7 @@
                         <tr>
                           <th style="width:32px">No</th>
                           <th style="width:88px;cursor:pointer;user-select:none"
-                              @click="legDateSort = legDateSort==='desc' ? 'asc' : 'desc'">
+                              @click="legDateSort = legDateSort==='desc' ? 'asc' : 'desc'; legPage=0">
                             날짜
                             <span x-text="legDateSort==='asc' ? '↑' : legDateSort==='desc' ? '↓' : '↕'"
                                   style="font-size:10px;color:var(--t3);margin-left:2px"></span>
@@ -2464,7 +2483,7 @@
                           <th style="width:52px;white-space:nowrap">링크</th>
                         </tr>
                       </thead>
-                        <template x-for="row in legTableRows" :key="row._id">
+                        <template x-for="row in legTableRowsPaged" :key="row._id">
                           <tbody>
                           <template x-if="row._type === 'year'">
                             <tr class="pol-year-row">
@@ -2519,6 +2538,17 @@
                           </tbody>
                         </template>
                     </table>
+                  </template>
+                  <!-- 페이지네이션 바 -->
+                  <template x-if="legTotalPages > 1">
+                    <div class="leg-pager">
+                      <button class="leg-pager-btn" :disabled="legPage === 0" @click="legPage = Math.max(0, legPage-1)">‹</button>
+                      <template x-for="p in legTotalPages" :key="p">
+                        <button class="leg-pager-page" :class="legPage === p-1 ? 'active' : ''"
+                                @click="legPage = p-1" x-text="p"></button>
+                      </template>
+                      <button class="leg-pager-btn" :disabled="legPage >= legTotalPages-1" @click="legPage = Math.min(legTotalPages-1, legPage+1)">›</button>
+                    </div>
                   </template>
                 </div>
               </div>
@@ -3592,6 +3622,8 @@
       legEnriching: false,
       legEnrichProgress: '',
       legDateSort: 'desc',
+      legPage: 0,
+      legPageSize: 30,
       tlYear: '전체',
       tlCat:  '전체',
       tlSideLaw: '',
@@ -4414,6 +4446,25 @@
           }
           num++;
           rows.push({ ...item, _type: 'item', _rowNum: num, _id: item.id });
+        }
+        return rows;
+      },
+      get legTotalPages() {
+        return Math.max(1, Math.ceil(this.filteredLegislation.length / this.legPageSize));
+      },
+      get legTableRowsPaged() {
+        const start = this.legPage * this.legPageSize;
+        const pageItems = this.filteredLegislation.slice(start, start + this.legPageSize);
+        const parseYear = d => (d || '').match(/^(\d{4})/)?.[1] || '';
+        const rows = [];
+        let lastYear = null;
+        for (const item of pageItems) {
+          const yr = parseYear(this.parseLegDate(item.propose_date || item.scraped_at || ''));
+          if (yr && yr !== lastYear) {
+            rows.push({ _type: 'year', year: yr, _id: 'yr-' + yr + '-page' + start });
+            lastYear = yr;
+          }
+          rows.push({ ...item, _type: 'item', _rowNum: start + rows.length, _id: item.id });
         }
         return rows;
       },
