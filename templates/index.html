@@ -927,6 +927,14 @@
     .asm-body { font-size: 12px; color: var(--t2); line-height: 1.75; }
     /* 배너 국회/정부 출처 뱃지 */
     .leg-bill-source { font-size: 10px; padding: 1px 5px; border-radius: 3px; flex-shrink: 0; }
+    /* 배너 더보기 버튼 */
+    .leg-more-btn {
+      font-size: 11px; font-weight: 600; color: var(--accent);
+      background: #eff6ff; border: 1px solid #bfdbfe;
+      border-radius: 5px; padding: 2px 10px; cursor: pointer;
+      transition: background .15s;
+    }
+    .leg-more-btn:hover { background: #dbeafe; }
     /* 리사이즈 핸들 */
     .resize-handle {
       width: 5px; cursor: col-resize; flex-shrink: 0; position: relative; z-index: 2;
@@ -1910,7 +1918,7 @@
                            :class="bannerSelectedMonth === grp.month ? 'month-node-selected' : ''"></div>
                       <div class="leg-month-node-label"
                            :class="bannerSelectedMonth === grp.month ? 'yr-selected' : ''"
-                           x-text="grp.month + '월'"></div>
+                           x-text="bannerMonthLabel(grp.month)"></div>
                     </div>
                   </template>
                 </div>
@@ -1919,8 +1927,8 @@
               <!-- 선택 월 개정 내용 -->
               <div class="leg-slide-bills">
                 <div style="font-size:11px;color:#64748b;margin-bottom:4px;padding-left:2px"
-                     x-text="bannerSelectedYear + '.' + bannerSelectedMonth + ' 개정 내용 (' + bannerMonthItems.length + '건)'"></div>
-                <template x-for="item in bannerMonthItems" :key="item.id || item.bill_title">
+                     x-text="bannerSelectedYear + '년 ' + bannerMonthLabel(bannerSelectedMonth) + ' 개정 내용 (' + bannerMonthItems.length + '건)'"></div>
+                <template x-for="item in bannerMonthItems.slice(0, 5)" :key="item.id || item.bill_title">
                   <div class="leg-bill-row" style="cursor:pointer"
                        @click="goToLegislation(item.target_law, item)"
                        @mouseenter="$el.style.background='#eff6ff'"
@@ -1932,6 +1940,16 @@
                           style="font-size:10px;padding:1px 5px;border-radius:3px;flex-shrink:0"></span>
                     <span class="leg-bill-title" x-text="item.bill_title"></span>
                     <span style="color:#94a3b8;font-size:11px;flex-shrink:0">→</span>
+                  </div>
+                </template>
+                <!-- 5건 초과 시 더보기 -->
+                <template x-if="bannerMonthItems.length > 5">
+                  <div style="display:flex;align-items:center;gap:6px;padding:4px 2px 0">
+                    <span style="color:#94a3b8;font-size:13px;letter-spacing:2px">···</span>
+                    <button class="leg-more-btn"
+                            @click="goToLegislation(lawTimelines[bannerIdx]?.law)">
+                      +<span x-text="bannerMonthItems.length - 5"></span>건 더보기 →
+                    </button>
                   </div>
                 </template>
               </div>
@@ -4162,11 +4180,18 @@
         const groups = {};
         for (const item of items) {
           const dateStr = item.propose_date || item.scraped_at || '';
-          const month = dateStr.slice(5, 7) || '??';
+          // "2026-05-08", "2026.1.7.", "2026. 3. 31." 등 다양한 포맷 대응
+          const m = dateStr.match(/\d{4}[\.\-]\s*(\d{1,2})/);
+          const month = m ? m[1].padStart(2, '0') : '??';
           if (!groups[month]) groups[month] = [];
           groups[month].push(item);
         }
         return Object.keys(groups).sort().map(m => ({ month: m, items: groups[m] }));
+      },
+      bannerMonthLabel(m) {
+        // "05" → "5월", "??" → "??"
+        const n = parseInt(m, 10);
+        return isNaN(n) ? m : n + '월';
       },
       get bannerSelectedMonth() {
         const grps = this.bannerMonthGroups;
