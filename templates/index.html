@@ -2495,7 +2495,7 @@
                             <tr class="pol-row" :class="polSelectedId===row.id ? 'selected' : ''"
                                 @click="polSelectedId = polSelectedId===row.id ? null : row.id; if(polSelectedId) fetchBillSummary(row.id, row.link)">
                               <td class="pol-no" x-text="row._rowNum"></td>
-                              <td class="pol-date" x-text="legDetails[row.id]?.flow_date || row.propose_date || row.scraped_at"></td>
+                              <td class="pol-date" x-text="fmtLegDate(legDetails[row.id]?.flow_date || row.propose_date || row.scraped_at)"></td>
                               <td>
                                 <span class="pol-src-badge"
                                       :class="row.source==='gov' ? 'src-gov' : 'src-congress'"
@@ -2633,7 +2633,7 @@
                           <div class="tl-line-top"></div>
                           <div class="tl-node"
                                :class="tlSelectedItem && tlSelectedItem.id===a.id ? 'tl-node-active' : ''"
-                               x-text="(a.propose_date||a.scraped_at||'').slice(5).replace('-','.')"></div>
+                               x-text="fmtLegDate(a.propose_date||a.scraped_at||'').slice(5,10)"></div>
                           <div class="tl-line-bot"></div>
                         </div>
 
@@ -2684,7 +2684,7 @@
                       <div class="tl-detail-title" x-text="tlSelectedItem.bill_title"></div>
                       <div class="tl-detail-meta">
                         <span x-text="tlSelectedItem.source==='gov' ? tlSelectedItem.ministry : tlSelectedItem.proposer"></span>
-                        <span x-text="' · ' + (legDetails[tlSelectedItem.id]?.flow_date || tlSelectedItem.propose_date || tlSelectedItem.scraped_at || '').slice(0,10)"></span>
+                        <span x-text="' · ' + fmtLegDate(legDetails[tlSelectedItem.id]?.flow_date || tlSelectedItem.propose_date || tlSelectedItem.scraped_at || '')"></span>
                         <a x-show="tlSelectedItem.link" :href="tlSelectedItem.link" target="_blank"
                            rel="noopener noreferrer" class="link-btn" style="margin-left:6px" @click.stop>원문</a>
                       </div>
@@ -4480,10 +4480,17 @@
       },
       parseLegDate(d) {
         if (!d) return '';
-        // "2026.2.25." or "2026. 02. 25." → "2026-02-25"
-        const m = d.match(/(\d{4})[\.\s]+(\d{1,2})[\.\s]+(\d{1,2})/);
+        // "2026.2.25." or "2026. 02. 25." → "2026-02-25" (정렬용 ISO)
+        const m = d.match(/(\d{4})[\.\s\-]+(\d{1,2})[\.\s\-]+(\d{1,2})/);
         if (m) return `${m[1]}-${m[2].padStart(2,'0')}-${m[3].padStart(2,'0')}`;
-        return d; // already ISO or unknown format
+        return d;
+      },
+      fmtLegDate(d) {
+        if (!d) return '';
+        // 어떤 형식이든 → "YYYY.MM.DD." 표시용
+        const m = d.match(/(\d{4})[\.\s\-]+(\d{1,2})[\.\s\-]+(\d{1,2})/);
+        if (m) return `${m[1]}.${m[2].padStart(2,'0')}.${m[3].padStart(2,'0')}.`;
+        return d;
       },
       legStatusStyle(status) {
         const map = {

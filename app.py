@@ -235,6 +235,17 @@ def pipeline_status() -> dict:
     return result
 
 
+def normalize_leg_date(d: str) -> str:
+    """입법현황 날짜를 YYYY.MM.DD. 형식으로 정규화.
+    '2026.2.4.' / '2026-02-04' / '2026. 2. 4.' 모두 → '2026.02.04.'"""
+    if not d:
+        return ''
+    m = re.search(r'(\d{4})[\.\s\-]+(\d{1,2})[\.\s\-]+(\d{1,2})', d)
+    if m:
+        return f"{m.group(1)}.{m.group(2).zfill(2)}.{m.group(3).zfill(2)}."
+    return d
+
+
 def date_to_display(date_str: str) -> str:
     """'2026-04-23' → \"'26.4.23(목)\""""
     try:
@@ -794,7 +805,7 @@ def _parse_lawflow(soup) -> tuple[str, str]:
     last_text = items[-1].get_text(strip=True)
     status = _re.split(r'\s*\(', last_text)[0].strip()
     date_m = _re.search(r'(\d{4})\.\s*(\d{1,2})\.\s*(\d{1,2})\.', last_text)
-    date = f"{date_m.group(1)}.{date_m.group(2)}.{date_m.group(3)}." if date_m else ''
+    date = normalize_leg_date(f"{date_m.group(1)}.{date_m.group(2)}.{date_m.group(3)}.") if date_m else ''
     return status, date
 
 
@@ -931,7 +942,7 @@ def _fetch_kofiu_detail(link: str) -> dict:
         flow_status = next(
             (kw for kw in ['국무회의 의결', '시행', '공포', '입법예고'] if kw in title), ''
         )
-        flow_date = (item.get('ntcnYardRgiDt') or '')[:10].replace('-', '.') + '.'
+        flow_date = normalize_leg_date((item.get('ntcnYardRgiDt') or '')[:10])
 
         return {'summary': summary, 'reason': reason,
                 'flow_status': flow_status, 'flow_date': flow_date}
@@ -983,21 +994,29 @@ def _fetch_govlm_detail(link: str) -> dict:
 
         # ── 전략 2: h3 헤더 이후 콘텐츠 탐색 (govLm 실제 페이지 구조) ──
         def _content_after_h3(h3_tag):
-            """h3 이후 텍스트 있는 형제 또는 부모 next-sibling div를 탐색"""
-            # 같은 컨테이너 내 h3 이후 형제 div/p/ul 중 첫 텍스트 블록
+            """h3 이후 실제 본문 콘텐츠 탐색.
+            UI 버튼 텍스트('전체 펼침' 등 짧은 side class)는 건너뜀."""
+            _SKIP_CLASSES = {'side', 'btn', 'button', 'more', 'toggle'}
+            _MIN_LEN = 20  # 20자 미만은 UI 버튼으로 간주하고 건너뜀
+
+            # 1) 같은 컨테이너 내 h3 이후 형제 탐색
             for sib in h3_tag.find_next_siblings():
-                if sib.name in ('h3', 'h2', 'h4'):  # 다음 섹션 헤더면 중단
+                if sib.name in ('h3', 'h2', 'h4'):
                     break
+                cls = set(sib.get('class') or [])
+                if cls & _SKIP_CLASSES:
+                    continue
                 txt = sib.get_text(separator='\n', strip=True)
-                if txt:
+                if txt and len(txt) >= _MIN_LEN:
                     return txt
-            # 부모 div의 next-sibling div
+
+            # 2) 부모 div의 next-sibling div (govLm 실제 구조)
             parent = h3_tag.find_parent('div')
             if parent:
                 nxt = parent.find_next_sibling('div')
                 if nxt:
                     txt = nxt.get_text(separator='\n', strip=True)
-                    if txt:
+                    if txt and len(txt) >= _MIN_LEN:
                         return txt
             return ''
 
@@ -1295,7 +1314,7 @@ def _scrape_nsmlmsts(law_name: str, category: str) -> list[dict]:
             proposer_raw = cells[1].get_text(' ', strip=True) if len(cells) > 1 else ''
             # 제안일 추출: "홍길동의원 등 3인(2026. 4. 15.)" → "2026.4.15."
             dm = re.search(r'\((\d{4})\.\s*(\d{1,2})\.\s*(\d{1,2})\.?\)', proposer_raw)
-            propose_date = f"{dm.group(1)}.{dm.group(2)}.{dm.group(3)}." if dm else ''
+            propose_date = normalize_leg_date(f"{dm.group(1)}.{dm.group(2)}.{dm.group(3)}.") if dm else ''
             items.append({
                 "id": hashlib.md5(f"nsm-{bill_no or href or (law_name + title[:30])}".encode()).hexdigest()[:12],
                 "source": "assembly",
