@@ -18,6 +18,7 @@ import json
 import os
 import sys
 import time
+import urllib.parse
 import urllib.request
 import urllib3
 from datetime import date
@@ -83,7 +84,7 @@ def _ensure_lawmaking_session() -> None:
             pass
 
 
-# ── Supabase upsert ────────────────────────────────────────────────────────────
+# ── Supabase helpers ───────────────────────────────────────────────────────────
 def _supabase_upsert(table: str, rows: list[dict]) -> None:
     if not SUPABASE_URL or not SUPABASE_KEY or not rows:
         return
@@ -105,6 +106,48 @@ def _supabase_upsert(table: str, rows: list[dict]) -> None:
                 pass
         except Exception as e:
             print(f"  [WARN] Supabase upsert {table}: {e}")
+
+
+def _supabase_get(table: str, query: str = "") -> list[dict]:
+    if not SUPABASE_URL or not SUPABASE_KEY:
+        return []
+    url = f"{SUPABASE_URL}/rest/v1/{table}?{query}"
+    req = urllib.request.Request(
+        url,
+        headers={
+            "apikey": SUPABASE_KEY,
+            "Authorization": f"Bearer {SUPABASE_KEY}",
+            "Accept": "application/json",
+        },
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            return json.loads(resp.read().decode("utf-8"))
+    except Exception as e:
+        print(f"  [WARN] Supabase GET {table}: {e}")
+        return []
+
+
+def _supabase_patch(table: str, query: str, data: dict) -> None:
+    if not SUPABASE_URL or not SUPABASE_KEY:
+        return
+    payload = json.dumps(data, ensure_ascii=False).encode("utf-8")
+    req = urllib.request.Request(
+        f"{SUPABASE_URL}/rest/v1/{table}?{query}",
+        data=payload,
+        headers={
+            "apikey": SUPABASE_KEY,
+            "Authorization": f"Bearer {SUPABASE_KEY}",
+            "Content-Type": "application/json",
+            "Prefer": "return=minimal",
+        },
+        method="PATCH",
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            pass
+    except Exception as e:
+        print(f"  [WARN] Supabase PATCH {table}: {e}")
 
 
 # ── 정부 입법현황 스크래퍼 ──────────────────────────────────────────────────────
@@ -264,6 +307,114 @@ def collect_legislation() -> list[dict]:
     return results
 
 
+# ── 국회입법현황 상세 수집 ──────────────────────────────────────────────────────
+def _fetch_assembly_detail(link: str) -> dict:
+    """국회 법안 상세 페이지에서 발의정보·제안이유·국회진행상황 파싱"""
+    try:
+        _ensure_lawmaking_session()
+        resp = SESSION.get(link, timeout=20)
+        html = resp.content.decode("utf-8", errors="replace")
+        from bs4 import BeautifulSoup
+        soup = BeautifulSoup(html, "lxml")
+
+        tables = soup.find_all("table")
+        propose_info = ""
+        main_content = ""
+        if tables:
+            for row in tables[0].find_all("tr"):
+                th = row.find("th")
+                td = row.find("td")
+                if not th or not td:
+                    continue
+                th_txt = th.get_text(strip=True)
+                td_txt = td.get_text(separator="\n", strip=True)
+                if "발의정보" in th_txt:
+                    propose_info = td_txt
+                elif "제안이유" in th_txt or "주요내용" in th_txt:
+                    main_content = td_txt
+
+        committee_review: list[dict] = []
+        for block in soup.find_all("div", class_="nsmCnt"):
+            head_el = block.find("p", class_="head")
+            head = head_el.get_text(strip=True) if head_el else ""
+            items: list[str] = []
+            result_label = ""
+            result_items: list[str] = []
+            in_result = False
+            for child in block.children:
+                if not hasattr(child, "name"):
+                    continue
+                if child.name == "p" and "tit" in (child.get("class") or []):
+                    in_result = True
+                    result_label = child.get_text(strip=True)
+                elif child.name == "ul":
+                    texts = [li.get_text(strip=True) for li in child.find_all("li") if li.get_text(strip=True)]
+                    if in_result:
+                        result_items.extend(texts)
+                    else:
+                        items.extend(texts)
+            entry: dict = {"head": head, "items": items}
+            if result_label:
+                entry["result_label"] = result_label
+                entry["result_items"] = result_items
+            if head:
+                committee_review.append(entry)
+
+        return {"propose_info": propose_info, "summary": main_content, "committee_review": committee_review}
+    except Exception as e:
+        print(f"  [WARN] assembly detail ({link[:60]}): {e}")
+        return {}
+
+
+def enrich_assembly_details() -> None:
+    """Supabase의 국회입법현황 항목 중 summary 없는 것들을 상세 페이지에서 채워넣기"""
+    if not SUPABASE_URL or not SUPABASE_KEY:
+        print("[INFO] SUPABASE_URL 없음 — 상세 수집 생략")
+        return
+
+    print("=== 국회입법현황 상세 수집 시작 ===")
+    # summary가 없는 국회 항목 조회 (null + 빈 문자열 두 번 조회)
+    null_items = _supabase_get(
+        "legislation_status",
+        "source=eq.assembly&summary=is.null&select=id,link&limit=500",
+    )
+    empty_items = _supabase_get(
+        "legislation_status",
+        "source=eq.assembly&summary=eq.&select=id,link&limit=500",
+    )
+    all_items = null_items + empty_items
+
+    # 중복 링크 제거
+    seen: set[str] = set()
+    targets: list[dict] = []
+    for it in all_items:
+        lk = it.get("link", "")
+        if lk and lk not in seen and "/gcom/nsmLmSts/out/" in lk:
+            seen.add(lk)
+            targets.append(it)
+
+    print(f"  대상: {len(targets)}건")
+    enriched = 0
+    for it in targets:
+        lk = it["link"]
+        detail = _fetch_assembly_detail(lk)
+        if not detail.get("summary") and not detail.get("propose_info"):
+            time.sleep(0.3)
+            continue
+        patch: dict = {
+            "summary":      detail.get("summary", ""),
+            "propose_info": detail.get("propose_info", ""),
+        }
+        if detail.get("committee_review"):
+            patch["committee_review"] = detail["committee_review"]
+        encoded = urllib.parse.quote(lk, safe="")
+        _supabase_patch("legislation_status", f"link=eq.{encoded}", patch)
+        enriched += 1
+        time.sleep(0.5)
+
+    print(f"  상세 수집 완료: {enriched}건")
+
+
 # ── 메인 ──────────────────────────────────────────────────────────────────────
 if __name__ == "__main__":
     mode = sys.argv[1] if len(sys.argv) > 1 else "전체"
@@ -280,6 +431,7 @@ if __name__ == "__main__":
             print("업로드 완료")
         else:
             print("[INFO] SUPABASE_URL 없음 — 로컬 저장 생략")
+        enrich_assembly_details()
 
     if run_press:
         print("=== 국회의원 보도자료 수집 시작 ===")
