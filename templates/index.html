@@ -1576,6 +1576,23 @@
       background: #fafbff; border: 1px dashed var(--bd); border-radius: 8px;
       padding: 20px 8px; text-align: center; font-size: 11px; color: var(--t3);
     }
+    /* 안 A — 하단 페이지네이션 바 */
+    .daily-pager {
+      display: flex; align-items: center; justify-content: center; gap: 5px;
+      padding: 4px 0 2px;
+    }
+    .daily-pager-btn {
+      background: none; border: none; cursor: pointer;
+      font-size: 14px; color: var(--t3); padding: 0 2px; line-height: 1;
+      transition: color .12s;
+    }
+    .daily-pager-btn:hover { color: var(--t1); }
+    .daily-pager-btn:disabled { opacity: .2; cursor: default; }
+    .daily-pager-dot {
+      width: 5px; height: 5px; border-radius: 50%; cursor: pointer;
+      background: #cbd5e1; border: none; padding: 0; transition: background .15s;
+    }
+    .daily-pager-dot.active { background: var(--accent); }
 
     /* ── 정책DB 사업영역별 2×2 그리드 ── */
     .policy-db-grid {
@@ -1986,7 +2003,7 @@
                          'cal-day-today':    cell !== null && cell.dateStr === _calTodayStr(),
                          'cal-day-selected': cell !== null && cell.dateStr === calSelectedDate && cell.dateStr !== _calTodayStr()
                        }"
-                       @click="cell !== null && (calSelectedDate = cell.dateStr, dailyNewsPage = 0, dailyNewsStart())">
+                       @click="cell !== null && (calSelectedDate = cell.dateStr, dailyNewsPages = {'데이터':0,'페이먼트':0,'AML':0}, dailyNewsStart())">
                     <span class="cal-day-num" x-text="cell ? cell.d : ''"></span>
                     <div class="cal-dots" x-show="cell !== null && homeCalDotDates.has(cell.dateStr)">
                       <span class="cal-dot"></span>
@@ -2002,14 +2019,6 @@
                  @mouseenter="dailyNewsStop()" @mouseleave="dailyNewsStart()">
               <div class="home-daily-header">
                 <span class="home-daily-date" x-text="calSelectedDate + ' 주요 뉴스'"></span>
-                <div style="display:flex;align-items:center;gap:6px">
-                  <span style="font-size:11px;color:var(--t3)"
-                        x-text="`${dailyNewsPage + 1} / ${dailyNewsMaxPages}`"></span>
-                  <template x-for="p in dailyNewsMaxPages" :key="p">
-                    <span @click="dailyNewsPage = p - 1"
-                          :style="`width:6px;height:6px;border-radius:50%;cursor:pointer;background:${dailyNewsPage === p-1 ? 'var(--accent)' : '#cbd5e1'}`"></span>
-                  </template>
-                </div>
               </div>
               <div class="home-daily-3col">
                 <template x-for="cat in ['데이터','페이먼트','AML']" :key="cat">
@@ -2042,6 +2051,20 @@
                     <template x-if="homeDailyCatItems(cat).length === 0">
                       <div class="home-daily-empty-col" x-text="cat + ' 기사 없음'"></div>
                     </template>
+                    <!-- 페이지네이션 바 -->
+                    <div class="daily-pager" x-show="dailyNewsCatMaxPage(cat) > 1">
+                      <button class="daily-pager-btn"
+                              :disabled="(dailyNewsPages[cat]||0) === 0"
+                              @click.stop="dailyNewsPrev(cat)">‹</button>
+                      <template x-for="p in dailyNewsCatMaxPage(cat)" :key="p">
+                        <button class="daily-pager-dot"
+                                :class="(dailyNewsPages[cat]||0) === p-1 ? 'active' : ''"
+                                @click.stop="dailyNewsPages[cat] = p-1; dailyNewsStop()"></button>
+                      </template>
+                      <button class="daily-pager-btn"
+                              :disabled="(dailyNewsPages[cat]||0) >= dailyNewsCatMaxPage(cat)-1"
+                              @click.stop="dailyNewsNext(cat)">›</button>
+                    </div>
                   </div>
                 </template>
               </div>
@@ -3600,7 +3623,7 @@
       })(),
       calFilterOrg: '',
       calFilterCat: '',
-      dailyNewsPage: 0,
+      dailyNewsPages: { '데이터': 0, '페이먼트': 0, 'AML': 0 },
       dailyNewsTimer: null,
 
       _applyFilters(list) {
@@ -3694,21 +3717,31 @@
       },
       homeDailyCatItems(cat) {
         const all = this._homeDailyAllItems(cat);
-        const start = this.dailyNewsPage * 3;
+        const start = (this.dailyNewsPages[cat] || 0) * 3;
         return all.slice(start, start + 3);
       },
-      get dailyNewsMaxPages() {
-        const counts = ['데이터','페이먼트','AML'].map(c => this._homeDailyAllItems(c).length);
-        return Math.max(1, Math.ceil(Math.max(...counts) / 3));
+      dailyNewsCatMaxPage(cat) {
+        return Math.max(1, Math.ceil(this._homeDailyAllItems(cat).length / 3));
+      },
+      dailyNewsNext(cat) {
+        this.dailyNewsStop();
+        const max = this.dailyNewsCatMaxPage(cat);
+        this.dailyNewsPages[cat] = ((this.dailyNewsPages[cat] || 0) + 1) % max;
+      },
+      dailyNewsPrev(cat) {
+        this.dailyNewsStop();
+        const max = this.dailyNewsCatMaxPage(cat);
+        this.dailyNewsPages[cat] = ((this.dailyNewsPages[cat] || 0) - 1 + max) % max;
       },
       dailyNewsStart() {
         this.dailyNewsStop();
-        const maxP = this.dailyNewsMaxPages;
-        console.log('[dailyNews] start, maxPages=', maxP, 'page=', this.dailyNewsPage);
-        if (maxP <= 1) return;   // 1페이지면 타이머 불필요
+        const cats = ['데이터','페이먼트','AML'];
+        if (!cats.some(c => this.dailyNewsCatMaxPage(c) > 1)) return;
         this.dailyNewsTimer = setInterval(() => {
-          this.dailyNewsPage = (this.dailyNewsPage + 1) % this.dailyNewsMaxPages;
-          console.log('[dailyNews] tick → page', this.dailyNewsPage);
+          for (const cat of cats) {
+            const max = this.dailyNewsCatMaxPage(cat);
+            if (max > 1) this.dailyNewsPages[cat] = ((this.dailyNewsPages[cat] || 0) + 1) % max;
+          }
         }, 5000);
       },
       dailyNewsStop() {
@@ -3950,7 +3983,7 @@
         const n = new Date();
         this.calYear = n.getFullYear(); this.calMonth = n.getMonth() + 1;
         this.calSelectedDate = this._calTodayStr();
-        this.dailyNewsPage = 0; this.dailyNewsStart();
+        this.dailyNewsPages = {'데이터':0,'페이먼트':0,'AML':0}; this.dailyNewsStart();
       },
 
       get calDays() {
