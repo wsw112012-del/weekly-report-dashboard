@@ -1287,6 +1287,17 @@
     .leg-tl-node.node-selected { background: #f59e0b; border-color: #d97706; transform: scale(1.5); box-shadow: 0 0 12px rgba(245,158,11,0.5); }
     .leg-tl-node-year { font-size: 10px; font-weight: 700; color: #94a3b8; white-space: nowrap; margin-top: 5px; }
     .leg-tl-node-year.yr-selected { color: #d97706; }
+    /* 월별 서브 타임라인 */
+    .leg-month-tl-area { margin-top: -8px; margin-bottom: 10px; }
+    .leg-month-node {
+      width: 10px; height: 10px; border-radius: 50%;
+      background: #e2e8f0; border: 1.5px solid #94a3b8;
+      transition: transform .15s, box-shadow .15s;
+    }
+    .leg-month-node:hover { transform: scale(1.4); }
+    .leg-month-node.month-node-selected { background: #fbbf24; border-color: #d97706; transform: scale(1.5); box-shadow: 0 0 8px rgba(245,158,11,0.5); }
+    .leg-month-node-label { font-size: 9px; font-weight: 700; color: #94a3b8; white-space: nowrap; margin-top: 3px; }
+    .leg-month-node-label.yr-selected { color: #d97706; }
     /* 법안 목록 */
     .leg-slide-bills { display: flex; flex-direction: column; gap: 5px; text-align: left; max-width: 700px; margin: 0 auto; }
     .leg-bill-row {
@@ -1855,7 +1866,7 @@
                    style="cursor:pointer;text-decoration:underline;text-underline-offset:4px;text-decoration-color:rgba(255,255,255,0.3)"
                    @click="goToLegislation(lawTimelines[bannerIdx].law)"></div>
 
-              <!-- 연도별 타임라인 (연도 1개 = 노드 1개) -->
+              <!-- 연도별 타임라인 -->
               <div class="leg-tl-area">
                 <div class="leg-tl-track">
                   <div class="leg-tl-line"></div>
@@ -1863,7 +1874,7 @@
                     <div class="leg-tl-node-wrap"
                          :style="`left: calc(${tlBannerNodePos(i, (lawTimelines[bannerIdx]?.years || []).length)}% - 8px)`"
                          :title="yr.year + '년 — ' + yr.items.length + '건'"
-                         @click.stop="bannerYear = yr.year"
+                         @click.stop="bannerYear = yr.year; bannerMonth = ''"
                          style="cursor:pointer">
                       <div class="leg-tl-node"
                            :class="[
@@ -1879,29 +1890,42 @@
                 </div>
               </div>
 
-              <!-- 선택 연도 개정 내용 -->
+              <!-- 월별 서브 타임라인 (연도 내 월 노드 가로 나열) -->
+              <div class="leg-tl-area leg-month-tl-area" x-show="bannerMonthGroups.length > 0">
+                <div class="leg-tl-track" style="height:36px">
+                  <div class="leg-tl-line" style="top:6px;background:rgba(148,163,184,0.3)"></div>
+                  <template x-for="(grp, mi) in bannerMonthGroups" :key="grp.month">
+                    <div class="leg-tl-node-wrap"
+                         :style="`left: calc(${tlBannerNodePos(mi, bannerMonthGroups.length)}% - 6px)`"
+                         :title="bannerSelectedYear + '.' + grp.month + ' — ' + grp.items.length + '건'"
+                         @click.stop="bannerMonth = grp.month"
+                         style="cursor:pointer">
+                      <div class="leg-month-node"
+                           :class="bannerSelectedMonth === grp.month ? 'month-node-selected' : ''"></div>
+                      <div class="leg-month-node-label"
+                           :class="bannerSelectedMonth === grp.month ? 'yr-selected' : ''"
+                           x-text="grp.month + '월'"></div>
+                    </div>
+                  </template>
+                </div>
+              </div>
+
+              <!-- 선택 월 개정 내용 -->
               <div class="leg-slide-bills">
                 <div style="font-size:11px;color:#64748b;margin-bottom:4px;padding-left:2px"
-                     x-text="bannerSelectedYear + '년 개정 내용 (' + bannerYearItems.length + '건)'"></div>
-                <template x-for="grp in bannerMonthGroups" :key="grp.month">
-                  <div>
-                    <!-- 월 헤더 -->
-                    <div style="font-size:10px;font-weight:600;color:#94a3b8;padding:4px 2px 2px;letter-spacing:.04em"
-                         x-text="bannerSelectedYear + '.' + grp.month"></div>
-                    <template x-for="item in grp.items" :key="item.id || item.bill_title">
-                      <div class="leg-bill-row" style="cursor:pointer"
-                           @click="goToLegislation(item.target_law, item)"
-                           @mouseenter="$el.style.background='#eff6ff'"
-                           @mouseleave="$el.style.background='#f8faff'">
-                        <span class="leg-bill-status" x-text="item.status || '진행'"></span>
-                        <span class="leg-bill-source"
-                              x-text="item.source === 'assembly' ? '국회' : '정부'"
-                              :style="item.source === 'assembly' ? 'color:#7c3aed;background:#f3e8ff' : 'color:#0369a1;background:#e0f2fe'"
-                              style="font-size:10px;padding:1px 5px;border-radius:3px;flex-shrink:0"></span>
-                        <span class="leg-bill-title" x-text="item.bill_title"></span>
-                        <span style="color:#94a3b8;font-size:11px;flex-shrink:0">→</span>
-                      </div>
-                    </template>
+                     x-text="bannerSelectedYear + '.' + bannerSelectedMonth + ' 개정 내용 (' + bannerMonthItems.length + '건)'"></div>
+                <template x-for="item in bannerMonthItems" :key="item.id || item.bill_title">
+                  <div class="leg-bill-row" style="cursor:pointer"
+                       @click="goToLegislation(item.target_law, item)"
+                       @mouseenter="$el.style.background='#eff6ff'"
+                       @mouseleave="$el.style.background='#f8faff'">
+                    <span class="leg-bill-status" x-text="item.status || '진행'"></span>
+                    <span class="leg-bill-source"
+                          x-text="item.source === 'assembly' ? '국회' : '정부'"
+                          :style="item.source === 'assembly' ? 'color:#7c3aed;background:#f3e8ff' : 'color:#0369a1;background:#e0f2fe'"
+                          style="font-size:10px;padding:1px 5px;border-radius:3px;flex-shrink:0"></span>
+                    <span class="leg-bill-title" x-text="item.bill_title"></span>
+                    <span style="color:#94a3b8;font-size:11px;flex-shrink:0">→</span>
                   </div>
                 </template>
               </div>
@@ -1911,7 +1935,7 @@
             <div class="leg-banner-dots">
               <template x-for="(_, i) in lawTimelines" :key="i">
                 <span class="leg-dot" :class="i === bannerIdx ? 'leg-dot-active' : ''"
-                      @click="bannerIdx = i; bannerYear = ''; bannerStopAuto(); bannerStartAuto()"></span>
+                      @click="bannerIdx = i; bannerYear = ''; bannerMonth = ''; bannerStopAuto(); bannerStartAuto()"></span>
               </template>
             </div>
 
@@ -3485,6 +3509,7 @@
       // 홈 입법현황 캐러셀
       bannerIdx: 0,
       bannerYear: '',
+      bannerMonth: '',
       bannerTimer: null,
 
       // 법규/정책 — 입법현황 (opinion.lawmaking.go.kr)
@@ -4127,7 +4152,6 @@
         return this.bannerYear || tl.years.slice(-1)[0]?.year || '';
       },
       get bannerMonthGroups() {
-        // bannerYearItems를 월별로 그룹화
         const items = this.bannerYearItems;
         const groups = {};
         for (const item of items) {
@@ -4138,15 +4162,27 @@
         }
         return Object.keys(groups).sort().map(m => ({ month: m, items: groups[m] }));
       },
+      get bannerSelectedMonth() {
+        const grps = this.bannerMonthGroups;
+        if (!grps.length) return '';
+        if (this.bannerMonth && grps.find(g => g.month === this.bannerMonth)) return this.bannerMonth;
+        return grps.slice(-1)[0]?.month || '';
+      },
+      get bannerMonthItems() {
+        const grp = this.bannerMonthGroups.find(g => g.month === this.bannerSelectedMonth);
+        return grp?.items || [];
+      },
       bannerNext() {
         if (!this.lawTimelines.length) return;
         this.bannerIdx = (this.bannerIdx + 1) % this.lawTimelines.length;
         this.bannerYear = '';
+        this.bannerMonth = '';
       },
       bannerPrev() {
         if (!this.lawTimelines.length) return;
         this.bannerIdx = (this.bannerIdx - 1 + this.lawTimelines.length) % this.lawTimelines.length;
         this.bannerYear = '';
+        this.bannerMonth = '';
       },
       bannerStartAuto() {
         this.bannerStopAuto();
