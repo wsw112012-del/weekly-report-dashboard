@@ -92,8 +92,11 @@ CONFIG = {
 
 # ════════════════════════════════════════════════════════════
 
-KOFIU_PRESS_URL    = "https://www.kofiu.go.kr/kor/notification/pressRelease.do"
+KOFIU_BASE_URL     = "https://www.kofiu.go.kr"
+KOFIU_PRESS_URL    = "https://www.kofiu.go.kr/kor/notification/report.do"
 KOFIU_SANCTION_URL = "https://www.kofiu.go.kr/kor/notification/sanctions.do"
+KOFIU_LIST_API     = "https://www.kofiu.go.kr/cmn/board/selectBoardListFile.do"
+KOFIU_DETAIL_API   = "https://www.kofiu.go.kr/cmn/board/selectBoardDetail.do"
 
 # ── Naver 뉴스 API ─────────────────────────────────────────────────────────────
 NAVER_CLIENT_ID     = os.environ.get("NAVER_CLIENT_ID", "")
@@ -396,63 +399,86 @@ def scrape_naver_news(report_type: str) -> list[dict]:
 # ── kofiu.go.kr 스크래핑 (AML 전용) ──────────────────────────────────────────
 
 def scrape_kofiu_press() -> list[dict]:
-    """금융정보분석원 보도자료 수집"""
-    print("  [kofiu] 보도자료 수집 중...")
-    html = _get(KOFIU_PRESS_URL)
-    if not html:
-        print("  [kofiu] 보도자료 접속 실패")
-        return []
-
-    soup = BeautifulSoup(html, 'lxml')
-    articles = []
+    """금융정보분석원 보도자료 수집 (JSON API 방식 — 동적 렌더링 우회)"""
+    import json as _json
+    print("  [kofiu] 보도자료 수집 중 (API)...")
     start_d = date.today() - timedelta(days=COLLECT_DAYS)
-    end_d   = date.today()
+    articles = []
 
-    rows = (
-        soup.select('table.boardList tbody tr') or
-        soup.select('table tbody tr') or
-        soup.select('.board-list li') or
-        soup.select('ul.list li')
-    )
+    # 보도자료(0001)/보도참고(0009)/공동보도자료(공동포함) 타입만 수집
+    PRESS_TYPES = {'0001', '0006', '0009'}
 
-    for row in rows:
-        title_el = (
-            row.select_one('td.title a') or
-            row.select_one('td a[href*="view"]') or
-            row.select_one('td a[href*="seq"]') or
-            row.select_one('.title a') or
-            row.select_one('a')
-        )
-        tds      = row.find_all('td')
-        date_el  = tds[-1] if tds else None
+    for page in range(1, 4):
+        try:
+            resp = _SESSION.get(
+                KOFIU_LIST_API,
+                params={'selScope':'','subSech':'','size':'20','page':str(page),
+                        'seCd':'','ntcnYardOrdrNo':'','viewType':''},
+                headers={'X-Requested-With': 'XMLHttpRequest'},
+                timeout=15,
+            )
+            resp.raise_for_status()
+            items = resp.json().get('result', [])
+        except Exception as e:
+            print(f"    [kofiu] 목록 page {page} 오류: {e}")
+            break
 
-        if not title_el:
-            continue
-        title_text = title_el.get_text(strip=True)
-        date_text  = date_el.get_text(strip=True) if date_el else ''
-        parsed_d   = parse_date(date_text)
+        if not items:
+            break
 
-        if parsed_d and not (start_d <= parsed_d <= end_d):
-            continue
-        if not title_text or len(title_text) < 4:
-            continue
+        page_done = False
+        for item in items:
+            raw_dt  = item.get('ntcnYardRgiDt') or item.get('ntcnYardChangeDt') or ''
+            parsed_d = parse_date(raw_dt[:10])
+            if parsed_d and parsed_d < start_d:
+                page_done = True
+                break
 
-        href = title_el.get('href', '') if hasattr(title_el, 'get') else ''
-        if href.startswith('http'):
-            url = href
-        elif href:
-            url = f"https://www.kofiu.go.kr{href}"
-        else:
-            url = KOFIU_PRESS_URL
-        articles.append({
-            'title':       title_text,
-            'lead':        title_text,
-            'date_str':    parsed_d.strftime('%Y-%m-%d') if parsed_d else date_text,
-            'agency':      '금융정보분석원',
-            'news_id':     f'kofiu_press_{abs(hash(title_text))}',
-            'url':         url,
-            'source_type': '보도자료',
-        })
+            ty = item.get('ntcnYardTySeCd', '')
+            if ty not in PRESS_TYPES:
+                continue
+
+            title = (item.get('ntcnYardSjNm') or '').strip()
+            if not title or len(title) < 4:
+                continue
+
+            item_no = item.get('ntcnYardOrdrNo', '')
+
+            # 본문 가져오기
+            lead = ''
+            try:
+                dr = _SESSION.get(
+                    KOFIU_DETAIL_API,
+                    params={'ntcnYardOrdrNo': item_no, 'seCd': ''},
+                    headers={'X-Requested-With': 'XMLHttpRequest'},
+                    timeout=10,
+                )
+                dr.raise_for_status()
+                detail = dr.json().get('result', {})
+                html_cn = detail.get('ntcnYardCn') or ''
+                if html_cn:
+                    lead = BeautifulSoup(html_cn, 'lxml').get_text(separator=' ', strip=True)[:600]
+            except Exception:
+                lead = title
+
+            view_url = (
+                f"{KOFIU_BASE_URL}/kor/notification/report_view.do"
+                f"?ntcnYardOrdrNo={item_no}&seCd="
+            )
+            articles.append({
+                'title':       title,
+                'lead':        lead or title,
+                'date_str':    parsed_d.strftime('%Y-%m-%d') if parsed_d else raw_dt[:10],
+                'agency':      '금융정보분석원',
+                'news_id':     f'kofiu_press_{item_no}',
+                'url':         view_url,
+                'source_type': '보도자료',
+            })
+            time.sleep(0.3)
+
+        if page_done:
+            break
+        time.sleep(1)
 
     print(f"  [kofiu] 보도자료 {len(articles)}건")
     return articles
