@@ -16,6 +16,7 @@ collect_입법현황.py
 import hashlib
 import json
 import os
+import re
 import sys
 import time
 import urllib.parse
@@ -82,6 +83,38 @@ def _ensure_lawmaking_session() -> None:
             SESSION.get(_LAWMAKING_BASE, timeout=10)
         except Exception:
             pass
+
+
+# ── 날짜/입법현황 파싱 helpers ───────────────────────────────────────────────
+def normalize_leg_date(d: str) -> str:
+    """입법현황 날짜를 YYYY.MM.DD. 형식으로 정규화"""
+    if not d:
+        return ""
+    m = re.search(r"(\d{4})[\.\s\-]+(\d{1,2})[\.\s\-]+(\d{1,2})", d)
+    if m:
+        return f"{m.group(1)}.{m.group(2).zfill(2)}.{m.group(3).zfill(2)}."
+    return d
+
+
+def parse_lawflow(soup) -> tuple[str, str]:
+    """입법현황 ul 마지막 li → (상태명, 날짜)"""
+    ul = soup.find("ul", class_=re.compile(r"lawflow|flowStep", re.I))
+    if not ul:
+        for h3 in soup.find_all("h3"):
+            if "입법현황" in h3.get_text(strip=True):
+                ul = h3.find_next("ul")
+                if ul:
+                    break
+    if not ul:
+        return "", ""
+    items = ul.find_all("li")
+    if not items:
+        return "", ""
+    last_text = items[-1].get_text(strip=True)
+    status = re.split(r"\s*\(", last_text)[0].strip()
+    dm = re.search(r"(\d{4})\.\s*(\d{1,2})\.\s*(\d{1,2})\.", last_text)
+    flow_date = normalize_leg_date(f"{dm.group(1)}.{dm.group(2)}.{dm.group(3)}.") if dm else ""
+    return status, flow_date
 
 
 # ── Supabase helpers ───────────────────────────────────────────────────────────
@@ -227,6 +260,10 @@ def scrape_nsmlmsts(law_name: str, category: str) -> list[dict]:
         link_tag = cells[0].find("a")
         href = (link_tag.get("href") or "") if link_tag else ""
         bill_no = cells[5].get_text(strip=True) if len(cells) > 5 else ""
+        proposer_raw = cells[1].get_text(" ", strip=True) if len(cells) > 1 else ""
+        # 제안일 추출: "홍길동의원 등 3인(2026. 4. 15.)" → "2026.04.15."
+        dm = re.search(r"\((\d{4})\.\s*(\d{1,2})\.\s*(\d{1,2})\.?\)", proposer_raw)
+        propose_date = normalize_leg_date(f"{dm.group(1)}.{dm.group(2)}.{dm.group(3)}.") if dm else ""
         items.append({
             "id": hashlib.md5(f"asm-{law_name}-{bill_no}-{title[:20]}".encode()).hexdigest()[:12],
             "source": "assembly",
@@ -237,8 +274,9 @@ def scrape_nsmlmsts(law_name: str, category: str) -> list[dict]:
             "amendment_type": "",
             "ministry": cells[2].get_text(strip=True) if len(cells) > 2 else "",
             "status": cells[3].get_text(strip=True) if len(cells) > 3 else "",
-            "proposer": cells[1].get_text(" ", strip=True) if len(cells) > 1 else "",
+            "proposer": proposer_raw,
             "bill_no": bill_no,
+            "propose_date": propose_date,
             "link": (_LAWMAKING_BASE + href) if href.startswith("/") else href,
             "scraped_at": date.today().isoformat(),
         })
@@ -292,6 +330,41 @@ def scrape_assembly_press(pages: int = 10) -> list[dict]:
                 "scraped_at": date.today().isoformat(),
             })
         time.sleep(0.3)
+    return items
+
+
+# ── 기존 enrich 값 보존 머지 ───────────────────────────────────────────────────
+_PRESERVE_KEYS = ("propose_date", "summary", "reason", "propose_info", "committee_review")
+
+
+_DROP_IF_EMPTY = ("propose_date", "summary", "reason", "propose_info", "committee_review", "status")
+
+
+def merge_with_existing(items: list[dict]) -> list[dict]:
+    """재수집한 items에 Supabase의 기존 enrich 값을 보존해서 머지.
+    PostgREST upsert(resolution=merge-duplicates)는 dict에 키가 있으면 값으로 덮어쓰고
+    (빈 문자열도 명시적 덮어쓰기) 키가 없으면 기존 컬럼 값을 보존한다. 따라서
+    1) 기존 값으로 빈 필드를 채우고, 2) 그래도 빈 채로 남은 키는 dict에서 제거한다."""
+    if not SUPABASE_URL or not SUPABASE_KEY or not items:
+        # Supabase 없어도 빈 키 제거는 동일 정책 적용 (로컬 저장에는 영향 없도록 사본)
+        return items
+    existing = _supabase_get(
+        "legislation_status",
+        "select=link,propose_date,status,summary,reason,propose_info,committee_review&limit=2000",
+    )
+    by_link = {r["link"]: r for r in existing if r.get("link")}
+    for it in items:
+        prev = by_link.get(it.get("link"))
+        if prev:
+            for k in _PRESERVE_KEYS:
+                if not it.get(k) and prev.get(k):
+                    it[k] = prev[k]
+            if not it.get("status") and prev.get("status"):
+                it["status"] = prev["status"]
+        # 빈 보존 키는 dict에서 제거 — 그래야 PostgREST upsert가 기존 컬럼 값 유지
+        for k in _DROP_IF_EMPTY:
+            if k in it and not it[k]:
+                del it[k]
     return items
 
 
@@ -440,7 +513,9 @@ def _fetch_govlm_detail(link: str) -> dict:
                     elif any(_norm(k) in dt_n for k in _REASON_KW) and not reason:
                         reason = dd_txt
 
-        return {"summary": summary, "reason": reason}
+        flow_status, flow_date = parse_lawflow(soup)
+        return {"summary": summary, "reason": reason,
+                "flow_status": flow_status, "flow_date": flow_date}
     except Exception as e:
         print(f"  [WARN] govlm detail ({link[:60]}): {e}")
         return {}
@@ -453,9 +528,12 @@ def enrich_gov_details() -> None:
         return
 
     print("=== 정부입법현황 상세 수집 시작 ===")
-    null_items  = _supabase_get("legislation_status", "source=eq.gov&summary=is.null&select=id,link&limit=500")
-    empty_items = _supabase_get("legislation_status", "source=eq.gov&summary=eq.&select=id,link&limit=500")
-    all_items = null_items + empty_items
+    # summary 누락 + propose_date 누락 두 부류 모두 enrich 대상
+    null_sum = _supabase_get("legislation_status", "source=eq.gov&summary=is.null&select=id,link&limit=500")
+    empty_sum = _supabase_get("legislation_status", "source=eq.gov&summary=eq.&select=id,link&limit=500")
+    null_pd = _supabase_get("legislation_status", "source=eq.gov&propose_date=is.null&select=id,link&limit=500")
+    empty_pd = _supabase_get("legislation_status", "source=eq.gov&propose_date=eq.&select=id,link&limit=500")
+    all_items = null_sum + empty_sum + null_pd + empty_pd
 
     seen: set[str] = set()
     targets: list[dict] = []
@@ -470,13 +548,17 @@ def enrich_gov_details() -> None:
     for it in targets:
         lk = it["link"]
         detail = _fetch_govlm_detail(lk)
-        if not detail.get("summary") and not detail.get("reason"):
+        if not any(detail.get(k) for k in ("summary", "reason", "flow_date", "flow_status")):
             time.sleep(0.3)
             continue
-        patch: dict = {
-            "summary": detail.get("summary", ""),
-            "reason":  detail.get("reason", ""),
-        }
+        patch: dict = {}
+        if detail.get("summary"):     patch["summary"] = detail["summary"]
+        if detail.get("reason"):      patch["reason"]  = detail["reason"]
+        if detail.get("flow_date"):   patch["propose_date"] = detail["flow_date"]
+        if detail.get("flow_status"): patch["status"]       = detail["flow_status"]
+        if not patch:
+            time.sleep(0.3)
+            continue
         encoded = urllib.parse.quote(lk, safe="")
         _supabase_patch("legislation_status", f"link=eq.{encoded}", patch)
         enriched += 1
@@ -545,6 +627,8 @@ if __name__ == "__main__":
         leg_items = collect_legislation()
         print(f"총 {len(leg_items)}건 수집 완료")
         if SUPABASE_URL:
+            print("기존 enrich 값 머지 중...")
+            leg_items = merge_with_existing(leg_items)
             print("Supabase 업로드 중...")
             _supabase_upsert("legislation_status", leg_items)
             print("업로드 완료")

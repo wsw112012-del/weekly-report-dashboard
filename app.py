@@ -673,7 +673,12 @@ def auto_format_article(article: dict) -> str:
     url       = article.get("링크", "")
     date_disp = date_to_display(article.get("날짜", ""))
 
-    body = _fetch_body(url)
+    # 금융정보분석원은 kofiu JSON API로 본문 우선 fetch
+    if 'kofiu.go.kr' in url:
+        kofiu_detail = _fetch_kofiu_detail(url)
+        body = '\n'.join(filter(None, [kofiu_detail.get('reason', ''), kofiu_detail.get('summary', '')]))
+    else:
+        body = _fetch_body(url)
 
     # korea.kr 본문이 비어 있으면 기관 사이트에서 직접 시도
     if not body:
@@ -932,10 +937,30 @@ def _fetch_kofiu_detail(link: str) -> dict:
         if future:
             summary = (summary + '\n\n향후 계획\n' + future).strip() if summary else future
 
-        # 주요 내용 없으면 첫 단락(intro 박스) 사용
+        # 주요 내용 없으면 불렛/본문 기반 fallback
+        # kofiu 보도참고는 "주요 개정 내용" 헤더 없이 (Wingdings 네모) 또는
+        # ■/□/▶/◆/- 로 핵심 bullet을 표시 → 헤더 미발견 시 본문 전체 묶음 사용
         if not summary:
-            non_hdr_lines = [ln for ln in lines if ln and not _is_section_hdr(ln)]
-            summary = non_hdr_lines[0] if non_hdr_lines else ''
+            _BULLET_RE = re.compile('^[•■□▶◆●○※\-\*]\s*')
+            content_lines = [ln for ln in lines if ln and not _is_section_hdr(ln)]
+            # 너무 짧은 fragment(<8자, 단순 부호) 제거
+            content_lines = [ln for ln in content_lines if len(ln) >= 8 or _BULLET_RE.match(ln)]
+            # 본문 핵심: bullet 포함 라인 우선, 그 외 일정 길이 이상 문단도 포함
+            bullets = [ln for ln in content_lines if _BULLET_RE.match(ln)]
+            if bullets:
+                # bullet 표시 정규화 ( 등 → ·)
+                normalized = [_BULLET_RE.sub('· ', ln, count=1) for ln in bullets]
+                summary = '\n'.join(normalized)
+                # 본문 단락(20자 이상)도 추가 컨텍스트로 덧붙임
+                body_paras = [ln for ln in content_lines
+                              if not _BULLET_RE.match(ln) and len(ln) >= 20]
+                if body_paras:
+                    summary = summary + '\n\n' + '\n'.join(body_paras[:6])
+            else:
+                # bullet도 없으면 본문 단락(20자 이상) 묶음
+                body_paras = [ln for ln in content_lines if len(ln) >= 20]
+                summary = '\n'.join(body_paras[:6]) if body_paras else (content_lines[0] if content_lines else '')
+            summary = summary[:3000]
 
         # flow_status: 제목에서 추출
         title = item.get('ntcnYardSjNm', '')
@@ -1751,11 +1776,48 @@ async def enrich_legislation():
                              headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
 
 
+def _merge_with_existing_enriched(items: list[dict]) -> list[dict]:
+    """재수집한 items에 기존 enrich 데이터(propose_date 등)를 보존해서 머지.
+    목록 페이지엔 발의일이 없어 propose_date가 빈 값으로 들어오므로,
+    그대로 upsert하면 기존 입법현황 마지막 단계 날짜가 사라진다."""
+    existing_map: dict[str, dict] = {}
+    if SUPABASE_URL and SUPABASE_KEY:
+        existing_rows = _supabase_request(
+            "GET",
+            "legislation_status?select=link,propose_date,status,summary,reason,propose_info,committee_review&limit=2000",
+        ) or []
+        existing_map = {r['link']: r for r in existing_rows if r.get('link')}
+    # 로컬 파일도 머지 소스에 포함
+    if LEGISLATION_FILE.exists():
+        try:
+            for r in json.loads(LEGISLATION_FILE.read_text(encoding='utf-8')):
+                lk = r.get('link')
+                if lk and lk not in existing_map:
+                    existing_map[lk] = r
+        except Exception:
+            pass
+
+    _PRESERVE_KEYS = ('propose_date', 'summary', 'reason', 'propose_info', 'committee_review', 'status')
+    for item in items:
+        existing = existing_map.get(item.get('link'))
+        if existing:
+            for k in _PRESERVE_KEYS:
+                if not item.get(k) and existing.get(k):
+                    item[k] = existing[k]
+        # 빈 보존 키는 dict에서 제거 — PostgREST upsert(merge-duplicates)는 키가 있으면
+        # 빈 값으로 명시적 덮어쓰기 하므로, 키 자체를 빼야 기존 컬럼 값이 보존된다.
+        for k in _PRESERVE_KEYS:
+            if k in item and not item[k]:
+                del item[k]
+    return items
+
+
 @app.post("/api/legislation/collect")
 async def trigger_legislation_collect():
     """대상 법령 입법현황 수집 트리거"""
     loop = asyncio.get_running_loop()
     items = await loop.run_in_executor(None, collect_legislation_status)
+    items = _merge_with_existing_enriched(items)
     LEGISLATION_FILE.write_text(json.dumps(items, ensure_ascii=False, indent=2), encoding='utf-8')
     for item in items:
         _supabase_request("POST", "legislation_status", item, upsert=True)
@@ -1820,6 +1882,7 @@ async def stream_collect(report_type: str):
         yield "data: ━━ [입법현황] 수집 시작 ━━\n\n"
         try:
             leg_items = await loop.run_in_executor(None, collect_legislation_status)
+            leg_items = _merge_with_existing_enriched(leg_items)
             LEGISLATION_FILE.write_text(
                 json.dumps(leg_items, ensure_ascii=False, indent=2), encoding='utf-8'
             )
