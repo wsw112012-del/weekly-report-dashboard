@@ -2447,7 +2447,7 @@
                 <div class="pol-filter-bar">
                   <div class="articles-search" style="flex:1;max-width:300px">
                     <span style="font-size:12px;color:var(--t3)">🔍</span>
-                    <input type="text" x-model="legSearch" @input="legPage=0" placeholder="법령명·기관·상태 검색..."/>
+                    <input type="text" x-model="legSearch" @input="legPage=0" placeholder="법령명·기관·상태·발의안 내용 검색..."/>
                     <template x-if="legSearch">
                       <span @click="legSearch=''" style="cursor:pointer;color:var(--t3);font-size:11px">✕</span>
                     </template>
@@ -2803,7 +2803,7 @@
                 </template>
                 <div class="articles-search" style="flex:1;min-width:120px">
                   <span style="font-size:12px;color:var(--t3)">🔍</span>
-                  <input type="text" x-model="legSearch" placeholder="법령명·상태..."/>
+                  <input type="text" x-model="legSearch" placeholder="법령명·상태·내용..."/>
                   <template x-if="legSearch">
                     <span @click="legSearch=''" style="cursor:pointer;color:var(--t3);font-size:11px">✕</span>
                   </template>
@@ -3236,7 +3236,7 @@
                 <div style="width:1px;height:18px;background:var(--bd);margin:0 2px"></div>
                 <div class="articles-search" style="flex:1;min-width:180px">
                   <span style="font-size:12px;color:var(--t3)">🔍</span>
-                  <input type="text" x-model="legSearch" placeholder="법령명·상태 검색..."/>
+                  <input type="text" x-model="legSearch" placeholder="법령명·상태·내용 검색..."/>
                   <template x-if="legSearch">
                     <span @click="legSearch=''" style="cursor:pointer;color:var(--t3);font-size:11px">✕</span>
                   </template>
@@ -4425,10 +4425,13 @@
           if (this.legLaw && a.target_law !== this.legLaw) return false;
           if (this.legSideLaw && a.target_law !== this.legSideLaw) return false;
           const q = this.legSearch.trim().toLowerCase();
-          if (q && !(a.bill_title||'').toLowerCase().includes(q)
-                 && !(a.status||'').toLowerCase().includes(q)
-                 && !(a.ministry||'').toLowerCase().includes(q)
-                 && !(a.target_law||'').toLowerCase().includes(q)) return false;
+          if (q) {
+            const hay = [
+              a.bill_title, a.status, a.ministry, a.target_law,
+              a.summary, a.reason, a.propose_info, a.proposer, a.bill_no,
+            ].map(v => (v || '').toString().toLowerCase()).join('\n');
+            if (!hay.includes(q)) return false;
+          }
           return true;
         }).sort((a, b) => {
           if (this.legDateSort === 'asc' || this.legDateSort === 'desc') {
