@@ -788,6 +788,58 @@ _bill_summary_cache: dict[str, str] = {}
 _bill_detail_cache: dict[str, dict] = {}
 
 
+def _normalize_summary(text: str, max_chars: int = 3000) -> str:
+    """입법현황 본문(summary/reason) 표현 정규화 — 모든 상세 fetch 결과에 동일 적용.
+
+    A. 보이지 않는 글자 제거 + NBSP → 공백
+    B. 가운데점/말줄임표/연속 마침표 정리
+    C. 인용부호 통일 (작은/큰 따옴표, 반각→전각 꺾쇠)
+    D. 공백/줄 정리 (다중 공백 단일화, trim, 빈 줄 묶음, 꺾쇠 안쪽 공백 제거)
+    E. 마무리 컷 — max_chars 초과 시 마지막 문장 종료 부호 기준으로 자름
+    """
+    if not text:
+        return text or ''
+
+    # A. invisible 글자 제거, NBSP → 공백
+    text = re.sub(r'[​-‍⁠﻿]', '', text)
+    text = text.replace(' ', ' ').replace(' ', ' ')
+
+    # B. 가운데점/말줄임표/마침표 정리
+    text = re.sub(r'[‧・·]', '·', text)
+    text = re.sub(r'\.{3,}', '…', text)
+
+    # C. 인용부호 통일
+    text = re.sub(r"[‘’‚′‵]", "'", text)
+    text = re.sub(r'[“”„″‶]', '"', text)
+    text = text.replace('｢', '「').replace('｣', '」')
+
+    # D-1. 꺾쇠 안쪽 공백 제거: 「 법령명 」 → 「법령명」
+    text = re.sub(r'「\s+', '「', text)
+    text = re.sub(r'\s+」', '」', text)
+
+    # D-2. 줄 단위 공백 정리
+    out_lines: list[str] = []
+    blank_pending = False
+    for ln in text.split('\n'):
+        ln = re.sub(r'[ \t]+', ' ', ln).strip()
+        if not ln:
+            blank_pending = bool(out_lines)
+            continue
+        if blank_pending:
+            out_lines.append('')
+            blank_pending = False
+        out_lines.append(ln)
+    result = '\n'.join(out_lines)
+
+    # E. max_chars 컷 — 마지막 문장 종료부호까지만
+    if len(result) > max_chars:
+        cut = result[:max_chars]
+        m = re.search(r'^.*[.!?。](?=[\s\n]|$)', cut, re.DOTALL)
+        result = (m.group(0) if m else cut).rstrip()
+
+    return result
+
+
 def _parse_lawflow(soup) -> tuple[str, str]:
     """입법현황 ul 마지막 li에서 (상태명, 날짜) 추출.
     실제 govLm 페이지는 ul에 class가 없으므로 h3='입법현황' 이후 첫 ul로 탐색."""
@@ -962,7 +1014,7 @@ def _fetch_kofiu_detail(link: str) -> dict:
         )
         flow_date = normalize_leg_date((item.get('ntcnYardRgiDt') or '')[:10])
 
-        return {'summary': summary, 'reason': reason,
+        return {'summary': _normalize_summary(summary), 'reason': _normalize_summary(reason),
                 'flow_status': flow_status, 'flow_date': flow_date}
     except Exception as e:
         print(f'[WARN] kofiu detail error ({link[:60]}): {e}')
@@ -1085,8 +1137,8 @@ def _fetch_govlm_detail(link: str) -> dict:
                 reason = _gemini_generate_reason(bill_title_from_page, summary)
 
         return {
-            'summary': summary,
-            'reason': reason,
+            'summary': _normalize_summary(summary),
+            'reason': _normalize_summary(reason),
             'flow_status': flow_status,
             'flow_date': flow_date,
             'is_assembly': False,
@@ -1160,8 +1212,8 @@ def _fetch_assembly_bill_detail(link: str) -> dict:
                     committee_review.append(entry)
 
         return {
-            'propose_info': propose_info,
-            'summary': main_content,
+            'propose_info': _normalize_summary(propose_info, max_chars=1000),
+            'summary': _normalize_summary(main_content),
             'reason': '',
             'committee_review': committee_review,
             'flow_status': '',
@@ -1235,7 +1287,8 @@ def _fetch_bill_detail(link: str) -> dict:
         if not reason and (summary or bill_title_from_page):
             reason = _gemini_generate_reason(bill_title_from_page, summary)
 
-        result = {'summary': summary, 'reason': reason, 'flow_status': flow_status, 'flow_date': flow_date}
+        result = {'summary': _normalize_summary(summary), 'reason': _normalize_summary(reason),
+                  'flow_status': flow_status, 'flow_date': flow_date}
         _bill_detail_cache[link] = result
         return result
     except Exception as e:
