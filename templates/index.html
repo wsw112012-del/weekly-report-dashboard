@@ -2058,6 +2058,9 @@
                                 :class="sourceType(a)==='언론기사' ? 'cal-type-언론기사' : 'cal-type-보도자료'"
                                 x-text="sourceType(a)"></span>
                           <span class="cal-org-badge" x-text="a['기관']"></span>
+                          <span class="pri-badge"
+                                :class="a['우선순위']==='상'?'pri-high':a['우선순위']==='하'?'pri-low':'pri-mid'"
+                                x-text="a['우선순위'] || '중'"></span>
                         </div>
                         <div class="home-daily-mini-title" x-html="highlight(a['제목'])"></div>
                         <div class="home-daily-mini-foot">
@@ -3809,17 +3812,25 @@
         ];
       },
       get latestPress() {
+        const rank = { '상': 0, '중': 1, '하': 2 };
         return ['데이터','페이먼트','AML'].flatMap(cat =>
           (this.allArticles[cat] || []).map((a, i) => ({ ...a, _idx: i, _cat: cat, _uid: `${cat}-${i}` }))
         ).filter(a => this.sourceType(a) === '보도자료')
-          .sort((a, b) => (b['날짜'] || '').localeCompare(a['날짜'] || ''))
+          .sort((a, b) => {
+            const dp = (rank[a['우선순위']] ?? 1) - (rank[b['우선순위']] ?? 1);
+            return dp !== 0 ? dp : (b['날짜'] || '').localeCompare(a['날짜'] || '');
+          })
           .slice(0, 5);
       },
       get latestNews() {
+        const rank = { '상': 0, '중': 1, '하': 2 };
         return ['데이터','페이먼트','AML'].flatMap(cat =>
           (this.allArticles[cat] || []).map((a, i) => ({ ...a, _idx: i, _cat: cat, _uid: `${cat}-${i}` }))
         ).filter(a => this.sourceType(a) === '언론기사')
-          .sort((a, b) => (b['날짜'] || '').localeCompare(a['날짜'] || ''))
+          .sort((a, b) => {
+            const dp = (rank[a['우선순위']] ?? 1) - (rank[b['우선순위']] ?? 1);
+            return dp !== 0 ? dp : (b['날짜'] || '').localeCompare(a['날짜'] || '');
+          })
           .slice(0, 5);
       },
       get latestLeg() {
