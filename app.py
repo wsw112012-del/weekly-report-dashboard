@@ -941,26 +941,19 @@ def _fetch_kofiu_detail(link: str) -> dict:
         # kofiu 보도참고는 "주요 개정 내용" 헤더 없이 (Wingdings 네모) 또는
         # ■/□/▶/◆/- 로 핵심 bullet을 표시 → 헤더 미발견 시 본문 전체 묶음 사용
         if not summary:
-            _BULLET_RE = re.compile('^[•■□▶◆●○※\-\*]\s*')
-            content_lines = [ln for ln in lines if ln and not _is_section_hdr(ln)]
-            # 너무 짧은 fragment(<8자, 단순 부호) 제거
-            content_lines = [ln for ln in content_lines if len(ln) >= 8 or _BULLET_RE.match(ln)]
-            # 본문 핵심: bullet 포함 라인 우선, 그 외 일정 길이 이상 문단도 포함
-            bullets = [ln for ln in content_lines if _BULLET_RE.match(ln)]
-            if bullets:
-                # bullet 표시 정규화 ( 등 → ·)
-                normalized = [_BULLET_RE.sub('· ', ln, count=1) for ln in bullets]
-                summary = '\n'.join(normalized)
-                # 본문 단락(20자 이상)도 추가 컨텍스트로 덧붙임
-                body_paras = [ln for ln in content_lines
-                              if not _BULLET_RE.match(ln) and len(ln) >= 20]
-                if body_paras:
-                    summary = summary + '\n\n' + '\n'.join(body_paras[:6])
-            else:
-                # bullet도 없으면 본문 단락(20자 이상) 묶음
-                body_paras = [ln for ln in content_lines if len(ln) >= 20]
-                summary = '\n'.join(body_paras[:6]) if body_paras else (content_lines[0] if content_lines else '')
-            summary = summary[:3000]
+            # 헤더 없는 보도참고 — 본문 줄을 원문 순서 그대로 묶고 bullet만 정규화.
+            # 다양한 글머리(- * • ■ □ ▶ ◆ ● ○ ※ ★ ◇ ▣ ▪ ▫ √ ⇨ Wingdings /)는 "· "로 통일.
+            _BULLET_RE = re.compile('^[\\-\\*•■□▶◆●○※★◇▣▪▫√⇨]\\s*')
+            kept: list[str] = []
+            for ln in lines:
+                if not ln or _is_section_hdr(ln):
+                    continue
+                m = _BULLET_RE.match(ln)
+                if m:
+                    kept.append('· ' + ln[m.end():].lstrip())
+                elif len(ln) >= 8:
+                    kept.append(ln)
+            summary = '\n'.join(kept)[:3000]
 
         # flow_status: 제목에서 추출
         title = item.get('ntcnYardSjNm', '')
