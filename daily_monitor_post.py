@@ -13,6 +13,7 @@ import argparse
 import html
 import json
 import os
+import re
 import sys
 import urllib.parse
 import urllib.request
@@ -62,16 +63,37 @@ def _fetch_articles_top(today_str: str) -> dict[str, list[dict]]:
     return by_cat
 
 
+_DATE_RE = re.compile(r"(\d{4})[\.\s\-]+(\d{1,2})[\.\s\-]+(\d{1,2})")
+
+
+def _event_date(r: dict) -> str | None:
+    """입법현황 행에서 '실제 단계가 발생한 날짜'를 YYYY-MM-DD 로 반환.
+    1순위: status 괄호 안 날짜 (예: '공포(2026. 2. 19.)')
+    2순위: propose_date
+    둘 다 없거나 추출 실패 시 None.
+    """
+    status = r.get("status") or ""
+    m = re.search(r"\((\d{4})\.\s*(\d{1,2})\.\s*(\d{1,2})", status)
+    if not m:
+        m = _DATE_RE.search(r.get("propose_date") or "")
+    if not m:
+        return None
+    return f"{m.group(1)}-{int(m.group(2)):02d}-{int(m.group(3)):02d}"
+
+
 def _fetch_legislation_top(today_str: str) -> list[dict]:
-    """legislation_status에서 오늘 scraped_at + category=AML + 주요 상태 항목 추출."""
-    rows = _sb_get(f"legislation_status?scraped_at=eq.{today_str}"
-                   f"&category=eq.AML"
-                   f"&select=bill_title,ministry,status,link,target_law,category"
+    """입법현황 — 오늘 일자에 실제 단계가 추가된 AML 카테고리 항목만 추출.
+    scraped_at 은 매일 갱신되므로 단순 기준이 안 됨 → status 괄호 날짜 또는
+    propose_date 가 today_str 과 일치하는 행만 채택."""
+    rows = _sb_get(f"legislation_status?category=eq.AML"
+                   f"&select=bill_title,ministry,status,link,target_law,propose_date"
                    f"&limit=1000")
     seen: set[str] = set()
     result: list[dict] = []
     for r in rows:
         if not any(kw in (r.get("status") or "") for kw in LEG_STATUS_KEYWORDS):
+            continue
+        if _event_date(r) != today_str:
             continue
         key = (r.get("target_law") or "") + "|" + (r.get("bill_title") or "")
         if key in seen:
