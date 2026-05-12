@@ -69,16 +69,10 @@ jobs:
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
         run: python validate_data.py
 
-      - name: AML 일일 리스크 다이제스트 발송 (Flow)
-        if: success()
-        env:
-          SUPABASE_URL:    ${{ secrets.SUPABASE_URL }}
-          SUPABASE_KEY:    ${{ secrets.SUPABASE_KEY }}
-          GEMINI_API_KEY:  ${{ secrets.GEMINI_API_KEY }}
-          FLOW_API_TOKEN:  ${{ secrets.FLOW_API_TOKEN }}
-          FLOW_CHANNEL_ID: ${{ secrets.FLOW_CHANNEL_ID }}
-          FLOW_BASE_URL:   ${{ secrets.FLOW_BASE_URL }}
-        run: python notify_flow.py
+      # [DISABLED 2026-05-12] AML 일일 리스크 다이제스트 (notify_flow.py, v3 PNG 카드).
+      # 신규 v1 Bot API 라인(daily_monitor_post.py)이 동등 정보를 텍스트 카드로 발송하므로
+      # 중복 운영 방지 차원에서 비활성화. 파일(notify_flow.py, flow_card.py)은 보존.
+      # 향후 재활성화 시: 아래 블록 주석 해제 + 실패 원인(폰트/계정 등) 진단 필요.
 
       - name: Flow 데일리 모니터링 게시글 (v1 Bot API)
         # 이전 'AML 일일 리스크 다이제스트(notify_flow.py, v3)' 와 독립 라인 — 그 step
