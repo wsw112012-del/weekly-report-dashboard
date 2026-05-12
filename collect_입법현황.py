@@ -238,55 +238,70 @@ def scrape_govlm(law_name: str, category: str) -> list[dict]:
 
 # ── 국회 입법현황 스크래퍼 ──────────────────────────────────────────────────────
 def scrape_nsmlmsts(law_name: str, category: str) -> list[dict]:
+    """국회 입법현황 — scBlNmSct 서버측 키워드 검색 + pageSize=100 + 페이지 순회.
+
+    이전엔 issLawitmYn=Y만 보내고 전체 1페이지(100건)에서 title 필터링했는데,
+    100건 안에 해당 법령 발의안이 없으면 0건. 외국환거래법은 매월 다수
+    발의되므로 키워드 검색을 명시적으로 보낸다.
+    """
     _ensure_lawmaking_session()
     url = f"{_LAWMAKING_BASE}/gcom/nsmLmSts/out"
-    try:
-        resp = SESSION.get(
-            url,
-            params={"issLawitmYn": "Y", "pageIndex": "1"},
-            timeout=30,
-        )
-        resp.raise_for_status()
-    except Exception as e:
-        print(f"  [WARN] nsmLmSts ({law_name}): {e}")
-        return []
-
-    resp.encoding = "utf-8"
-    soup = BeautifulSoup(resp.text, "lxml")
     kw = law_name.replace(" ", "")[:6]
-    items = []
-    for row in soup.select("table tbody tr"):
-        cells = row.find_all("td")
-        if len(cells) < 4:
-            continue
-        title = cells[0].get_text(strip=True)
-        if not title or kw not in title.replace(" ", ""):
-            continue
-        link_tag = cells[0].find("a")
-        href = (link_tag.get("href") or "") if link_tag else ""
-        bill_no = cells[5].get_text(strip=True) if len(cells) > 5 else ""
-        proposer_raw = cells[1].get_text(" ", strip=True) if len(cells) > 1 else ""
-        # 제안일 추출: "홍길동의원 등 3인(2026. 4. 15.)" → "2026.04.15."
-        dm = re.search(r"\((\d{4})\.\s*(\d{1,2})\.\s*(\d{1,2})\.?\)", proposer_raw)
-        propose_date = normalize_leg_date(f"{dm.group(1)}.{dm.group(2)}.{dm.group(3)}.") if dm else ""
-        # id: href 우선, bill_no 차선, 최종 폴백은 law_name+title
-        id_key = href or bill_no or f"{law_name}-{title[:30]}"
-        items.append({
-            "id": hashlib.md5(f"asm-{id_key}".encode()).hexdigest()[:12],
-            "source": "assembly",
-            "category": category,
-            "target_law": law_name,
-            "bill_title": title,
-            "bill_type": "",
-            "amendment_type": "",
-            "ministry": cells[2].get_text(strip=True) if len(cells) > 2 else "",
-            "status": cells[3].get_text(strip=True) if len(cells) > 3 else "",
-            "proposer": proposer_raw,
-            "bill_no": bill_no,
-            "propose_date": propose_date,
-            "link": (_LAWMAKING_BASE + href) if href.startswith("/") else href,
-            "scraped_at": date.today().isoformat(),
-        })
+    items: list[dict] = []
+    for page in range(1, 20):
+        try:
+            resp = SESSION.get(url, params={
+                "scBlNm": "scBlNm_blNm",
+                "scBlNmSct": law_name,
+                "pageSize": "100",
+                "pageIndex": str(page),
+            }, timeout=30)
+            resp.raise_for_status()
+        except Exception as e:
+            print(f"  [WARN] nsmLmSts ({law_name} p{page}): {e}")
+            break
+        soup = BeautifulSoup(resp.content.decode("utf-8", errors="replace"), "lxml")
+        rows = soup.select("table tbody tr")
+        if not rows:
+            break
+        for row in rows:
+            cells = row.find_all("td")
+            if len(cells) < 4:
+                continue
+            title = cells[0].get_text(strip=True)
+            if not title:
+                continue
+            # 서버측 키워드 필터 통과한 결과지만 클라이언트 재검증 (불일치 방지)
+            if kw not in title.replace(" ", ""):
+                continue
+            link_tag = cells[0].find("a")
+            href = (link_tag.get("href") or "") if link_tag else ""
+            bill_no = cells[5].get_text(strip=True) if len(cells) > 5 else ""
+            proposer_raw = cells[1].get_text(" ", strip=True) if len(cells) > 1 else ""
+            dm = re.search(r"\((\d{4})\.\s*(\d{1,2})\.\s*(\d{1,2})\.?\)", proposer_raw)
+            propose_date = normalize_leg_date(f"{dm.group(1)}.{dm.group(2)}.{dm.group(3)}.") if dm else ""
+            id_key = href or bill_no or f"{law_name}-{title[:30]}"
+            items.append({
+                "id": hashlib.md5(f"asm-{id_key}".encode()).hexdigest()[:12],
+                "source": "assembly",
+                "category": category,
+                "target_law": law_name,
+                "bill_title": title,
+                "bill_type": "",
+                "amendment_type": "",
+                "ministry": cells[2].get_text(strip=True) if len(cells) > 2 else "",
+                "status": cells[3].get_text(strip=True) if len(cells) > 3 else "",
+                "proposer": proposer_raw,
+                "bill_no": bill_no,
+                "propose_date": propose_date,
+                "link": (_LAWMAKING_BASE + href) if href.startswith("/") else href,
+                "scraped_at": date.today().isoformat(),
+            })
+        # 다음 페이지 존재 여부
+        paging = soup.select(".paging a, .pagination a")
+        page_nums = [a.get_text(strip=True) for a in paging if a.get_text(strip=True).isdigit()]
+        if not page_nums or max(int(p) for p in page_nums) <= page:
+            break
     return items
 
 
