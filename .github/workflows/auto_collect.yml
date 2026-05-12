@@ -81,7 +81,9 @@ jobs:
         run: python notify_flow.py
 
       - name: Flow 데일리 모니터링 게시글 (v1 Bot API)
-        if: success()
+        # 이전 'AML 일일 리스크 다이제스트(notify_flow.py, v3)' 와 독립 라인 — 그 step
+        # 실패해도 실행되도록 always()/cancelled 조건. job 자체가 cancel 되면 skip.
+        if: ${{ !cancelled() }}
         env:
           SUPABASE_URL:    ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY:    ${{ secrets.SUPABASE_KEY }}
