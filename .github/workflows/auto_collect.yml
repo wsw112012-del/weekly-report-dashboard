@@ -7,14 +7,25 @@ on:
 
 jobs:
   collect:
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     timeout-minutes: 40
+
+    # 한글 파일명·인수·출력 안정화 (Ubuntu 기본은 C.UTF-8이지만 명시)
+    env:
+      PYTHONIOENCODING: utf-8
+      PYTHONUTF8: '1'
+      LANG: ko_KR.UTF-8
 
     steps:
       - uses: actions/checkout@v4
 
+      - name: Python 3.12 설치
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
       - name: 패키지 설치
-        run: pip install requests beautifulsoup4 lxml python-dotenv
+        run: pip install requests beautifulsoup4 lxml python-dotenv Pillow
 
       - name: 데이터(AI) 수집
         env:
@@ -57,3 +68,14 @@ jobs:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
         run: python validate_data.py
+
+      - name: AML 일일 리스크 다이제스트 발송 (Flow)
+        if: success()
+        env:
+          SUPABASE_URL:    ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY:    ${{ secrets.SUPABASE_KEY }}
+          GEMINI_API_KEY:  ${{ secrets.GEMINI_API_KEY }}
+          FLOW_API_TOKEN:  ${{ secrets.FLOW_API_TOKEN }}
+          FLOW_CHANNEL_ID: ${{ secrets.FLOW_CHANNEL_ID }}
+          FLOW_BASE_URL:   ${{ secrets.FLOW_BASE_URL }}
+        run: python notify_flow.py
