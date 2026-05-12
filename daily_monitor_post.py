@@ -28,12 +28,11 @@ import re
 import sys
 import urllib.parse
 import urllib.request
-from datetime import date
+from datetime import date, timedelta
 from pathlib import Path
 
 from flow_bot import FlowBot
 from priority import get_priority
-from risk_analyze import analyze_article
 
 try:
     from dotenv import load_dotenv
@@ -121,33 +120,51 @@ def _sb_get(path: str):
 
 # ── 데이터 수집 ────────────────────────────────────────────────────────────────
 
-def _fetch_aml_articles(today_str: str) -> list[dict]:
-    """오늘 AML 기사 → 1차 priority 컷 → 노이즈 제거 → risk 평가 → 상/중 통과."""
-    rows = _sb_get("articles?type=eq.AML&select=data&limit=1")
+def _fetch_aml_articles(today_str: str, days: int = 2) -> list[dict]:
+    """AML 기사 → 오늘+이전 N-1일 범위 priority='상' + 노이즈 제거 + 중복 제거.
+
+    중복 판정: 링크 기준 1차, 정규화 제목 기준 2차 (기관 다르고 같은 제목 케이스 대응).
+    """
+    rows = _sb_get("articles?type=eq.AML&select=data&order=updated_at.desc&limit=1")
     if not rows:
         return []
     raw = rows[0].get("data") or []
-    today = [a for a in raw if (a.get("날짜") or "")[:10] == today_str]
-    candidates = [a for a in today if get_priority(a) == "상" and not _is_noise(a)]
 
-    results: list[dict] = []
+    # 날짜 범위: 오늘 - (days-1) 일 ~ 오늘
+    today_dt = date.fromisoformat(today_str)
+    cutoff = today_dt - timedelta(days=days - 1)
+    cutoff_str = cutoff.isoformat()
+
+    def _in_range(a: dict) -> bool:
+        d = (a.get("날짜") or "")[:10]
+        return cutoff_str <= d <= today_str
+
+    candidates = [a for a in raw
+                  if _in_range(a) and get_priority(a) == "상" and not _is_noise(a)]
+
+    # 중복 제거: 링크 1순위, 정규화 제목 2순위
+    seen_links: set[str] = set()
+    seen_titles: set[str] = set()
+    deduped: list[dict] = []
     for a in candidates:
-        try:
-            r = analyze_article(a)
-        except Exception as e:
-            print(f"[WARN] risk_analyze 실패 ({(a.get('제목') or '')[:40]}): {e}",
-                  file=sys.stderr)
+        link = (a.get("링크") or "").strip()
+        title_key = re.sub(r"\s+", "", _clean(a.get("제목") or ""))
+        if link and link in seen_links:
             continue
-        if r.get("risk_grade") not in ("상", "중"):
+        if title_key and title_key in seen_titles:
             continue
-        results.append({**a, **r, "_overseas": _is_overseas(a)})
+        if link:
+            seen_links.add(link)
+        if title_key:
+            seen_titles.add(title_key)
+        deduped.append({**a, "_overseas": _is_overseas(a)})
 
-    # 상 먼저 — 같은 등급 안에서 국내 먼저
-    results.sort(key=lambda x: (
-        0 if x.get("risk_grade") == "상" else 1,
+    # 최신순(날짜 desc) + 국내 우선
+    deduped.sort(key=lambda x: (
         1 if x["_overseas"] else 0,
+        -date.fromisoformat((x.get("날짜") or today_str)[:10]).toordinal(),
     ))
-    return results
+    return deduped
 
 
 def _fetch_legislation(today_str: str) -> list[dict]:
@@ -176,26 +193,19 @@ _SEP = "━━━━━━━━━━━━━━━━━━━━━━━━
 
 
 def _format_article_card(idx: int, x: dict) -> str:
-    grade = x.get("risk_grade", "")
-    rtype = x.get("risk_type", "")
-    emoji = "🔴" if grade == "상" else "🟡"
+    date_str = (x.get("날짜") or "")[:10]
     lines = [
         _SEP,
-        f"{emoji} [{grade}·{rtype}]  #{idx}",
+        f"🔴 [상]  #{idx}  ({date_str})",
         _clean(x.get("제목")),
         f"· 기관: {_clean(x.get('기관') or '-')}",
     ]
-    kps = _key_points(x)
-    if kps:
-        lines.append("· 핵심:")
-        for k in kps:
-            lines.append(f"   - {k}")
-    impact = x.get("impact_area") or x.get("영향영역")
-    if impact:
-        lines.append(f"· 영향: {_clean(impact)}")
-    action = x.get("recommendation") or x.get("권장액션")
-    if action:
-        lines.append(f"· 액션: {_clean(action)[:140]}")
+    # 본문 lead 2~3줄 (있으면) — 너무 길지 않게 자름
+    body = _clean(x.get("내용") or "")
+    if body:
+        # 첫 문단(개행 기준) 또는 200자
+        first_para = body.split("\n")[0][:240]
+        lines.append(f"· 요약: {first_para}")
     link = x.get("링크") or ""
     if link:
         lines.append(f"· 원문: {link}")
@@ -219,16 +229,18 @@ def _format_leg_card(idx: int, r: dict) -> str:
     return "\n".join(lines)
 
 
-def build_contents(today_str: str) -> tuple[str, int]:
-    articles = _fetch_aml_articles(today_str)
+def build_contents(today_str: str, days: int = 2) -> tuple[str, int]:
+    articles = _fetch_aml_articles(today_str, days=days)
     legs = _fetch_legislation(today_str)
 
     domestic = [x for x in articles if not x["_overseas"]]
     overseas = [x for x in articles if x["_overseas"]]
 
     total = len(articles) + len(legs)
+    range_str = (f"{(date.fromisoformat(today_str) - timedelta(days=days-1)).strftime('%m.%d')}"
+                 f"~{date.fromisoformat(today_str).strftime('%m.%d')}")
     header = [
-        f"📊 AML 일일 모니터링 — {today_str.replace('-', '.')}",
+        f"📊 AML 모니터링 — {today_str.replace('-', '.')} ({range_str} 수집분)",
         f"국내 {len(domestic)}건 · 해외 {len(overseas)}건 · 입법 {len(legs)}건",
     ]
     sections: list[str] = []
