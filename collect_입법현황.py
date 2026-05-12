@@ -47,7 +47,7 @@ LEGISLATION_TARGETS: dict[str, list[str]] = {
         "신용정보의 이용 및 보호에 관한 법률",
         "정보통신망이용촉진및정보보호등에관한법률",
     ],
-    "페이먼트": ["전자금융거래법"],
+    "페이먼트": ["전자금융거래법", "외국환거래법"],
     "AML": [
         "특정 금융거래정보의 보고 및 이용 등에 관한 법률",
         "공중 등 협박목적을 위한 자금조달행위의 금지에 관한 법률",
@@ -213,8 +213,11 @@ def scrape_govlm(law_name: str, category: str) -> list[dict]:
             continue
         if kw not in bill_title.replace(" ", "") and kw not in cells[4].get_text(strip=True).replace(" ", ""):
             continue
+        # id: href(=link 경로) 우선. 같은 bill_title 다른 link도 별개 행으로 보존.
+        # href 없을 때만 law_name+bill_title 폴백.
+        id_key = href if href else f"{law_name}-{bill_title}"
         items.append({
-            "id": hashlib.md5(f"gov-{law_name}-{bill_title}".encode()).hexdigest()[:12],
+            "id": hashlib.md5(f"gov-{id_key}".encode()).hexdigest()[:12],
             "source": "gov",
             "category": category,
             "target_law": law_name,
@@ -264,8 +267,10 @@ def scrape_nsmlmsts(law_name: str, category: str) -> list[dict]:
         # 제안일 추출: "홍길동의원 등 3인(2026. 4. 15.)" → "2026.04.15."
         dm = re.search(r"\((\d{4})\.\s*(\d{1,2})\.\s*(\d{1,2})\.?\)", proposer_raw)
         propose_date = normalize_leg_date(f"{dm.group(1)}.{dm.group(2)}.{dm.group(3)}.") if dm else ""
+        # id: href 우선, bill_no 차선, 최종 폴백은 law_name+title
+        id_key = href or bill_no or f"{law_name}-{title[:30]}"
         items.append({
-            "id": hashlib.md5(f"asm-{law_name}-{bill_no}-{title[:20]}".encode()).hexdigest()[:12],
+            "id": hashlib.md5(f"asm-{id_key}".encode()).hexdigest()[:12],
             "source": "assembly",
             "category": category,
             "target_law": law_name,
