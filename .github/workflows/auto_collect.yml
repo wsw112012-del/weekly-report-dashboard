@@ -63,18 +63,22 @@ jobs:
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
         run: python collect_입법현황.py 보도자료
 
+      # 법제처 OpenAPI 는 호출 서버 IP 사전등록 필요. GitHub Actions ubuntu-latest 의
+      # 가변 IP 풀은 등록 불가 → 매번 connection timeout 발생. 실패가 잡혀도 후속
+      # step에 영향 없도록 continue-on-error 처리. 실데이터는 등록된 IP (사용자 PC
+      # 또는 Render outbound) 에서 별도 수집.
       - name: 유권해석/판례 수집 (대상 법령)
         if: ${{ !cancelled() }}
+        continue-on-error: true
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
           LAWGO_OC:     ${{ secrets.LAWGO_OC }}
         run: python collect_precedent.py --max 30
 
-      # 법령 본문 (3단비교용) — 매일 lawSearch.do MST 확인 후 변경된 것만 재수집.
-      # 처음 한 번 또는 본문 갱신 시점에만 실제 fetch가 일어나 호출량 적음.
       - name: 법령 본문 수집 (변경 감지)
         if: ${{ !cancelled() }}
+        continue-on-error: true
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
@@ -93,9 +97,9 @@ jobs:
       # 향후 재활성화 시: 아래 블록 주석 해제 + 실패 원인(폰트/계정 등) 진단 필요.
 
       - name: Flow 데일리 모니터링 게시글 (v1 Bot API)
-        # 이전 'AML 일일 리스크 다이제스트(notify_flow.py, v3)' 와 독립 라인 — 그 step
-        # 실패해도 실행되도록 always()/cancelled 조건. job 자체가 cancel 되면 skip.
-        if: ${{ !cancelled() }}
+        # schedule(매일 09:00 KST) 트리거에만 실제 게시. 수동(workflow_dispatch)
+        # 트리거는 검증 목적이므로 Flow 발송 제외. 이전 v3 카드 step 실패에 무관.
+        if: ${{ !cancelled() && github.event_name == 'schedule' }}
         env:
           SUPABASE_URL:    ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY:    ${{ secrets.SUPABASE_KEY }}
