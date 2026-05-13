@@ -63,6 +63,24 @@ jobs:
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
         run: python collect_입법현황.py 보도자료
 
+      - name: 유권해석/판례 수집 (대상 법령)
+        if: ${{ !cancelled() }}
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+          LAWGO_OC:     ${{ secrets.LAWGO_OC }}
+        run: python collect_precedent.py --max 30
+
+      # 법령 본문 (3단비교용) — 매일 lawSearch.do MST 확인 후 변경된 것만 재수집.
+      # 처음 한 번 또는 본문 갱신 시점에만 실제 fetch가 일어나 호출량 적음.
+      - name: 법령 본문 수집 (변경 감지)
+        if: ${{ !cancelled() }}
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+          LAWGO_OC:     ${{ secrets.LAWGO_OC }}
+        run: python collect_law_articles.py
+
       - name: 수집 데이터 품질 검증
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}

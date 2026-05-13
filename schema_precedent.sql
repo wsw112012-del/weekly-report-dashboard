@@ -47,12 +47,12 @@ CREATE INDEX IF NOT EXISTS idx_law_articles_law_type    ON law_articles(law_id, 
 CREATE INDEX IF NOT EXISTS idx_law_articles_jo_no       ON law_articles(law_id, law_type, jo_no);
 
 -- =============================================================================
--- 3. (선택) Row Level Security — 기존 테이블과 동일 정책 (READ ALL)
+-- 3. RLS 비활성화 — 기존 legislation_status 등과 동일 패턴 (anon 키로 R/W 허용)
+--    Supabase 새 테이블 기본 RLS가 켜져 있어 anon 키로 INSERT/SELECT 불가하므로
+--    명시적으로 비활성화. (외부에서 직접 접근하지 않는 사내 대시보드)
 -- =============================================================================
--- ALTER TABLE precedent_db ENABLE ROW LEVEL SECURITY;
--- CREATE POLICY "Public read" ON precedent_db FOR SELECT USING (true);
--- ALTER TABLE law_articles ENABLE ROW LEVEL SECURITY;
--- CREATE POLICY "Public read" ON law_articles FOR SELECT USING (true);
+ALTER TABLE precedent_db DISABLE ROW LEVEL SECURITY;
+ALTER TABLE law_articles DISABLE ROW LEVEL SECURITY;
 
 -- =============================================================================
 -- 4. Mock 데이터 1건씩 (UI 스켈레톤 검증용 — OC 승인 전 임시)
