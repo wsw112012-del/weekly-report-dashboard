@@ -698,6 +698,35 @@
     .compare-table tbody td strong { color: var(--t1); display: block; margin-bottom: 4px; }
     .compare-table tbody td p { margin: 0; color: var(--t2); }
     .compare-table tbody tr:hover td { background: #fafbfc; }
+    .compare-table tbody tr:target td,
+    .compare-table tbody tr.cmp-highlight td { background: #fef9c3 !important; transition: background .3s; }
+
+    /* 3단비교 표 컨테이너 — 스크롤 영역 */
+    .compare-table-wrap {
+      max-height: calc(100vh - 220px);
+      overflow-y: auto; overflow-x: auto;
+      border: 1px solid var(--bd); border-radius: 8px;
+      scroll-behavior: smooth;
+    }
+
+    /* 사이드바 조항 트리 */
+    .compare-toc {
+      display: flex; flex-direction: column; gap: 2px;
+      max-height: 50vh; overflow-y: auto;
+      font-size: 11px;
+    }
+    .toc-chapter {
+      padding: 6px 4px; font-weight: 700; color: var(--t1);
+      border-top: 1px solid var(--bd2); margin-top: 4px;
+      cursor: pointer;
+    }
+    .toc-chapter:hover { color: var(--accent); }
+    .toc-article {
+      padding: 3px 6px 3px 14px; color: var(--t2);
+      cursor: pointer; border-radius: 4px;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .toc-article:hover { background: var(--accent-lt); color: var(--accent); }
     .pol-table thead tr {
       background: #f1f5f9; border-bottom: 2px solid var(--bd);
       position: sticky; top: 0; z-index: 1;
@@ -2905,7 +2934,7 @@
           <!-- ── 법령 3단비교 탭 ── -->
           <template x-if="polTab === 'compare'">
             <div class="pol-layout">
-              <!-- 좌측 사이드바: 비교 대상 법령 -->
+              <!-- 좌측 사이드바 1: 비교 대상 법령 선택 + 선택 법령 조항 트리 -->
               <div class="pol-sidebar" :style="`width:${sidebarW}px`">
                 <div class="pol-sidebar-title">비교 대상 법령</div>
                 <template x-for="law in compareAllLaws" :key="law">
@@ -2913,10 +2942,25 @@
                        @click="compareSelectedLaw=law; loadCompare(law)"
                        x-text="normalizeLawName(law)"></div>
                 </template>
+
+                <div class="pol-sidebar-divider"></div>
+                <div class="pol-sidebar-title" x-text="compareSelectedLaw + ' 조항'"></div>
+                <div class="compare-toc">
+                  <template x-for="node in compareToc" :key="node.idx">
+                    <div :class="node.type==='chapter' ? 'toc-chapter' : 'toc-article'"
+                         @click="scrollToArticle(node.idx)"
+                         :title="node.label + ' ' + node.title">
+                      <span x-text="node.label + ' ' + node.title"></span>
+                    </div>
+                  </template>
+                  <template x-if="compareToc.length === 0">
+                    <div style="font-size:11px;color:var(--t3);padding:8px">조문 정보 없음</div>
+                  </template>
+                </div>
               </div>
               <div class="resize-handle" @mousedown="startResize($event,'sidebar')"></div>
 
-              <!-- 본문: 3단 표 -->
+              <!-- 본문: 3단 표 (스크롤 가능) -->
               <div class="pol-main">
                 <div style="display:flex;align-items:center;gap:10px;margin-top:16px;margin-bottom:14px;flex-wrap:wrap">
                   <span style="font-size:13px;font-weight:800;color:var(--t1)"
@@ -2934,46 +2978,48 @@
                   <span x-show="compareLoading" style="font-size:11px;color:var(--t3)">로딩 중...</span>
                 </div>
 
-                <table class="compare-table">
-                  <thead>
-                    <tr>
-                      <th>법률</th>
-                      <th>시행령</th>
-                      <th>시행규칙 / 감독규정</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <template x-if="filteredCompareRows.length === 0 && !compareLoading">
-                      <tr><td colspan="3" style="text-align:center;padding:40px;color:var(--t3)">
-                        조문 데이터를 수집하지 않았거나 검색결과가 없습니다.
-                      </td></tr>
-                    </template>
-                    <template x-for="row in filteredCompareRows" :key="row.idx">
+                <div class="compare-table-wrap">
+                  <table class="compare-table">
+                    <thead>
                       <tr>
-                        <td>
-                          <div x-show="row.act">
-                            <strong x-text="(row.act?.label || '') + ' ' + (row.act?.title || '')"></strong>
-                            <p style="white-space:pre-wrap;margin-top:4px" x-html="highlightQ(row.act?.body || '', compareSearch)"></p>
-                          </div>
-                        </td>
-                        <td>
-                          <div x-show="row.enforce">
-                            <strong x-text="(row.enforce?.label || '') + ' ' + (row.enforce?.title || '')"></strong>
-                            <p style="white-space:pre-wrap;margin-top:4px" x-html="highlightQ(row.enforce?.body || '', compareSearch)"></p>
-                          </div>
-                          <span x-show="!row.enforce" style="color:var(--t3);font-size:11px">—</span>
-                        </td>
-                        <td>
-                          <div x-show="row.regulation">
-                            <strong x-text="(row.regulation?.label || '') + ' ' + (row.regulation?.title || '')"></strong>
-                            <p style="white-space:pre-wrap;margin-top:4px" x-html="highlightQ(row.regulation?.body || '', compareSearch)"></p>
-                          </div>
-                          <span x-show="!row.regulation" style="color:var(--t3);font-size:11px">—</span>
-                        </td>
+                        <th>법률</th>
+                        <th>시행령</th>
+                        <th>시행규칙 / 감독규정</th>
                       </tr>
-                    </template>
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody>
+                      <template x-if="filteredCompareRows.length === 0 && !compareLoading">
+                        <tr><td colspan="3" style="text-align:center;padding:40px;color:var(--t3)">
+                          조문 데이터를 수집하지 않았거나 검색결과가 없습니다.
+                        </td></tr>
+                      </template>
+                      <template x-for="row in filteredCompareRows" :key="row.idx">
+                        <tr :id="'cmp-row-'+row.idx">
+                          <td>
+                            <div x-show="row.act">
+                              <strong x-text="(row.act?.label || '') + ' ' + (row.act?.title || '')"></strong>
+                              <p style="white-space:pre-wrap;margin-top:4px" x-html="highlightQ(row.act?.body || '', compareSearch)"></p>
+                            </div>
+                          </td>
+                          <td>
+                            <div x-show="row.enforce">
+                              <strong x-text="(row.enforce?.label || '') + ' ' + (row.enforce?.title || '')"></strong>
+                              <p style="white-space:pre-wrap;margin-top:4px" x-html="highlightQ(row.enforce?.body || '', compareSearch)"></p>
+                            </div>
+                            <span x-show="!row.enforce" style="color:var(--t3);font-size:11px">—</span>
+                          </td>
+                          <td>
+                            <div x-show="row.regulation">
+                              <strong x-text="(row.regulation?.label || '') + ' ' + (row.regulation?.title || '')"></strong>
+                              <p style="white-space:pre-wrap;margin-top:4px" x-html="highlightQ(row.regulation?.body || '', compareSearch)"></p>
+                            </div>
+                            <span x-show="!row.regulation" style="color:var(--t3);font-size:11px">—</span>
+                          </td>
+                        </tr>
+                      </template>
+                    </tbody>
+                  </table>
+                </div>
               </div>
             </div>
           </template>
@@ -4892,6 +4938,45 @@
             .join('\n').toLowerCase();
           return hay.includes(q);
         });
+      },
+      get compareToc() {
+        // 좌측 사이드바 트리 — 장/조 계층 빌드
+        const tree = [];
+        for (const row of this.compareRows) {
+          if (!row.act) continue;
+          const body = row.act.body || '';
+          const title = row.act.title || '';
+          // 장 헤더: title 비어있고 body가 '제N장'으로 시작
+          const chapMatch = body.trim().match(/^(제\d+장(?:의\d+)?)\s*(.+?)(?:\s*<|$)/);
+          if (!title && chapMatch) {
+            tree.push({
+              idx: row.idx, type: 'chapter',
+              label: chapMatch[1],
+              title: (chapMatch[2] || '').trim(),
+            });
+          } else if (title || row.act.label) {
+            tree.push({
+              idx: row.idx, type: 'article',
+              label: row.act.label || ('제' + row.idx + '조'),
+              title: title,
+            });
+          }
+        }
+        return tree;
+      },
+      scrollToArticle(idx) {
+        const el = document.getElementById('cmp-row-' + idx);
+        if (!el) return;
+        const wrap = el.closest('.compare-table-wrap');
+        if (wrap) {
+          const top = el.offsetTop - wrap.offsetTop - 60;
+          wrap.scrollTo({ top, behavior: 'smooth' });
+        } else {
+          el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+        // 하이라이트
+        el.classList.add('cmp-highlight');
+        setTimeout(() => el.classList.remove('cmp-highlight'), 2000);
       },
       async collectLegislation() {
         this.legLoading = true;
