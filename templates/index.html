@@ -1874,6 +1874,23 @@
         <span class="nav-icon">⚖️</span>
         <span class="nav-label">법규/정책</span>
       </div>
+      <!-- 법규/정책 서브메뉴 -->
+      <template x-if="currentPage === 'policy'">
+        <div class="nav-sub-group">
+          <div class="nav-sub-item"
+               :class="polTab==='precedent' ? 'active' : ''"
+               @click="polTab='precedent'; loadPrecedent()">
+            <span class="nav-sub-dot" style="background:#0f766e"></span>
+            <span>📚 유권해석/판례</span>
+          </div>
+          <div class="nav-sub-item"
+               :class="polTab==='compare' ? 'active sub-aml' : ''"
+               @click="polTab='compare'; loadCompare(compareSelectedLaw)">
+            <span class="nav-sub-dot" style="background:#b91c1c"></span>
+            <span>📑 법령 3단비교</span>
+          </div>
+        </div>
+      </template>
       <div class="nav-item" :class="currentPage === 'history' ? 'active' : ''"
            @click="currentPage = 'history'; loadHistory()">
         <span class="nav-icon">📚</span>
@@ -2435,16 +2452,12 @@
       <template x-if="currentPage === 'policy'">
         <div class="policy-wrap">
 
-          <!-- ── 탭 바 ── -->
-          <div class="pol-tabs">
+          <!-- ── 탭 바 (입법현황·연간시행현황만 — 유권해석/판례·3단비교는 좌측 사이드바) ── -->
+          <div class="pol-tabs" x-show="polTab === 'legislation' || polTab === 'gantt'">
             <button class="pol-tab" :class="polTab==='legislation' ? 'active' : ''"
                     @click="polTab='legislation'">⚖️ 입법현황</button>
             <button class="pol-tab" :class="polTab==='gantt' ? 'active' : ''"
                     @click="polTab='gantt'">📊 연간 시행현황</button>
-            <button class="pol-tab" :class="polTab==='precedent' ? 'active' : ''"
-                    @click="polTab='precedent'; loadPrecedent()">📚 유권해석/판례</button>
-            <button class="pol-tab" :class="polTab==='compare' ? 'active' : ''"
-                    @click="polTab='compare'; loadCompare(compareSelectedLaw)">📑 법령 3단비교</button>
           </div>
 
           <!-- ── 입법현황 탭 ── -->
