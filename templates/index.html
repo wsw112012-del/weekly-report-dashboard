@@ -143,6 +143,11 @@
       cursor: pointer; font-size: 12px; font-weight: 600; color: var(--t3);
       transition: all .15s; border: 1px solid transparent;
       user-select: none;
+      white-space: nowrap; overflow: hidden;
+    }
+    .nav-sub-item > span:nth-child(2) {
+      flex: 1; min-width: 0;
+      overflow: hidden; text-overflow: ellipsis;
     }
     .nav-sub-item:hover { background: #f1f5f9; color: var(--t1); }
     .nav-sub-item.active { color: var(--accent); background: var(--accent-lt); border-color: rgba(37,99,235,.15); }
@@ -2808,7 +2813,7 @@
 
               <!-- 본문 -->
               <div class="pol-main">
-                <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap">
+                <div style="display:flex;align-items:center;gap:10px;margin-top:16px;margin-bottom:14px;flex-wrap:wrap">
                   <span style="font-size:13px;font-weight:800;color:var(--t1)">📚 유권해석/판례</span>
                   <div class="articles-search" style="flex:1;min-width:240px">
                     <span style="font-size:12px;color:var(--t3)">🔍</span>
@@ -2913,7 +2918,7 @@
 
               <!-- 본문: 3단 표 -->
               <div class="pol-main">
-                <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap">
+                <div style="display:flex;align-items:center;gap:10px;margin-top:16px;margin-bottom:14px;flex-wrap:wrap">
                   <span style="font-size:13px;font-weight:800;color:var(--t1)"
                         x-text="'📑 ' + (compareSelectedLaw || '법령 미선택') + ' 3단비교'"></span>
                   <div class="articles-search" style="flex:1;min-width:240px">
@@ -3443,7 +3448,7 @@
           <template x-if="policyTab==='legislation'">
             <div>
               <!-- 헤더 + 수집 버튼 -->
-              <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap">
+              <div style="display:flex;align-items:center;gap:10px;margin-top:16px;margin-bottom:14px;flex-wrap:wrap">
                 <span style="font-size:13px;font-weight:800;color:var(--t1)">⚖️ 대상 법령 입법현황</span>
                 <button class="collect-btn primary" style="font-size:11px;padding:5px 12px"
                         :disabled="legLoading" @click="collectLegislation()">
