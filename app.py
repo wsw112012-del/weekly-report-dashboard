@@ -1559,6 +1559,135 @@ async def get_legislation():
     return JSONResponse([])
 
 
+# ── 유권해석/판례 ─────────────────────────────────────────────────────────────
+@app.get("/api/precedent")
+async def get_precedent():
+    """precedent_db 전체 반환 (Supabase). UI에서 클라이언트측 필터링."""
+    rows = _supabase_request("GET",
+        "precedent_db?order=decided_at.desc&limit=2000") or []
+    return JSONResponse(rows or [])
+
+
+@app.get("/api/precedent/search")
+async def search_precedent_live(q: str = ""):
+    """자유 키워드 실시간 검색 — 법제처 OpenAPI 직접 호출."""
+    q = (q or "").strip()
+    if not q:
+        return JSONResponse([])
+    oc = os.environ.get("LAWGO_OC")
+    if not oc:
+        return JSONResponse([])
+    try:
+        from law_client import LawClient
+        loop = asyncio.get_running_loop()
+        client = LawClient(oc)
+        precs = await loop.run_in_executor(None, lambda: client.search_precedent(q, display=20))
+        expcs = await loop.run_in_executor(None, lambda: client.search_expc(q, display=20))
+    except Exception as e:
+        print(f"[WARN] precedent live search 실패: {e}")
+        return JSONResponse([])
+
+    out: list[dict] = []
+    for p in precs:
+        seq = p.get("판례일련번호") or ""
+        out.append({
+            "id": f"prec-{seq}",
+            "source": "prec",
+            "target_law": "",
+            "title": (p.get("사건명") or "").strip(),
+            "agency": p.get("법원명") or "",
+            "case_no": p.get("사건번호") or "",
+            "decided_at": (p.get("선고일자") or "").replace("-", "."),
+            "summary": "",
+            "body": "",
+            "ref_laws": "",
+            "link": "https://www.law.go.kr" + (p.get("판례상세링크") or ""),
+        })
+    for e in expcs:
+        seq = e.get("법령해석례일련번호") or ""
+        out.append({
+            "id": f"expc-{seq}",
+            "source": "expc",
+            "target_law": "",
+            "title": (e.get("안건명") or "").strip(),
+            "agency": e.get("회신기관명") or "",
+            "case_no": e.get("안건번호") or "",
+            "decided_at": (e.get("회신일자") or "").replace("-", "."),
+            "summary": "",
+            "body": "",
+            "ref_laws": "",
+            "link": "https://www.law.go.kr" + (e.get("법령해석례상세링크") or ""),
+        })
+    return JSONResponse(out)
+
+
+# ── 법령 3단비교 ─────────────────────────────────────────────────────────────
+@app.get("/api/law-comparison")
+async def get_law_comparison(law: str = ""):
+    """선택 법령의 법률·시행령·시행규칙(규정) 조문을 행 단위 매핑해 반환.
+
+    매핑 방식: 시행령·규정 조문 본문의 '법 제N조' 인용 패턴으로 법률 조문번호와 연결.
+    매칭 실패는 row.enforce/regulation = null.
+    """
+    if not law:
+        return JSONResponse([])
+    # parent_law_id 또는 law_id 매핑 — law_articles 테이블에 직접 ilike 검색
+    enc = urllib.parse.quote(law, safe="")
+    # law_name 패턴으로 ilike — 시행령/규정도 모두 잡힘
+    rows = _supabase_request(
+        "GET",
+        f"law_articles?law_name=ilike.*{enc}*&order=law_type.asc,jo_no.asc&limit=2000",
+    ) or []
+    if not rows:
+        return JSONResponse([])
+
+    by_type: dict[str, list[dict]] = {"act": [], "enforce": [], "regulation": []}
+    for r in rows:
+        t = r.get("law_type") or "act"
+        if t in by_type:
+            by_type[t].append(r)
+
+    # 매핑 — 시행령·규정 조문에서 법률 조문 인용 추출
+    law_ref_re = re.compile(r"법\s*제(\d+)조")
+    def by_act_no(rows_):
+        out: dict[int, list[dict]] = {}
+        for r in rows_:
+            m = law_ref_re.search(r.get("body") or "")
+            if m:
+                no = int(m.group(1))
+                out.setdefault(no, []).append(r)
+            else:
+                out.setdefault(r.get("jo_no", 0), []).append(r)
+        return out
+
+    enforce_map = by_act_no(by_type["enforce"])
+    reg_map     = by_act_no(by_type["regulation"])
+
+    def cell(rows_: list[dict] | None) -> dict | None:
+        if not rows_:
+            return None
+        # 여러 매칭 시 본문을 합쳐서 표시
+        labels = " / ".join(r.get("jo_label","") for r in rows_)
+        titles = " / ".join(r.get("jo_title","") for r in rows_ if r.get("jo_title"))
+        bodies = "\n\n".join((r.get("body") or "").strip() for r in rows_)
+        return {"label": labels, "title": titles, "body": bodies}
+
+    result: list[dict] = []
+    for a in sorted(by_type["act"], key=lambda x: x.get("jo_no", 0)):
+        jo = a.get("jo_no", 0)
+        result.append({
+            "idx": jo,
+            "act": {
+                "label": a.get("jo_label",""),
+                "title": a.get("jo_title",""),
+                "body": a.get("body","") or "",
+            },
+            "enforce":   cell(enforce_map.get(jo)),
+            "regulation": cell(reg_map.get(jo)),
+        })
+    return JSONResponse(result)
+
+
 @app.get("/api/bill-summary")
 async def get_bill_summary(link: str = ""):
     """법안 상세 페이지 요약 반환 (제·개정이유 + 주요내용 + 입법현황)"""

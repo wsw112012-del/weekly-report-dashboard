@@ -673,6 +673,26 @@
     .pol-fetched { font-size: 10px; color: var(--t3); }
     .pol-table-wrap { flex: 1; overflow-y: auto; }
     .pol-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+
+    /* 법령 3단비교 표 — PDF 스타일 */
+    .compare-table {
+      width: 100%; border-collapse: collapse; font-size: 11.5px;
+      table-layout: fixed;
+    }
+    .compare-table thead th {
+      background: #eef2f8; border: 1px solid var(--bd);
+      padding: 8px 10px; text-align: center; font-weight: 700;
+      color: var(--t1); font-size: 12px;
+      position: sticky; top: 0; z-index: 1;
+    }
+    .compare-table tbody td {
+      border: 1px solid #e5e7eb; padding: 10px 12px;
+      vertical-align: top; width: 33.33%;
+      line-height: 1.6;
+    }
+    .compare-table tbody td strong { color: var(--t1); display: block; margin-bottom: 4px; }
+    .compare-table tbody td p { margin: 0; color: var(--t2); }
+    .compare-table tbody tr:hover td { background: #fafbfc; }
     .pol-table thead tr {
       background: #f1f5f9; border-bottom: 2px solid var(--bd);
       position: sticky; top: 0; z-index: 1;
@@ -2421,6 +2441,10 @@
                     @click="polTab='legislation'">⚖️ 입법현황</button>
             <button class="pol-tab" :class="polTab==='gantt' ? 'active' : ''"
                     @click="polTab='gantt'">📊 연간 시행현황</button>
+            <button class="pol-tab" :class="polTab==='precedent' ? 'active' : ''"
+                    @click="polTab='precedent'; loadPrecedent()">📚 유권해석/판례</button>
+            <button class="pol-tab" :class="polTab==='compare' ? 'active' : ''"
+                    @click="polTab='compare'; loadCompare(compareSelectedLaw)">📑 법령 3단비교</button>
           </div>
 
           <!-- ── 입법현황 탭 ── -->
@@ -2742,6 +2766,198 @@
             </div>
 
           </div>
+          </template>
+
+          <!-- ── 유권해석/판례 탭 ── -->
+          <template x-if="polTab === 'precedent'">
+            <div class="pol-layout">
+              <!-- 좌측 사이드바: 대상 법령 -->
+              <div class="pol-sidebar" :style="`width:${sidebarW}px`">
+                <div class="pol-sidebar-title">대상 법령</div>
+                <div class="pol-sidebar-item" :class="precedentLaw==='전체' ? 'active' : ''"
+                     @click="precedentLaw='전체'; precedentPage=0">전체</div>
+                <template x-for="law in precedentAllLaws" :key="law">
+                  <div class="pol-sidebar-item" :class="precedentLaw===law ? 'active' : ''"
+                       @click="precedentLaw=law; precedentPage=0"
+                       x-text="normalizeLawName(law)"></div>
+                </template>
+
+                <div class="pol-sidebar-divider"></div>
+                <div class="pol-sidebar-title">유형</div>
+                <div class="pol-sidebar-item" :class="precedentKind==='전체' ? 'active' : ''"
+                     @click="precedentKind='전체'; precedentPage=0">전체</div>
+                <div class="pol-sidebar-item" :class="precedentKind==='expc' ? 'active' : ''"
+                     @click="precedentKind='expc'; precedentPage=0">📜 유권해석례</div>
+                <div class="pol-sidebar-item" :class="precedentKind==='prec' ? 'active' : ''"
+                     @click="precedentKind='prec'; precedentPage=0">⚖️ 판례</div>
+              </div>
+              <div class="resize-handle" @mousedown="startResize($event,'sidebar')"></div>
+
+              <!-- 본문 -->
+              <div class="pol-main">
+                <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap">
+                  <span style="font-size:13px;font-weight:800;color:var(--t1)">📚 유권해석/판례</span>
+                  <div class="articles-search" style="flex:1;min-width:240px">
+                    <span style="font-size:12px;color:var(--t3)">🔍</span>
+                    <input type="text" x-model="precedentSearch" @input.debounce.500ms="onPrecedentSearch"
+                           placeholder="키워드로 검색 (예: 트래블룰, 가상자산)..."/>
+                    <template x-if="precedentSearch">
+                      <span @click="precedentSearch=''; onPrecedentSearch()"
+                            style="cursor:pointer;color:var(--t3);font-size:11px">✕</span>
+                    </template>
+                  </div>
+                  <span style="font-size:11px;color:var(--t3)"
+                        x-text="filteredPrecedent.length + '건'"></span>
+                  <span x-show="precedentLoading" style="font-size:11px;color:var(--t3)">로딩 중...</span>
+                </div>
+
+                <table class="pol-table">
+                  <thead>
+                    <tr>
+                      <th style="width:60px">유형</th>
+                      <th style="width:130px">법령</th>
+                      <th>사건명/안건명</th>
+                      <th style="width:130px">기관</th>
+                      <th style="width:100px">일자</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <template x-if="filteredPrecedent.length === 0 && !precedentLoading">
+                      <tr><td colspan="5" style="text-align:center;padding:30px;color:var(--t3)">
+                        수집된 항목이 없거나 검색결과가 없습니다.
+                      </td></tr>
+                    </template>
+                    <template x-for="p in precedentPaged" :key="p.id">
+                      <template x-if="p._type === 'item'">
+                        <tr class="pol-row"
+                            :class="precedentSelectedId===p.id ? 'selected' : ''"
+                            @click="precedentSelectedId = precedentSelectedId===p.id ? null : p.id">
+                          <td>
+                            <span class="pri-badge"
+                                  :class="p.source==='prec' ? 'pri-mid' : 'pri-high'"
+                                  x-text="p.source==='prec' ? '판례' : '해석'"></span>
+                          </td>
+                          <td x-text="normalizeLawName(p.target_law || '-')"></td>
+                          <td class="pol-title" x-html="highlightQ(p.title||'', precedentSearch)"></td>
+                          <td x-text="p.agency || '-'"></td>
+                          <td x-text="(p.decided_at || '').slice(0,11)"></td>
+                        </tr>
+                      </template>
+                    </template>
+                    <!-- 확장 행 (선택 시 요약·본문) -->
+                    <template x-for="p in precedentPaged" :key="'detail-'+p.id">
+                      <template x-if="p._type === 'item' && precedentSelectedId===p.id">
+                        <tr class="pol-detail">
+                          <td colspan="5">
+                            <div class="pol-summary-box">
+                              <div x-show="p.summary">
+                                <strong>판시사항/요지</strong>
+                                <p x-text="p.summary"></p>
+                              </div>
+                              <div x-show="p.body" style="margin-top:8px">
+                                <strong>본문</strong>
+                                <p style="white-space:pre-wrap" x-text="(p.body||'').slice(0,1500)"></p>
+                              </div>
+                              <div x-show="p.ref_laws" style="margin-top:8px;color:var(--t3);font-size:11px">
+                                참조법령: <span x-text="p.ref_laws"></span>
+                              </div>
+                              <div style="margin-top:10px">
+                                <a x-show="p.link" :href="p.link" target="_blank" rel="noopener"
+                                   class="link-btn">law.go.kr 원문 →</a>
+                              </div>
+                            </div>
+                          </td>
+                        </tr>
+                      </template>
+                    </template>
+                  </tbody>
+                </table>
+
+                <!-- 페이지네이션 -->
+                <div class="leg-pager" x-show="precedentTotalPages > 1">
+                  <button :disabled="precedentPage===0" @click="precedentPage = Math.max(0, precedentPage-1)">‹</button>
+                  <span x-text="(precedentPage+1) + ' / ' + precedentTotalPages"></span>
+                  <button :disabled="precedentPage >= precedentTotalPages-1"
+                          @click="precedentPage = Math.min(precedentTotalPages-1, precedentPage+1)">›</button>
+                </div>
+              </div>
+            </div>
+          </template>
+
+          <!-- ── 법령 3단비교 탭 ── -->
+          <template x-if="polTab === 'compare'">
+            <div class="pol-layout">
+              <!-- 좌측 사이드바: 비교 대상 법령 -->
+              <div class="pol-sidebar" :style="`width:${sidebarW}px`">
+                <div class="pol-sidebar-title">비교 대상 법령</div>
+                <template x-for="law in compareAllLaws" :key="law">
+                  <div class="pol-sidebar-item" :class="compareSelectedLaw===law ? 'active' : ''"
+                       @click="compareSelectedLaw=law; loadCompare(law)"
+                       x-text="normalizeLawName(law)"></div>
+                </template>
+              </div>
+              <div class="resize-handle" @mousedown="startResize($event,'sidebar')"></div>
+
+              <!-- 본문: 3단 표 -->
+              <div class="pol-main">
+                <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap">
+                  <span style="font-size:13px;font-weight:800;color:var(--t1)"
+                        x-text="'📑 ' + (compareSelectedLaw || '법령 미선택') + ' 3단비교'"></span>
+                  <div class="articles-search" style="flex:1;min-width:240px">
+                    <span style="font-size:12px;color:var(--t3)">🔍</span>
+                    <input type="text" x-model="compareSearch" placeholder="조문 키워드로 필터..."/>
+                    <template x-if="compareSearch">
+                      <span @click="compareSearch=''"
+                            style="cursor:pointer;color:var(--t3);font-size:11px">✕</span>
+                    </template>
+                  </div>
+                  <span style="font-size:11px;color:var(--t3)"
+                        x-text="filteredCompareRows.length + '개 조문'"></span>
+                  <span x-show="compareLoading" style="font-size:11px;color:var(--t3)">로딩 중...</span>
+                </div>
+
+                <table class="compare-table">
+                  <thead>
+                    <tr>
+                      <th>법률</th>
+                      <th>시행령</th>
+                      <th>시행규칙 / 감독규정</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <template x-if="filteredCompareRows.length === 0 && !compareLoading">
+                      <tr><td colspan="3" style="text-align:center;padding:40px;color:var(--t3)">
+                        조문 데이터를 수집하지 않았거나 검색결과가 없습니다.
+                      </td></tr>
+                    </template>
+                    <template x-for="row in filteredCompareRows" :key="row.idx">
+                      <tr>
+                        <td>
+                          <div x-show="row.act">
+                            <strong x-text="(row.act?.label || '') + ' ' + (row.act?.title || '')"></strong>
+                            <p style="white-space:pre-wrap;margin-top:4px" x-html="highlightQ(row.act?.body || '', compareSearch)"></p>
+                          </div>
+                        </td>
+                        <td>
+                          <div x-show="row.enforce">
+                            <strong x-text="(row.enforce?.label || '') + ' ' + (row.enforce?.title || '')"></strong>
+                            <p style="white-space:pre-wrap;margin-top:4px" x-html="highlightQ(row.enforce?.body || '', compareSearch)"></p>
+                          </div>
+                          <span x-show="!row.enforce" style="color:var(--t3);font-size:11px">—</span>
+                        </td>
+                        <td>
+                          <div x-show="row.regulation">
+                            <strong x-text="(row.regulation?.label || '') + ' ' + (row.regulation?.title || '')"></strong>
+                            <p style="white-space:pre-wrap;margin-top:4px" x-html="highlightQ(row.regulation?.body || '', compareSearch)"></p>
+                          </div>
+                          <span x-show="!row.regulation" style="color:var(--t3);font-size:11px">—</span>
+                        </td>
+                      </tr>
+                    </template>
+                  </tbody>
+                </table>
+              </div>
+            </div>
           </template>
 
           <!-- ── REMOVED old 2col + dead zone ── -->
@@ -3617,6 +3833,40 @@
       polSelectedId: null,
       legSideLaw: '',
       legSummaries: {},
+
+      // ── 유권해석/판례 (precedent_db) ──
+      precedentItems: [],
+      precedentLoading: false,
+      precedentSearch: '',
+      precedentLaw: '전체',
+      precedentKind: '전체',           // '전체' | 'expc' | 'prec'
+      precedentSelectedId: null,
+      precedentPage: 0,
+      precedentPageSize: 20,
+      precedentAllLaws: [
+        '개인정보보호법',
+        '신용정보의 이용 및 보호에 관한 법률',
+        '정보통신망이용촉진및정보보호등에관한법률',
+        '전자금융거래법',
+        '외국환거래법',
+        '특정 금융거래정보의 보고 및 이용 등에 관한 법률',
+        '공중 등 협박목적 및 대량살상무기확산을 위한 자금조달행위의 금지에 관한 법률',
+      ],
+
+      // ── 법령 3단비교 (law_articles) ──
+      compareSelectedLaw: '외국환거래법',
+      compareRows: [],                 // [{idx, act:{label,title,body}, enforce:{...}, regulation:{...}}]
+      compareLoading: false,
+      compareSearch: '',
+      compareAllLaws: [
+        '외국환거래법',
+        '전자금융거래법',
+        '특정 금융거래정보의 보고 및 이용 등에 관한 법률',
+        '공중 등 협박목적 및 대량살상무기확산을 위한 자금조달행위의 금지에 관한 법률',
+        '개인정보보호법',
+        '신용정보의 이용 및 보호에 관한 법률',
+        '정보통신망이용촉진및정보보호등에관한법률',
+      ],
       legDetails: {},
       artPanel: null,
       artPanelHtml: '',
@@ -4557,6 +4807,73 @@
           this._buildLawTimelines();
         } catch(_) { this.legItems = []; }
         finally { this.legLoading = false; }
+      },
+
+      // ── 유권해석/판례 메서드 ──
+      async loadPrecedent() {
+        this.precedentLoading = true;
+        try {
+          this.precedentItems = await fetch('/api/precedent').then(r => r.json());
+        } catch(_) { this.precedentItems = []; }
+        finally { this.precedentLoading = false; }
+      },
+      async onPrecedentSearch() {
+        // 검색어 비어있거나 짧으면 캐시에서만 필터
+        const q = (this.precedentSearch || '').trim();
+        if (q.length < 2) return;
+        // 길어지면 실시간 API 검색 추가 호출 (선택)
+        try {
+          const url = '/api/precedent/search?q=' + encodeURIComponent(q);
+          const live = await fetch(url).then(r => r.json()).catch(() => []);
+          if (Array.isArray(live) && live.length) {
+            // 기존 + 라이브 머지 (id 중복 제거)
+            const seen = new Set(this.precedentItems.map(x => x.id));
+            for (const x of live) if (!seen.has(x.id)) this.precedentItems.push(x);
+          }
+        } catch(_) {}
+      },
+      get filteredPrecedent() {
+        const q = (this.precedentSearch || '').trim().toLowerCase();
+        return this.precedentItems.filter(p => {
+          if (this.precedentLaw !== '전체' && p.target_law !== this.precedentLaw) return false;
+          if (this.precedentKind !== '전체' && p.source !== this.precedentKind) return false;
+          if (q) {
+            const hay = [p.title, p.summary, p.body, p.agency, p.ref_laws]
+              .map(v => (v||'').toString().toLowerCase()).join('\n');
+            if (!hay.includes(q)) return false;
+          }
+          return true;
+        }).sort((a, b) => (b.decided_at||'').localeCompare(a.decided_at||''));
+      },
+      get precedentTotalPages() {
+        return Math.max(1, Math.ceil(this.filteredPrecedent.length / this.precedentPageSize));
+      },
+      get precedentPaged() {
+        const start = this.precedentPage * this.precedentPageSize;
+        return this.filteredPrecedent
+          .slice(start, start + this.precedentPageSize)
+          .map(p => ({ ...p, _type: 'item' }));
+      },
+
+      // ── 법령 3단비교 메서드 ──
+      async loadCompare(law) {
+        if (!law) return;
+        this.compareLoading = true;
+        try {
+          const url = '/api/law-comparison?law=' + encodeURIComponent(law);
+          this.compareRows = await fetch(url).then(r => r.json());
+        } catch(_) { this.compareRows = []; }
+        finally { this.compareLoading = false; }
+      },
+      get filteredCompareRows() {
+        const q = (this.compareSearch || '').trim().toLowerCase();
+        if (!q) return this.compareRows;
+        return this.compareRows.filter(row => {
+          const hay = [row.act, row.enforce, row.regulation]
+            .map(c => c ? (c.label + ' ' + c.title + ' ' + c.body) : '')
+            .join('\n').toLowerCase();
+          return hay.includes(q);
+        });
       },
       async collectLegislation() {
         this.legLoading = true;
