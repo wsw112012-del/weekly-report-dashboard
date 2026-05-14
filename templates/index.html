@@ -1336,7 +1336,164 @@
       font-weight: 600;
     }
 
-    /* 법령 3단비교 표 — PDF 스타일 */
+    /* ═════════ 3단 조문비교 v2 — 법제처·Westlaw 패턴 ═════════ */
+    .cmp-v2-wrap {
+      flex: 1; display: flex; flex-direction: column;
+      overflow: hidden; min-height: 0; background: #fff;
+    }
+    .cmp-v2-topbar {
+      display: flex; align-items: center; gap: 14px;
+      padding: 14px 18px; flex-wrap: wrap;
+      background: #fff; border-bottom: 1px solid var(--bd);
+      flex-shrink: 0;
+    }
+    .cmp-v2-chips { display: flex; gap: 6px; flex-wrap: wrap; }
+    .cmp-v2-chip {
+      padding: 6px 14px; font-size: 11.5px; border-radius: 16px;
+      background: #fff; border: 1px solid var(--bd); color: var(--t2);
+      cursor: pointer; font-weight: 600; transition: all .15s;
+    }
+    .cmp-v2-chip:hover {
+      border-color: var(--accent); color: var(--accent);
+    }
+    .cmp-v2-chip.active {
+      background: var(--accent); color: #fff; border-color: var(--accent);
+    }
+    .cmp-v2-search {
+      flex: 1; min-width: 220px; max-width: 360px;
+    }
+    .cmp-v2-counters {
+      display: flex; gap: 16px; font-size: 11px; color: var(--t3);
+      align-items: center;
+    }
+    .cmp-v2-counter strong { color: var(--t1); font-size: 13px; margin-left: 3px; }
+
+    .cmp-v2-layout {
+      flex: 1; display: flex; min-height: 0; overflow: hidden;
+    }
+    .cmp-v2-toc {
+      width: 300px; flex-shrink: 0; overflow-y: auto;
+      border-right: 1px solid var(--bd);
+      padding: 12px 8px 24px; background: #fafbfc;
+    }
+    .cmp-v2-toc-chapter {
+      margin: 14px 8px 6px;
+      padding: 6px 0 5px;
+      font-size: 11.5px; font-weight: 800; color: var(--accent);
+      letter-spacing: .02em;
+      border-bottom: 1px solid var(--bd);
+      display: flex; gap: 6px;
+    }
+    .cmp-v2-toc-chapter:first-child { margin-top: 4px; }
+    .cmp-v2-toc-item {
+      display: flex; align-items: center; gap: 8px;
+      padding: 8px 10px; margin: 2px 4px;
+      border-radius: 6px;
+      cursor: pointer; transition: background .15s, color .15s;
+      font-size: 12px; color: var(--t2);
+    }
+    .cmp-v2-toc-item:hover {
+      background: rgba(37,99,235,.07); color: var(--t1);
+    }
+    .cmp-v2-toc-item.active {
+      background: var(--accent); color: #fff;
+    }
+    .cmp-v2-toc-item.active strong { color: #fff; }
+    .cmp-v2-toc-item.active .cmp-v2-toc-tag {
+      background: rgba(255,255,255,.25); color: #fff;
+    }
+    .cmp-v2-toc-label {
+      flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+      display: flex; gap: 5px; align-items: baseline;
+    }
+    .cmp-v2-toc-label strong {
+      font-weight: 700; color: var(--t1); flex-shrink: 0;
+    }
+    .cmp-v2-toc-tags {
+      display: flex; gap: 3px; flex-shrink: 0;
+    }
+    .cmp-v2-toc-tag {
+      font-size: 9.5px; font-weight: 700; padding: 1px 5px;
+      border-radius: 3px; letter-spacing: .02em;
+    }
+    .cmp-v2-toc-tag.enf  { background: #dbeafe; color: #1e40af; }
+    .cmp-v2-toc-tag.regu { background: #d1fae5; color: #065f46; }
+
+    .cmp-v2-main {
+      flex: 1; overflow-y: auto; padding: 22px 32px 50px;
+      background: #fbfcfd;
+    }
+    .cmp-v2-empty {
+      text-align: center; color: var(--t3);
+      padding: 80px 20px 60px;
+    }
+    .cmp-v2-breadcrumb {
+      font-size: 11.5px; color: var(--t2);
+      padding: 4px 2px 18px;
+      display: flex; align-items: center; flex-wrap: wrap;
+    }
+    .cmp-v2-breadcrumb strong { color: var(--t1); font-weight: 700; }
+    .cmp-v2-card {
+      margin-bottom: 16px; border: 1px solid var(--bd);
+      border-radius: 12px; overflow: hidden; background: #fff;
+      box-shadow: 0 1px 2px rgba(15,23,42,.03);
+    }
+    .cmp-v2-card.empty {
+      background: #fafbfc;
+      box-shadow: none;
+    }
+    .cmp-v2-card-head {
+      display: flex; align-items: center; gap: 12px;
+      padding: 12px 18px;
+      border-left: 4px solid transparent;
+      background: #fafbff;
+      border-bottom: 1px solid var(--bd);
+    }
+    .cmp-v2-card-badge {
+      font-size: 11.5px; font-weight: 800;
+      padding: 4px 11px; border-radius: 12px;
+      letter-spacing: .02em; flex-shrink: 0;
+    }
+    .cmp-v2-card-art {
+      font-size: 14px; font-weight: 700; color: var(--t1);
+      flex: 1; min-width: 0;
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    .cmp-v2-card-body {
+      padding: 16px 22px;
+      font-size: 13px; line-height: 1.85; color: var(--t1);
+      white-space: pre-wrap; word-break: keep-all;
+    }
+    .cmp-v2-card-empty-msg {
+      color: var(--t3); font-style: italic; font-size: 12px;
+      padding: 14px 22px;
+    }
+    /* 법률 — 주황 */
+    .cmp-v2-card-act .cmp-v2-card-head {
+      border-left-color: #f59e0b;
+      background: linear-gradient(90deg, #fffbeb 0%, #fafbff 60%);
+    }
+    .cmp-v2-card-act .cmp-v2-card-badge { background: #fef3c7; color: #92400e; }
+    /* 시행령 — 청 */
+    .cmp-v2-card-enforce .cmp-v2-card-head {
+      border-left-color: #2563eb;
+      background: linear-gradient(90deg, #eff6ff 0%, #fafbff 60%);
+    }
+    .cmp-v2-card-enforce .cmp-v2-card-badge { background: #dbeafe; color: #1e40af; }
+    /* 시행규칙 — 녹 */
+    .cmp-v2-card-regulation .cmp-v2-card-head {
+      border-left-color: #10b981;
+      background: linear-gradient(90deg, #ecfdf5 0%, #fafbff 60%);
+    }
+    .cmp-v2-card-regulation .cmp-v2-card-badge { background: #d1fae5; color: #065f46; }
+    /* 좁은 화면 */
+    @media (max-width: 1100px) {
+      .cmp-v2-toc { width: 240px; }
+      .cmp-v2-main { padding: 18px 18px 40px; }
+      .cmp-v2-counters { display: none; }
+    }
+
+    /* 법령 3단비교 표 — PDF 스타일 (deprecated) */
     .compare-table {
       width: 100%; border-collapse: collapse; font-size: 11.5px;
       table-layout: fixed;
@@ -4116,95 +4273,152 @@
             </div>
           </template>
 
-          <!-- ── 법령 3단비교 탭 ── -->
+          <!-- ── 법령 3단비교 탭 (v2 — 법제처·Westlaw 패턴) ── -->
           <template x-if="polTab === 'compare'">
-            <div class="pol-layout">
-              <!-- 좌측 사이드바 1: 비교 대상 법령 선택 + 선택 법령 조항 트리 -->
-              <div class="pol-sidebar" :style="`width:${sidebarW}px`">
-                <div class="pol-sidebar-title">비교 대상 법령</div>
-                <template x-for="law in compareAllLaws" :key="law">
-                  <div class="pol-sidebar-item" :class="compareSelectedLaw===law ? 'active' : ''"
-                       @click="compareSelectedLaw=law; loadCompare(law)"
-                       x-text="normalizeLawName(law)"></div>
-                </template>
-
-                <div class="pol-sidebar-divider"></div>
-                <div class="pol-sidebar-title" x-text="compareSelectedLaw + ' 조항'"></div>
-                <div class="compare-toc">
-                  <template x-for="node in compareToc" :key="node.idx">
-                    <div :class="node.type==='chapter' ? 'toc-chapter' : 'toc-article'"
-                         @click="scrollToArticle(node.idx)"
-                         :title="node.label + ' ' + node.title">
-                      <span x-text="node.label + ' ' + node.title"></span>
-                    </div>
+            <div class="cmp-v2-wrap">
+              <!-- 상단 바: 법령 chips + 검색 + 카운터 -->
+              <div class="cmp-v2-topbar">
+                <div class="cmp-v2-chips">
+                  <template x-for="law in compareAllLaws" :key="law">
+                    <button class="cmp-v2-chip"
+                            :class="compareSelectedLaw===law ? 'active' : ''"
+                            @click="compareSelectedLaw=law; loadCompare(law)"
+                            x-text="normalizeLawName(law)"></button>
                   </template>
-                  <template x-if="compareToc.length === 0">
-                    <div style="font-size:11px;color:var(--t3);padding:8px">조문 정보 없음</div>
+                </div>
+                <div class="articles-search cmp-v2-search">
+                  <span style="font-size:12px;color:var(--t3)">🔍</span>
+                  <input type="text" x-model="compareSearch" placeholder="조문 키워드로 검색..."/>
+                  <template x-if="compareSearch">
+                    <span @click="compareSearch=''"
+                          style="cursor:pointer;color:var(--t3);font-size:11px">✕</span>
                   </template>
+                </div>
+                <div class="cmp-v2-counters">
+                  <span class="cmp-v2-counter">📕 법률 <strong x-text="cmpCounts.act"></strong></span>
+                  <span class="cmp-v2-counter">📘 시행령 <strong x-text="cmpCounts.enforce"></strong></span>
+                  <span class="cmp-v2-counter">📗 규칙 <strong x-text="cmpCounts.regulation"></strong></span>
                 </div>
               </div>
-              <div class="resize-handle" @mousedown="startResize($event,'sidebar')"></div>
 
-              <!-- 본문: 3단 표 (스크롤 가능) -->
-              <div class="pol-main">
-                <div style="display:flex;align-items:center;gap:10px;margin-top:16px;margin-bottom:14px;flex-wrap:wrap">
-                  <span style="font-size:13px;font-weight:800;color:var(--t1)"
-                        x-text="'📑 ' + (compareSelectedLaw || '법령 미선택') + ' 3단비교'"></span>
-                  <div class="articles-search" style="flex:1;min-width:240px">
-                    <span style="font-size:12px;color:var(--t3)">🔍</span>
-                    <input type="text" x-model="compareSearch" placeholder="조문 키워드로 필터..."/>
-                    <template x-if="compareSearch">
-                      <span @click="compareSearch=''"
-                            style="cursor:pointer;color:var(--t3);font-size:11px">✕</span>
-                    </template>
-                  </div>
-                  <span style="font-size:11px;color:var(--t3)"
-                        x-text="filteredCompareRows.length + '개 조문'"></span>
-                  <span x-show="compareLoading" style="font-size:11px;color:var(--t3)">로딩 중...</span>
-                </div>
+              <!-- 좌측 TOC + 우측 상세 -->
+              <div class="cmp-v2-layout">
+                <aside class="cmp-v2-toc">
+                  <template x-if="compareLoading">
+                    <div style="padding:14px;color:var(--t3);font-size:12px">로딩 중...</div>
+                  </template>
+                  <template x-for="node in cmpTocV2" :key="'t'+node.idx">
+                    <div>
+                      <template x-if="node.type === 'chapter'">
+                        <div class="cmp-v2-toc-chapter">
+                          <span x-text="node.label"></span>
+                          <span style="font-weight:600;color:var(--t2)" x-text="node.title"></span>
+                        </div>
+                      </template>
+                      <template x-if="node.type === 'article'">
+                        <div class="cmp-v2-toc-item"
+                             :class="compareSelectedRowIdx === node.idx ? 'active' : ''"
+                             @click="compareSelectedRowIdx = node.idx">
+                          <span class="cmp-v2-toc-label">
+                            <strong x-text="node.label"></strong>
+                            <span x-text="node.title"></span>
+                          </span>
+                          <span class="cmp-v2-toc-tags">
+                            <span class="cmp-v2-toc-tag enf" x-show="node.hasEnforce" title="시행령 매칭">령</span>
+                            <span class="cmp-v2-toc-tag regu" x-show="node.hasRegu" title="시행규칙 매칭">규</span>
+                          </span>
+                        </div>
+                      </template>
+                    </div>
+                  </template>
+                  <template x-if="!compareLoading && cmpTocV2.length === 0">
+                    <div style="padding:14px;color:var(--t3);font-size:12px">
+                      <span x-show="!compareSearch">조문 정보 없음</span>
+                      <span x-show="compareSearch">검색 결과 없음</span>
+                    </div>
+                  </template>
+                </aside>
 
-                <div class="compare-table-wrap">
-                  <table class="compare-table">
-                    <thead>
-                      <tr>
-                        <th>법률</th>
-                        <th>시행령</th>
-                        <th>시행규칙 / 감독규정</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      <template x-if="filteredCompareRows.length === 0 && !compareLoading">
-                        <tr><td colspan="3" style="text-align:center;padding:40px;color:var(--t3)">
-                          조문 데이터를 수집하지 않았거나 검색결과가 없습니다.
-                        </td></tr>
-                      </template>
-                      <template x-for="row in filteredCompareRows" :key="row.idx">
-                        <tr :id="'cmp-row-'+row.idx">
-                          <td>
-                            <div x-show="row.act">
-                              <strong x-text="(row.act?.label || '') + ' ' + (row.act?.title || '')"></strong>
-                              <p style="white-space:pre-wrap;margin-top:4px" x-html="highlightQ(row.act?.body || '', compareSearch)"></p>
-                            </div>
-                          </td>
-                          <td>
-                            <div x-show="row.enforce">
-                              <strong x-text="(row.enforce?.label || '') + ' ' + (row.enforce?.title || '')"></strong>
-                              <p style="white-space:pre-wrap;margin-top:4px" x-html="highlightQ(row.enforce?.body || '', compareSearch)"></p>
-                            </div>
-                            <span x-show="!row.enforce" style="color:var(--t3);font-size:11px">—</span>
-                          </td>
-                          <td>
-                            <div x-show="row.regulation">
-                              <strong x-text="(row.regulation?.label || '') + ' ' + (row.regulation?.title || '')"></strong>
-                              <p style="white-space:pre-wrap;margin-top:4px" x-html="highlightQ(row.regulation?.body || '', compareSearch)"></p>
-                            </div>
-                            <span x-show="!row.regulation" style="color:var(--t3);font-size:11px">—</span>
-                          </td>
-                        </tr>
-                      </template>
-                    </tbody>
-                  </table>
-                </div>
+                <main class="cmp-v2-main">
+                  <!-- 빈 상태 -->
+                  <template x-if="!compareSelectedRow && !compareLoading">
+                    <div class="cmp-v2-empty">
+                      <div style="font-size:36px;margin-bottom:10px">📑</div>
+                      <p style="font-size:14px;font-weight:600;color:var(--t1);margin:0 0 6px">조문을 선택하세요</p>
+                      <p style="font-size:12.5px;color:var(--t3);margin:0">
+                        좌측 목록에서 조문을 클릭하면 <strong>법률 · 시행령 · 시행규칙</strong>이 한 화면에 표시됩니다.
+                      </p>
+                    </div>
+                  </template>
+
+                  <!-- 상세 카드 3종 -->
+                  <template x-if="compareSelectedRow">
+                    <div>
+                      <!-- breadcrumb -->
+                      <div class="cmp-v2-breadcrumb">
+                        <span x-text="normalizeLawName(compareSelectedLaw)"></span>
+                        <span style="margin:0 6px;color:var(--t3)">›</span>
+                        <strong x-text="(compareSelectedRow.act?.label || '') + ' ' + (compareSelectedRow.act?.title || '')"></strong>
+                      </div>
+
+                      <!-- 법률 -->
+                      <div class="cmp-v2-card cmp-v2-card-act"
+                           :class="!compareSelectedRow.act?.body ? 'empty' : ''">
+                        <div class="cmp-v2-card-head">
+                          <span class="cmp-v2-card-badge">📕 법률</span>
+                          <span class="cmp-v2-card-art"
+                                x-text="(compareSelectedRow.act?.label || '') + ' ' + (compareSelectedRow.act?.title || '')"></span>
+                        </div>
+                        <div class="cmp-v2-card-body"
+                             x-html="compareSelectedRow.act?.body
+                               ? highlightQ(compareSelectedRow.act.body, compareSearch)
+                               : '<span style=&quot;color:var(--t3)&quot;>본문 없음</span>'"></div>
+                      </div>
+
+                      <!-- 시행령 -->
+                      <div class="cmp-v2-card cmp-v2-card-enforce"
+                           :class="!compareSelectedRow.enforce ? 'empty' : ''">
+                        <div class="cmp-v2-card-head">
+                          <span class="cmp-v2-card-badge">📘 시행령</span>
+                          <span class="cmp-v2-card-art"
+                                x-text="compareSelectedRow.enforce
+                                  ? ((compareSelectedRow.enforce.label || '') + ' ' + (compareSelectedRow.enforce.title || ''))
+                                  : '연결된 시행령 없음'"></span>
+                        </div>
+                        <template x-if="compareSelectedRow.enforce">
+                          <div class="cmp-v2-card-body"
+                               x-html="highlightQ(compareSelectedRow.enforce.body || '', compareSearch)"></div>
+                        </template>
+                        <template x-if="!compareSelectedRow.enforce">
+                          <div class="cmp-v2-card-body cmp-v2-card-empty-msg">
+                            해당 조문에 매칭된 시행령이 없습니다.
+                          </div>
+                        </template>
+                      </div>
+
+                      <!-- 시행규칙 / 감독규정 -->
+                      <div class="cmp-v2-card cmp-v2-card-regulation"
+                           :class="!compareSelectedRow.regulation ? 'empty' : ''">
+                        <div class="cmp-v2-card-head">
+                          <span class="cmp-v2-card-badge">📗 시행규칙 / 감독규정</span>
+                          <span class="cmp-v2-card-art"
+                                x-text="compareSelectedRow.regulation
+                                  ? ((compareSelectedRow.regulation.label || '') + ' ' + (compareSelectedRow.regulation.title || ''))
+                                  : '연결된 규칙 없음'"></span>
+                        </div>
+                        <template x-if="compareSelectedRow.regulation">
+                          <div class="cmp-v2-card-body"
+                               x-html="highlightQ(compareSelectedRow.regulation.body || '', compareSearch)"></div>
+                        </template>
+                        <template x-if="!compareSelectedRow.regulation">
+                          <div class="cmp-v2-card-body cmp-v2-card-empty-msg">
+                            해당 조문에 매칭된 시행규칙/감독규정이 없습니다.
+                          </div>
+                        </template>
+                      </div>
+                    </div>
+                  </template>
+                </main>
               </div>
             </div>
           </template>
@@ -5186,6 +5400,7 @@
 
       // ── 법령 3단비교 (law_articles) ──
       compareSelectedLaw: '외국환거래법',
+      compareSelectedRowIdx: null,     // v2 — 우측 상세에 표출할 조문 idx
       compareRows: [],                 // [{idx, act:{label,title,body}, enforce:{...}, regulation:{...}}]
       compareLoading: false,
       compareSearch: '',
@@ -6557,11 +6772,56 @@
       async loadCompare(law) {
         if (!law) return;
         this.compareLoading = true;
+        this.compareSelectedRowIdx = null;
         try {
           const url = '/api/law-comparison?law=' + encodeURIComponent(law);
           this.compareRows = await fetch(url).then(r => r.json());
+          // v2 — 첫 본문 보유 조문을 자동 선택
+          const firstArt = (this.compareRows || []).find(r => r.act && r.act.title);
+          if (firstArt) this.compareSelectedRowIdx = firstArt.idx;
         } catch(_) { this.compareRows = []; }
         finally { this.compareLoading = false; }
+      },
+      // v2 — 상단 카운터 (법률·시행령·규칙 갯수)
+      get cmpCounts() {
+        const rows = this.compareRows || [];
+        return {
+          act: rows.filter(r => r.act && (r.act.body || '').trim()).length,
+          enforce: rows.filter(r => r.enforce).length,
+          regulation: rows.filter(r => r.regulation).length,
+        };
+      },
+      // v2 — 검색 필터 + 시행령/규칙 보유 태그 포함된 TOC
+      get cmpTocV2() {
+        const rows = this.filteredCompareRows || [];
+        const out = [];
+        for (const row of rows) {
+          if (!row.act) continue;
+          const body = row.act.body || '';
+          const title = row.act.title || '';
+          const chapMatch = body.trim().match(/^(제\d+장(?:의\d+)?)\s*(.+?)(?:\s*<|$)/);
+          if (!title && chapMatch) {
+            out.push({
+              idx: row.idx, type: 'chapter',
+              label: chapMatch[1],
+              title: (chapMatch[2] || '').trim(),
+            });
+          } else if (title || row.act.label) {
+            out.push({
+              idx: row.idx, type: 'article',
+              label: row.act.label || ('제' + row.idx + '조'),
+              title: title,
+              hasEnforce: !!row.enforce,
+              hasRegu: !!row.regulation,
+            });
+          }
+        }
+        return out;
+      },
+      // v2 — 현재 선택된 row 객체
+      get compareSelectedRow() {
+        if (this.compareSelectedRowIdx == null) return null;
+        return (this.compareRows || []).find(r => r.idx === this.compareSelectedRowIdx) || null;
       },
       get filteredCompareRows() {
         const q = (this.compareSearch || '').trim().toLowerCase();
