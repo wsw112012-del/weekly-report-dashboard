@@ -142,6 +142,114 @@ def build_prompt(question: str, candidates: list[dict], max_cases: int = 20) -> 
     return _PROMPT_HEADER.format(question=question.strip(), cases="\n".join(cases))
 
 
+# ── 통합 검색 (Westlaw IA — Phase A) ─────────────────────────────────────
+def build_unified_candidates(query: str, types: list[str], laws: list[str],
+                              top_k: int = 50) -> list[dict]:
+    """precedent_db + law_articles 통합 검색.
+
+    Args:
+        query: 자연어 또는 키워드
+        types: ['prec','fsc_reply','fsc_nonact','law_article'] 부분집합. 빈 리스트 = 전부.
+        laws:  대상 법령 정식명 리스트. 빈 리스트 = 전부.
+        top_k: 정확도 상위 N건
+
+    Returns:
+        [{source, item_id, title, agency, decided_at, summary, body, link,
+          law_id, law_type, jo_label, jo_title, _score}]  통합 스키마
+    """
+    types = types or ['prec', 'fsc_reply', 'fsc_nonact', 'law_article']
+    out: list[dict] = []
+
+    # precedent_db
+    if any(t in types for t in ('prec', 'fsc_reply', 'fsc_nonact')):
+        prec_rows = []
+        if laws:
+            or_parts = [f"target_law.eq.{urllib.parse.quote(l, safe='')}" for l in laws]
+            flt = f"&or=({','.join(or_parts)})"
+        else:
+            flt = ""
+        # 유형 필터
+        prec_types = [t for t in types if t in ('prec', 'fsc_reply', 'fsc_nonact')]
+        if prec_types and len(prec_types) < 3:
+            type_or = ",".join(f"source.eq.{t}" for t in prec_types)
+            flt += f"&or=({type_or})" if not flt else f"&and=(source.in.({','.join(prec_types)}))"
+        try:
+            prec_rows = _sb_get(
+                f"precedent_db?select=id,source,target_law,title,agency,case_no,"
+                f"decided_at,summary,body,ref_laws,link"
+                f"&limit=2000{flt}"
+            )
+        except Exception:
+            prec_rows = []
+        for r in prec_rows:
+            if prec_types and r.get('source') not in prec_types:
+                continue
+            out.append({
+                "source":     r.get("source", "prec"),
+                "item_id":    r.get("id"),
+                "target_law": r.get("target_law", ""),
+                "title":      r.get("title", ""),
+                "agency":     r.get("agency", ""),
+                "case_no":    r.get("case_no", ""),
+                "decided_at": r.get("decided_at", ""),
+                "summary":    r.get("summary", "") or "",
+                "body":       r.get("body", "") or "",
+                "ref_laws":   r.get("ref_laws", "") or "",
+                "link":       r.get("link", ""),
+            })
+
+    # law_articles
+    if 'law_article' in types:
+        try:
+            law_rows = _sb_get(
+                "law_articles?select=id,law_id,law_name,law_type,jo_no,jo_label,"
+                "jo_title,body&limit=2000"
+            )
+        except Exception:
+            law_rows = []
+        for r in law_rows:
+            # 법령 필터 (law_name 부분 매칭)
+            if laws:
+                hit = any(L.replace(' ', '') in (r.get('law_name','').replace(' ', ''))
+                          for L in laws)
+                if not hit:
+                    continue
+            out.append({
+                "source":     "law_article",
+                "item_id":    r.get("id"),
+                "target_law": r.get("law_name", ""),
+                "title":      f"{r.get('law_name','')} {r.get('jo_label','')} {r.get('jo_title','')}".strip(),
+                "agency":     "",
+                "case_no":    "",
+                "decided_at": "",
+                "summary":    "",
+                "body":       r.get("body", "") or "",
+                "ref_laws":   "",
+                "link":       "",
+                "law_id":     r.get("law_id", ""),
+                "law_type":   r.get("law_type", ""),
+                "jo_label":   r.get("jo_label", ""),
+                "jo_title":   r.get("jo_title", ""),
+            })
+
+    # 자카드 정확도 스코어링
+    q_tokens = _tokens(query)
+    if q_tokens:
+        for item in out:
+            text = " ".join(filter(None, [
+                item.get("title"), item.get("summary"),
+                (item.get("body") or "")[:1500]
+            ]))
+            item["_score"] = _jaccard(q_tokens, _tokens(text))
+        out = [x for x in out if x.get("_score", 0) > 0]
+        out.sort(key=lambda x: -x["_score"])
+    else:
+        for item in out:
+            item["_score"] = 0.0
+
+    return out[:top_k]
+
+
 # ── 법령 조문 후보 (Phase 3 — 파일 분석용) ─────────────────────────────────
 def build_law_candidates(text: str, top_k: int = 15, db_limit: int = 2000) -> list[dict]:
     """law_articles 에서 텍스트 토큰 자카드 상위 top_k 반환."""

@@ -1851,6 +1851,33 @@ from fastapi import UploadFile, File, Form
 _DOC_MAX_BYTES = 5 * 1024 * 1024  # 5MB
 
 
+# ── Westlaw 통합 검색 (Phase A) ─────────────────────────────────────────────
+@app.get("/api/research/search")
+async def research_search(
+    q: str = "",
+    types: str = "",        # 콤마 구분: prec,fsc_reply,fsc_nonact,law_article
+    laws: str = "",         # 콤마 구분 정식명
+    limit: int = 50,
+):
+    """통합 검색 — precedent_db + law_articles. 자카드 정확도 정렬."""
+    import precedent_qa as _pqa
+    types_list = [t.strip() for t in types.split(",") if t.strip()] if types else []
+    laws_list  = [l.strip() for l in laws.split(",") if l.strip()] if laws else []
+
+    candidates = _pqa.build_unified_candidates(q.strip(), types_list, laws_list,
+                                                top_k=min(max(limit, 1), 200))
+    # 본문 정규화 — 통신량을 줄이려 summary·body 절단·정규화
+    for c in candidates:
+        if c.get("summary"):
+            c["summary"] = _normalize_precedent_body(c["summary"], max_chars=600)
+        if c.get("body"):
+            c["body"] = _normalize_precedent_body(c["body"], max_chars=2000)
+        if c.get("title"):
+            c["title"] = _normalize_summary(c["title"], max_chars=300)
+
+    return JSONResponse({"q": q, "total": len(candidates), "items": candidates})
+
+
 @app.post("/api/precedent/analyze-doc")
 async def analyze_doc(
     file: UploadFile = File(...),
