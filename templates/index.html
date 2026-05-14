@@ -1000,6 +1000,42 @@
       overflow-y: auto; border-left: 1px solid var(--bd);
       background: #fafbfc;
     }
+    /* 인용 레일 출처 필터 탭 */
+    .rs-cite-tabs {
+      display: flex; flex-wrap: wrap; gap: 4px;
+      padding: 0 6px 12px;
+      margin-bottom: 6px; border-bottom: 1px dashed var(--bd);
+    }
+    .rs-cite-tab {
+      display: inline-flex; align-items: center; gap: 4px;
+      padding: 4px 9px; border-radius: 12px;
+      background: #fff; border: 1px solid var(--bd);
+      color: var(--t2); font-size: 11px; font-weight: 600;
+      cursor: pointer; transition: all .15s;
+    }
+    .rs-cite-tab:hover:not(:disabled) {
+      border-color: var(--accent); color: var(--accent);
+    }
+    .rs-cite-tab.active {
+      background: var(--accent); border-color: var(--accent); color: #fff;
+    }
+    .rs-cite-tab:disabled {
+      opacity: .35; cursor: not-allowed;
+    }
+    .rs-cite-tab-cnt {
+      display: inline-block; padding: 1px 5px;
+      background: rgba(0,0,0,0.06); color: inherit;
+      border-radius: 8px; font-size: 10px; font-weight: 700;
+      min-width: 16px; text-align: center;
+    }
+    .rs-cite-tab.active .rs-cite-tab-cnt {
+      background: rgba(255,255,255,0.25);
+    }
+    .rs-cite-empty {
+      padding: 20px 12px; text-align: center;
+      font-size: 12px; color: var(--t3);
+    }
+
     .rs-cite-rail-title {
       font-size: 11px; font-weight: 700; color: var(--t3);
       letter-spacing: .04em; text-transform: uppercase;
@@ -3680,8 +3716,22 @@
                 <!-- 우측 인용 레일 — AI 답변 인용 문헌을 별도 표출 -->
                 <aside class="rs-cite-rail" x-show="rsAiCitations.length > 0" x-transition>
                   <div class="rs-cite-rail-title"
-                       x-text="'📎 인용 ' + rsAiCitations.length + '건'"></div>
-                  <template x-for="c in rsAiCitations" :key="String(c.idx)">
+                       x-text="'📎 인용 ' + rsCiteFiltered.length + ' / ' + rsAiCitations.length + '건'"></div>
+
+                  <!-- 출처 유형 필터 (전체 / 판례 / 법령 / 유권해석 / 비조치) -->
+                  <div class="rs-cite-tabs">
+                    <template x-for="t in rsCiteTabs" :key="t.value">
+                      <button class="rs-cite-tab"
+                              :class="{ active: rsCiteFilter === t.value }"
+                              :disabled="rsCiteCount(t.value) === 0"
+                              @click="rsCiteFilter = t.value">
+                        <span x-text="t.label"></span>
+                        <span class="rs-cite-tab-cnt" x-text="rsCiteCount(t.value)"></span>
+                      </button>
+                    </template>
+                  </div>
+
+                  <template x-for="c in rsCiteFiltered" :key="String(c.idx)">
                     <button class="rs-cite-chip"
                             :class="{ active: String(rsActiveCite) === String(c.idx) }"
                             @click="rsFocusCite(c.idx)">
@@ -3700,6 +3750,10 @@
                       </div>
                     </button>
                   </template>
+
+                  <div class="rs-cite-empty" x-show="rsAiCitations.length > 0 && rsCiteFiltered.length === 0">
+                    선택한 출처에 해당하는 인용이 없습니다.
+                  </div>
                 </aside>
               </div>
             </div>
@@ -5005,6 +5059,14 @@
       rsAiCitations: [],
       rsActiveCite: null,
       rsCiteDetail: null,
+      rsCiteFilter: 'all',           // 'all' | 'prec' | 'fsc_reply' | 'fsc_nonact' | 'law_article'
+      rsCiteTabs: [
+        { value: 'all',         label: '전체' },
+        { value: 'prec',        label: '⚖️ 판례' },
+        { value: 'law_article', label: '📖 법령' },
+        { value: 'fsc_reply',   label: '📜 유권해석' },
+        { value: 'fsc_nonact',  label: '📝 비조치' },
+      ],
       rsExpandedId: null,
       rsSort: 'score',                // 'score' | 'date'
       rsRecentSearches: [],
@@ -6191,6 +6253,24 @@
       },
       rsToggleAllTypes(checked) {
         this.rsFilters.types = checked ? this.rsAllTypes.map(t => t.value) : [];
+      },
+      // 인용 레일 — source 별 카운트·필터
+      rsCiteCount(val) {
+        if (val === 'all') return this.rsAiCitations.length;
+        return (this.rsAiCitations || []).filter(c => {
+          const src = (c.source || '').toLowerCase();
+          if (val === 'law_article') return src === 'law_article' || !!c.law_article_id;
+          return src === val;
+        }).length;
+      },
+      get rsCiteFiltered() {
+        const f = this.rsCiteFilter;
+        if (!f || f === 'all') return this.rsAiCitations || [];
+        return (this.rsAiCitations || []).filter(c => {
+          const src = (c.source || '').toLowerCase();
+          if (f === 'law_article') return src === 'law_article' || !!c.law_article_id;
+          return src === f;
+        });
       },
       _rsSaveRecent(q) {
         if (!q) return;
