@@ -867,10 +867,11 @@
     }
     .rs-search-btn:hover:not(:disabled) { background: #1e40af; }
     .rs-search-btn:disabled { opacity: .5; cursor: not-allowed; }
-    .rs-recent {
+    .rs-recent-row {
       max-width: 900px; margin: 10px auto 0; display: flex;
-      align-items: center; gap: 8px; flex-wrap: wrap;
+      align-items: center; gap: 12px; flex-wrap: wrap;
     }
+    .rs-recent { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; flex: 1; min-width: 0; }
     .rs-recent-label { font-size: 11px; color: var(--t3); }
     .rs-recent-chip {
       font-size: 11px; padding: 4px 10px; border-radius: 12px;
@@ -878,6 +879,41 @@
       transition: background .15s, color .15s;
     }
     .rs-recent-chip:hover { background: var(--accent-lt); color: var(--accent); }
+    .rs-attach-row { flex-shrink: 0; margin-left: auto; }
+    .rs-attach-trigger {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 5px 12px; border-radius: 14px; cursor: pointer;
+      background: #f1f5f9; color: var(--t2); font-size: 11px;
+      transition: background .15s, color .15s;
+      border: 1px dashed #cbd5e1;
+    }
+    .rs-attach-trigger:hover { background: var(--accent-lt); color: var(--accent); border-color: var(--accent); }
+    .rs-attach-trigger.active {
+      background: var(--accent-lt); color: var(--accent);
+      border-style: solid; border-color: var(--accent);
+    }
+    .rs-attach-remove {
+      background: rgba(0,0,0,0.08); border: none; border-radius: 50%;
+      width: 16px; height: 16px; font-size: 10px; cursor: pointer;
+      color: var(--t2); margin-left: 4px; padding: 0;
+    }
+    .rs-attach-remove:hover { background: rgba(220,38,38,0.18); color: #dc2626; }
+
+    /* 핵심 쟁점 카드 (파일 첨부 시) */
+    .rs-issues-card {
+      background: #fff;
+      border: 1px solid #7c3aed; border-left: 4px solid #7c3aed;
+      border-radius: 10px; padding: 16px 22px; margin-bottom: 16px;
+    }
+    .rs-issues-badge {
+      font-size: 12px; font-weight: 800; color: #5b21b6;
+      padding: 3px 10px; background: #ede9fe; border-radius: 12px;
+    }
+    .rs-issues-list {
+      margin: 12px 0 0 18px; padding: 0;
+      font-size: 13px; color: var(--t1); line-height: 1.75;
+    }
+    .rs-issues-list li { margin-bottom: 4px; }
 
     /* 레이아웃 */
     .rs-layout {
@@ -3147,14 +3183,34 @@
                   </template>
                   <button class="rs-search-btn" :disabled="rsLoading"
                           @click="rsSearch()">
-                    <span x-text="rsLoading ? '🔄' : '검색'"></span>
+                    <span x-text="rsLoading
+                      ? (rsFile ? '📋' : '🔄')
+                      : (rsFile ? '검토 분석' : '검색')"></span>
                   </button>
                 </div>
-                <div class="rs-recent" x-show="rsRecentSearches.length">
-                  <span class="rs-recent-label">최근:</span>
-                  <template x-for="rq in rsRecentSearches" :key="rq">
-                    <button class="rs-recent-chip" @click="rsQuery=rq; rsSearch()" x-text="rq"></button>
-                  </template>
+                <div class="rs-recent-row">
+                  <div class="rs-recent" x-show="rsRecentSearches.length">
+                    <span class="rs-recent-label">최근:</span>
+                    <template x-for="rq in rsRecentSearches" :key="rq">
+                      <button class="rs-recent-chip" @click="rsQuery=rq; rsSearch()" x-text="rq"></button>
+                    </template>
+                  </div>
+                  <div class="rs-attach-row">
+                    <label class="rs-attach-trigger" :class="{ 'active': rsFile }">
+                      <input type="file" accept=".docx,.pdf,.txt" hidden
+                             x-ref="rsFileInput"
+                             @change="rsFile = $event.target.files[0] || null"/>
+                      <template x-if="!rsFile">
+                        <span>📎 법률검토 첨부</span>
+                      </template>
+                      <template x-if="rsFile">
+                        <span>📄 <span x-text="rsFile?.name"></span>
+                          <button type="button" class="rs-attach-remove"
+                                  @click.prevent.stop="rsFile=null; $refs.rsFileInput.value=''">✕</button>
+                        </span>
+                      </template>
+                    </label>
+                  </div>
                 </div>
               </div>
 
@@ -3190,6 +3246,20 @@
 
                 <!-- 우측: AI 답변 + 결과 리스트 -->
                 <main class="rs-main">
+                  <!-- 핵심 쟁점 카드 (파일 첨부 시) -->
+                  <div class="rs-issues-card" x-show="rsKeyIssues.length" x-transition>
+                    <div class="rs-ai-head">
+                      <span class="rs-issues-badge">📋 핵심 쟁점</span>
+                      <span class="rs-ai-meta" x-show="rsAttachedFilename"
+                            x-text="'📎 ' + rsAttachedFilename"></span>
+                    </div>
+                    <ul class="rs-issues-list">
+                      <template x-for="iss in rsKeyIssues">
+                        <li x-text="iss"></li>
+                      </template>
+                    </ul>
+                  </div>
+
                   <!-- AI 답변 카드 -->
                   <div class="rs-ai-card" x-show="rsAiAnswer" x-transition>
                     <div class="rs-ai-head">
@@ -4589,6 +4659,10 @@
         types: ['prec','fsc_reply','fsc_nonact','law_article'],
         laws:  ['외국환거래법','특정 금융거래정보의 보고 및 이용 등에 관한 법률'],
       },
+      // 파일 첨부 (법률검토 분석)
+      rsFile: null,
+      rsKeyIssues: [],
+      rsAttachedFilename: '',
 
       // ── (제거됨: 기존 precedent 표 모드) ──
       precedentItems: [],
@@ -5642,24 +5716,62 @@
       },
       async rsSearch() {
         const q = (this.rsQuery || '').trim();
-        if (!q) { this.rsResults = []; this.rsAiAnswer = ''; this.rsAiCitations = []; return; }
+        const hasFile = !!this.rsFile;
+        if (!q && !hasFile) {
+          this.rsResults = []; this.rsAiAnswer = '';
+          this.rsAiCitations = []; this.rsKeyIssues = [];
+          this.rsAttachedFilename = '';
+          return;
+        }
         this.rsLoading = true;
         this.rsExpandedId = null;
-        this._rsSaveRecent(q);
-        // 통합 검색 (서버) + AI 답변 (서버) 병렬
+        this.rsKeyIssues = [];
+        if (q) this._rsSaveRecent(q);
+
         try {
           const types = (this.rsFilters.types || []).join(',');
           const laws  = (this.rsFilters.laws || []).join(',');
-          const url = '/api/research/search?q=' + encodeURIComponent(q)
-                    + '&types=' + encodeURIComponent(types)
-                    + '&laws='  + encodeURIComponent(laws);
-          const [searchRes, aiRes] = await Promise.all([
-            fetch(url).then(r => r.json()),
-            this._rsFetchAiAnswer(q),
-          ]);
-          this.rsResults     = (searchRes && searchRes.items) || [];
-          this.rsAiAnswer    = (aiRes && aiRes.answer) || '';
-          this.rsAiCitations = (aiRes && aiRes.citations) || [];
+
+          if (hasFile) {
+            // 파일 분석 모드 — analyze-doc 호출. 분석 응답의 key_issues +
+            // citations + answer 를 그대로 사용. 결과 리스트는 별도 통합 검색
+            // 으로 채워 사용자가 파일 외 추가 사례도 탐색 가능.
+            const fd = new FormData();
+            fd.append('file', this.rsFile);
+            fd.append('question', q);
+            fd.append('law_ids', JSON.stringify(this.rsFilters.laws));
+            const searchUrl = '/api/research/search?q=' + encodeURIComponent(q)
+                            + '&types=' + encodeURIComponent(types)
+                            + '&laws='  + encodeURIComponent(laws);
+            const [docRes, searchRes] = await Promise.all([
+              fetch('/api/precedent/analyze-doc', { method:'POST', body: fd })
+                .then(r => r.json()),
+              q ? fetch(searchUrl).then(r => r.json()) : Promise.resolve({ items: [] }),
+            ]);
+            if (docRes && docRes.error) {
+              alert('파일 분석 실패: ' + docRes.error);
+              return;
+            }
+            this.rsAnswer       = '';
+            this.rsAiAnswer     = (docRes && docRes.answer) || '';
+            this.rsAiCitations  = (docRes && docRes.citations) || [];
+            this.rsKeyIssues    = (docRes && docRes.key_issues) || [];
+            this.rsAttachedFilename = (docRes && docRes.filename) || this.rsFile.name;
+            this.rsResults      = (searchRes && searchRes.items) || [];
+          } else {
+            // 일반 검색 모드 — 통합 검색 + AI 답변 병렬
+            const url = '/api/research/search?q=' + encodeURIComponent(q)
+                      + '&types=' + encodeURIComponent(types)
+                      + '&laws='  + encodeURIComponent(laws);
+            const [searchRes, aiRes] = await Promise.all([
+              fetch(url).then(r => r.json()),
+              this._rsFetchAiAnswer(q),
+            ]);
+            this.rsResults     = (searchRes && searchRes.items) || [];
+            this.rsAiAnswer    = (aiRes && aiRes.answer) || '';
+            this.rsAiCitations = (aiRes && aiRes.citations) || [];
+            this.rsAttachedFilename = '';
+          }
         } catch (e) {
           alert('검색 오류: ' + e.message);
         } finally {
