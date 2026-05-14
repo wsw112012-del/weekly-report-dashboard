@@ -2165,7 +2165,7 @@ async def get_law_comparison(law: str = ""):
         return _supabase_request(
             "GET",
             f"law_articles?law_name=ilike.*{enc_}*"
-            f"&select=id,law_id,law_name,law_type,jo_no,jo_label,jo_title,body,parent_law_id,order_idx"
+            f"&select=id,law_id,law_name,law_type,jo_no,jo_label,jo_title,body,parent_law_id,order_idx,delegation_refs"
             f"&order=law_type.asc,order_idx.asc&limit=3000",
         ) or []
 
@@ -2182,14 +2182,13 @@ async def get_law_comparison(law: str = ""):
         return JSONResponse([])
 
     # parent_law_id 로 연결된 추가 자원 (별도 law_id 로 수집된 시행규칙·업무규정 등) 합치기
-    # 예: fiu_aml (자금세탁업무규정, parent=fiu), cipa_rule (신용정보법 시행규칙, parent=cipa)
     act_law_id = next((r.get("law_id") for r in rows if r.get("law_type") == "act"), None)
     if act_law_id:
         enc_ = urllib.parse.quote(act_law_id, safe="")
         extra = _supabase_request(
             "GET",
             f"law_articles?parent_law_id=eq.{enc_}"
-            f"&select=id,law_id,law_name,law_type,jo_no,jo_label,jo_title,body,parent_law_id,order_idx"
+            f"&select=id,law_id,law_name,law_type,jo_no,jo_label,jo_title,body,parent_law_id,order_idx,delegation_refs"
             f"&order=law_type.asc,order_idx.asc&limit=2000",
         ) or []
         existing_ids = {r["id"] for r in rows if r.get("id")}
@@ -2232,6 +2231,9 @@ async def get_law_comparison(law: str = ""):
     # 매핑 — 명시 인용 없으면 매핑 0 (fallback 제거).
     # 시행령(enforce)은 본인 jo_no 가 법률 jo_no 와 1:1 대응되는 경우가 많아 fallback 유지.
     # 감독규정/시행규칙(regulation)은 별도 체계라 fallback 금지 (false 매핑 원인).
+    # delegation_refs 컬럼 ('법§N' 형태) 도 매핑 소스로 활용 — Gemini 의미 매핑 결과 포함.
+    deleg_re = re.compile(r"법§(\d+)")
+
     def by_act_no(rows_, allow_transitive: bool = False, fallback_jo: bool = True):
         out: dict[int, list[dict]] = {}
         unmapped: list[dict] = []
@@ -2250,6 +2252,16 @@ async def get_law_comparison(law: str = ""):
                         no = int(m.group(1))
                         refs.update(enforce_to_act.get(no, set()))
                     except ValueError: pass
+            # delegation_refs 컬럼 — collect 시점에 저장된 인용 + Gemini 의미 매핑 결과
+            deleg = r.get("delegation_refs") or []
+            if isinstance(deleg, str):
+                try: deleg = json.loads(deleg)
+                except Exception: deleg = []
+            for d in deleg:
+                m = deleg_re.match(str(d))
+                if m:
+                    try: refs.add(int(m.group(1)))
+                    except ValueError: pass
             if refs:
                 for no in refs:
                     out.setdefault(no, []).append(r)
@@ -2257,7 +2269,7 @@ async def get_law_comparison(law: str = ""):
                 out.setdefault(r.get("jo_no", 0), []).append(r)
             else:
                 unmapped.append(r)
-        out["_unmapped"] = unmapped  # 매핑 안 된 행 보존 (현재는 미사용, 향후 별도 섹션 표시 가능)
+        out["_unmapped"] = unmapped
         return out
 
     # 시행령은 fallback 유지 (조 번호 1:1 케이스 많음)
