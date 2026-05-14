@@ -773,6 +773,41 @@
       text-align: center; padding: 40px 20px; color: var(--t2); font-size: 13px;
       background: #fff; border: 1px dashed var(--bd); border-radius: 10px;
     }
+    /* 파일 드롭 영역 */
+    .qa-file-drop {
+      display: block; cursor: pointer;
+      border: 2px dashed var(--bd); border-radius: 10px;
+      padding: 28px 20px; text-align: center;
+      background: #fafbfc;
+      transition: border-color .15s, background .15s;
+    }
+    .qa-file-drop:hover { border-color: var(--accent); background: var(--accent-lt); }
+    .qa-file-drop.dragover { border-color: var(--accent); background: var(--accent-lt); }
+    .qa-file-drop.has-file {
+      border-style: solid; border-color: var(--accent);
+      background: var(--accent-lt); padding: 16px 20px;
+    }
+    .qa-file-icon { font-size: 32px; line-height: 1; margin-bottom: 8px; }
+    .qa-file-drop-label {
+      font-size: 13px; color: var(--t2); margin-bottom: 4px;
+    }
+    .qa-file-drop-cta { color: var(--accent); font-weight: 700; text-decoration: underline; }
+    .qa-file-drop-filled {
+      display: flex; align-items: center; gap: 14px; text-align: left;
+    }
+    .qa-file-drop-filled .qa-file-icon { margin-bottom: 0; font-size: 28px; }
+    .qa-file-meta { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+    .qa-file-meta strong {
+      font-size: 13px; color: var(--t1);
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .qa-file-remove {
+      background: rgba(0,0,0,0.05); border: none; border-radius: 50%;
+      width: 28px; height: 28px; cursor: pointer; font-size: 13px;
+      color: var(--t2); flex-shrink: 0;
+    }
+    .qa-file-remove:hover { background: rgba(239,68,68,0.15); color: #dc2626; }
+
     .qa-file-info {
       margin-top: 10px; padding: 8px 12px;
       background: var(--accent-lt); border-radius: 6px;
@@ -2944,20 +2979,36 @@
               <div class="qa-card">
                 <div class="qa-card-head">
                   <h3>📎 법률검토 첨부 (선택)</h3>
-                  <span class="qa-hint">.docx / .pdf / .txt — 최대 5MB</span>
+                  <span class="qa-hint">법무팀·법무법인 검토 문서를 첨부하면 우리 DB와 비교해 핵심 쟁점·일치·보완 포인트를 정리합니다.</span>
                 </div>
-                <input type="file" accept=".docx,.pdf,.txt"
-                       x-ref="qaFileInput"
-                       @change="qaFile = $event.target.files[0] || null"/>
-                <div x-show="qaFile" class="qa-file-info">
-                  📄 <strong x-text="qaFile?.name"></strong>
-                  (<span x-text="qaFile ? (qaFile.size / 1024).toFixed(1) + 'KB' : ''"></span>)
-                  <button class="qa-btn-link"
-                          @click="qaFile = null; $refs.qaFileInput.value = ''">제거</button>
-                </div>
-                <p class="qa-hint" style="margin-top:8px">
-                  법무팀·법무법인 검토 문서를 첨부하면 우리 DB의 회신사례·법령 조문과 비교해 핵심 쟁점·일치·보완 포인트를 정리합니다.
-                </p>
+                <label class="qa-file-drop"
+                       :class="{ 'has-file': qaFile, 'dragover': qaDragover }"
+                       @dragenter.prevent="qaDragover = true"
+                       @dragover.prevent="qaDragover = true"
+                       @dragleave.prevent="qaDragover = false"
+                       @drop.prevent="qaDragover = false; qaFile = ($event.dataTransfer.files && $event.dataTransfer.files[0]) || null">
+                  <input type="file" accept=".docx,.pdf,.txt" hidden
+                         x-ref="qaFileInput"
+                         @change="qaFile = $event.target.files[0] || null"/>
+                  <template x-if="!qaFile">
+                    <div class="qa-file-drop-empty">
+                      <div class="qa-file-icon">☁️</div>
+                      <div class="qa-file-drop-label">파일을 끌어다 놓거나 <span class="qa-file-drop-cta">클릭하여 업로드</span></div>
+                      <div class="qa-hint">.docx · .pdf · .txt — 최대 5MB</div>
+                    </div>
+                  </template>
+                  <template x-if="qaFile">
+                    <div class="qa-file-drop-filled">
+                      <div class="qa-file-icon">📄</div>
+                      <div class="qa-file-meta">
+                        <strong x-text="qaFile?.name"></strong>
+                        <span class="qa-hint" x-text="qaFile ? (qaFile.size / 1024).toFixed(1) + ' KB' : ''"></span>
+                      </div>
+                      <button type="button" class="qa-file-remove"
+                              @click.prevent.stop="qaFile = null; $refs.qaFileInput.value = ''">✕</button>
+                    </div>
+                  </template>
+                </label>
               </div>
 
               <!-- 2. 대상 법령 카드 -->
@@ -2983,9 +3034,11 @@
               <!-- 3. 검색 액션 -->
               <div class="qa-actions">
                 <button class="qa-submit"
-                        :disabled="!qaQuestion.trim() || qaLaws.length===0 || qaLoading"
+                        :disabled="(!qaQuestion.trim() && !qaFile) || qaLaws.length===0 || qaLoading"
                         @click="submitPrecedentQa()">
-                  <span x-text="qaLoading ? '🔄 AI 분석 중...' : '🔍 검색'"></span>
+                  <span x-text="qaLoading
+                    ? (qaFile ? '📋 법률검토 분석 중...' : '🔄 AI 분석 중...')
+                    : (qaFile ? '📋 법률검토 분석' : '🔍 검색')"></span>
                 </button>
                 <span x-show="qaCached" class="qa-cache-tag">⚡ 캐시된 응답</span>
                 <span x-show="qaElapsedMs > 0" class="qa-hint"
@@ -4186,6 +4239,7 @@
       qaExpandedId: null,
       // Phase 3 — 파일 분석
       qaFile: null,
+      qaDragover: false,
       qaKeyIssues: [],
       qaLawCitations: [],
       qaLawExpandedIdx: null,
