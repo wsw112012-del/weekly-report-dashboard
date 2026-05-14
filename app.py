@@ -801,6 +801,17 @@ def _normalize_summary(text: str, max_chars: int = 3000) -> str:
     if not text:
         return text or ''
 
+    # A-0. HTML 태그·엔티티 제거 (회신 본문이 <br>, </br>, <p> 섞인 채 들어오는 경우)
+    text = re.sub(r'<\s*/?\s*br\s*/?\s*>', '\n', text, flags=re.IGNORECASE)
+    text = re.sub(
+        r'<\s*/?\s*(p|div|span|li|ul|ol|tr|td|th|table|tbody|font|strong|b|i|em)\b[^>]*>',
+        '\n', text, flags=re.IGNORECASE,
+    )
+    text = re.sub(r'<[^>]+>', '', text)
+    text = (text.replace('&nbsp;', ' ').replace('&amp;', '&')
+                .replace('&lt;', '<').replace('&gt;', '>')
+                .replace('&quot;', '"').replace('&#39;', "'"))
+
     # A. invisible 글자 제거, NBSP → 공백
     text = re.sub(r'[​-‍⁠﻿]', '', text)
     text = text.replace(' ', ' ').replace(' ', ' ')
@@ -1756,8 +1767,30 @@ async def ask_precedent(req: Request):
             "elapsed_ms": int((_time.time() - started) * 1000),
         })
 
-    # 2) 후보 추출 (Supabase precedent_db)
-    candidates = _pqa.build_candidates(question, law_ids, top_k=20, db_limit=2000)
+    # 2) 후보 추출 (precedent_db + law_articles 통합)
+    unified = _pqa.build_unified_candidates(question,
+                                            types=['prec','fsc_reply','fsc_nonact','law_article'],
+                                            laws=law_ids,
+                                            top_k=20)
+    # parse_citations / build_prompt 가 id 키를 기대 → item_id 를 id 로 매핑
+    candidates = []
+    for u in unified:
+        candidates.append({
+            "id":         u.get("item_id"),
+            "source":     u.get("source"),
+            "target_law": u.get("target_law", ""),
+            "title":      u.get("title", ""),
+            "agency":     u.get("agency", ""),
+            "case_no":    u.get("case_no", ""),
+            "decided_at": u.get("decided_at", ""),
+            "summary":    u.get("summary", ""),
+            "body":       u.get("body", ""),
+            "link":       u.get("link", ""),
+            "law_id":     u.get("law_id", ""),
+            "law_type":   u.get("law_type", ""),
+            "jo_label":   u.get("jo_label", ""),
+            "jo_title":   u.get("jo_title", ""),
+        })
     if not candidates:
         return JSONResponse({
             "answer":     "선택한 법령 범위 안에서 관련된 사례를 찾지 못했습니다. 법령 선택을 넓혀보세요.",

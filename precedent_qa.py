@@ -46,10 +46,15 @@ def normalize_question(q: str) -> str:
     return q.lower()
 
 
+_CACHE_VERSION = "v2"  # 프롬프트/후보 로직 변경 시 bump → 기존 캐시 무시
+
+
 def build_cache_key(question: str, law_ids: list[str]) -> str:
     norm_q = normalize_question(question)
     laws_key = ",".join(sorted(law_ids or []))
-    return hashlib.sha1(f"{norm_q}:{laws_key}".encode("utf-8")).hexdigest()
+    return hashlib.sha1(
+        f"{_CACHE_VERSION}:{norm_q}:{laws_key}".encode("utf-8")
+    ).hexdigest()
 
 
 # ── 후보 검색 ────────────────────────────────────────────────────────────────
@@ -106,21 +111,26 @@ def build_candidates(question: str, law_ids: list[str],
 # ── Gemini 프롬프트 ──────────────────────────────────────────────────────────
 _PROMPT_HEADER = """\
 당신은 한국 금융·개인정보 법령 분야의 법률·규제 전문가입니다.
-아래는 사용자의 질문과, 관련도가 높은 한국 판례·유권해석·비조치의견서 발췌 목록입니다.
+아래는 사용자의 질문과, 관련도가 높은 한국 **법령 조문·판례·유권해석·비조치의견서** 발췌 목록입니다.
 
 [작성 지침]
 1) 사용자 질문에 직접적으로 답하세요. 추측·면책 문구는 최소화.
 2) 사례를 인용할 때는 반드시 본문 안에 [번호] 형식으로 표기 (예: [1], [3]).
 3) 답변은 3~5문단으로 구성하고, 각 문단은 의미 단위로 끊으세요.
-4) 사례가 다양한 출처(대법원/하급심 판례, 금융위·금감원 유권해석, 비조치의견서)에 걸쳐 있다면, **가능한 한 서로 다른 출처를 골고루 인용**하세요. 판례가 있다면 반드시 1건 이상 포함하세요.
-5) 답변 구조는 **요점 → 근거 → 적용** 순으로 가독성 있게 작성하세요. 항목을 나눌 때는 `가.`, `나.`, `다.` 또는 `1)`, `2)` 와 같은 표기를 사용해 가독성을 높이세요.
+4) **반드시 서로 다른 출처를 골고루 인용**하세요. 후보에 다음 4가지 출처가 모두 들어 있다면, 가능한 한 각각 1건 이상 인용해야 합니다:
+   - 법령 조문 (출처 표시: "법령 조문")
+   - 판례 (출처 표시: "판례(법원)")
+   - 유권해석 (출처 표시: "유권해석(금융위·금감원)")
+   - 비조치의견서 (출처 표시: "비조치의견서")
+   판례만으로 답변을 작성하지 마세요. 법령 조문은 근거 조문으로 우선 인용하는 것이 좋습니다.
+5) 답변 구조는 **법령 근거 → 판례·해석 사례 → 적용·결론** 순으로 작성하세요. 항목을 나눌 때는 `가.`, `나.`, `다.` 또는 `1)`, `2)` 와 같은 표기를 사용해 가독성을 높이세요.
 6) 인용된 사례 번호 외 다른 사례는 답변에 포함하지 마세요.
 7) 한국어로 답변, 마크다운 표(table)·코드블록 사용 금지. 단, 강조가 필요한 구절은 **굵게** 표기 가능.
 
 [사용자 질문]
 {question}
 
-[관련 사례 목록]
+[관련 후보 목록]
 {cases}
 
 [답변]
@@ -418,14 +428,20 @@ def parse_citations(answer: str, candidates: list[dict],
             continue
         c = candidates[n - 1]
         out.append({
-            "idx":          n,
-            "precedent_id": c.get("id"),
-            "source":       c.get("source"),
-            "title":        c.get("title"),
-            "agency":       c.get("agency"),
-            "decided_at":   c.get("decided_at"),
-            "summary":      c.get("summary"),
-            "body":         c.get("body"),
-            "link":         c.get("link"),
+            "idx":             n,
+            "precedent_id":    c.get("id"),
+            "source":          c.get("source"),
+            "title":           c.get("title"),
+            "agency":          c.get("agency"),
+            "case_no":         c.get("case_no"),
+            "decided_at":      c.get("decided_at"),
+            "target_law":      c.get("target_law"),
+            "summary":         c.get("summary"),
+            "body":            c.get("body"),
+            "link":            c.get("link"),
+            "law_article_id":  c.get("law_id"),
+            "law_type":        c.get("law_type"),
+            "jo_label":        c.get("jo_label"),
+            "jo_title":        c.get("jo_title"),
         })
     return out

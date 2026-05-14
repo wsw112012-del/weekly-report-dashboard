@@ -5916,7 +5916,13 @@
           .replace(/</g, '&lt;')
           .replace(/>/g, '&gt;');
 
-        // 인용 마커 [n]
+        // 법령 인용 마커 [Ln] (파일 분석 답변)
+        out = out.replace(/\[L(\d+)\]/g, (m, n) =>
+          '<sup class="qa-cite-ref qa-cite-law" data-cite-idx="L' + n + '" '
+          + 'onclick="window.dispatchEvent(new CustomEvent(\'rs-focus-cite\',{detail:\'L' + n + '\'}))">'
+          + '[L' + n + ']</sup>');
+
+        // 사례 인용 마커 [n]
         out = out.replace(/\[(\d+)\]/g,
           '<sup class="qa-cite-ref" data-cite-idx="$1" '
           + 'onclick="window.dispatchEvent(new CustomEvent(\'rs-focus-cite\',{detail:$1}))">'
@@ -5957,18 +5963,16 @@
           const raw = localStorage.getItem('rsRecent');
           this.rsRecentSearches = raw ? JSON.parse(raw).slice(0, 6) : [];
         } catch(_) { this.rsRecentSearches = []; }
-        // AI 답변 안의 [n] 마커 클릭 → 우측 인용 칩 focus
+        // AI 답변 안의 [n] / [Ln] 마커 클릭 → 우측 인용 칩 focus
         window.addEventListener('rs-focus-cite', (e) => {
-          const idx = parseInt(e.detail, 10);
-          if (!isNaN(idx)) this.rsFocusCite(idx);
+          if (e.detail !== null && e.detail !== undefined) this.rsFocusCite(e.detail);
         });
       },
       rsFocusCite(idx) {
+        // idx 는 숫자 또는 'L1','L2' 같은 문자열
         this.rsActiveCite = idx;
-        // 해당 인용 항목을 상세 패널에 표출
-        const cite = (this.rsAiCitations || []).find(c => c.idx === idx);
+        const cite = (this.rsAiCitations || []).find(c => String(c.idx) === String(idx));
         if (cite) this.rsCiteDetail = cite;
-        // 본문 내 해당 [n] 마커를 잠깐 깜박이게
         this.$nextTick(() => {
           document.querySelectorAll('.qa-cite-ref[data-cite-idx="' + idx + '"]')
             .forEach(el => {
@@ -6050,7 +6054,18 @@
             }
             this.rsAnswer       = '';
             this.rsAiAnswer     = (docRes && docRes.answer) || '';
-            this.rsAiCitations  = (docRes && docRes.citations) || [];
+            // 사례 인용 + 법령 조문 인용을 단일 레일에 통합
+            const precCites = ((docRes && docRes.citations) || []).map(c => ({...c}));
+            const lawCites  = ((docRes && docRes.law_citations) || []).map(l => ({
+              idx:            'L' + l.idx,
+              source:         'law_article',
+              law_article_id: l.law_id,
+              law_type:       l.law_type,
+              target_law:     l.law_name,
+              title:          [l.law_name, l.jo_label, l.jo_title].filter(Boolean).join(' ').trim(),
+              body:           l.body || '',
+            }));
+            this.rsAiCitations  = [...precCites, ...lawCites];
             this.rsKeyIssues    = (docRes && docRes.key_issues) || [];
             this.rsAttachedFilename = (docRes && docRes.filename) || this.rsFile.name;
             this.rsResults      = (searchRes && searchRes.items) || [];
