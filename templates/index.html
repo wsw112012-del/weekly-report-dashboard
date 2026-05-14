@@ -1151,13 +1151,21 @@
       text-align: center; padding: 30px 20px; color: var(--t2);
       background: transparent; border: none;
     }
-    /* 신규 — 통합 empty hero (검색박스와 동일 폭) */
+    /* 신규 — 통합 empty hero (검색박스와 동일 폭/x좌표) */
+    /* 검색박스는 rs-topbar 전체 폭에서 가운데 정렬, hero 는 rs-main(필터
+       사이드바 220px 만큼 오른쪽으로 밀려있는 컨테이너) 안에 있어서
+       단순 auto 정렬이면 hero 가 110px 오른쪽으로 어긋남 → translateX 보정 */
     .rs-hero {
       max-width: 900px; margin: 24px auto 0;
+      transform: translateX(-110px);
       background: #fff;
       border: 1px solid var(--bd); border-radius: 16px;
       padding: 40px 48px 32px;
       box-shadow: 0 1px 3px rgba(15,23,42,.04);
+    }
+    @media (max-width: 1180px) {
+      /* 좁은 화면에서는 필터가 같이 노출되어 있어도 폭이 부족 → 보정 해제 */
+      .rs-hero { transform: none; }
     }
     .rs-hero-icon {
       width: 56px; height: 56px; margin: 0 auto 16px;
