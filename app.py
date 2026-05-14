@@ -841,6 +841,96 @@ def _normalize_summary(text: str, max_chars: int = 3000) -> str:
     return result
 
 
+def _normalize_precedent_body(text: str, max_chars: int = 4000) -> str:
+    """better.fsc 회신사례 본문 정규화 — PDF→텍스트 변환의 어절 단위 줄바꿈을
+    문장 단위로 복원. _normalize_summary 1차 적용 후 추가 정리.
+
+    A. 기본 정규화 (invisible/꺾쇠/구두점/공백) 는 _normalize_summary 재사용
+    B. 한 줄짜리 글머리 부호(□ ㅇ ○ ▶ - 등)는 다음 줄과 결합
+    C. 짧은 줄(끝이 마침표·콜론·세미콜론 아님)은 다음 줄과 공백으로 결합
+       단 [이유] [작성] 같은 섹션 헤더는 유지
+    """
+    text = _normalize_summary(text, max_chars=max_chars * 2)  # 1차 정규화
+    if not text:
+        return text
+
+    # 섹션 헤더 패턴 (앞뒤 빈 줄 유지)
+    SECTION_HDR_RE = re.compile(r'^\s*\[?\s*(이유|요지|판시사항|판결요지|회답|질의요지|관련법령|참조법령|결론|결과|답변유형)\s*\]?\s*$')
+    # 글머리 부호만 있는 줄 (다음 줄과 합칠 대상)
+    BULLET_ONLY_RE = re.compile(r'^[□■●○◦▶▷◆◇\-\*ㅇ·]{1,2}\s*$')
+    # 짧은 줄 — 마침표·콜론·물음표·세미콜론으로 끝나지 않으면 다음 줄과 합칠 후보
+    ENDS_PUNCT_RE = re.compile(r'[.!?:;。、]\s*$')
+
+    lines = text.split('\n')
+    out: list[str] = []
+    i = 0
+    while i < len(lines):
+        cur = lines[i].rstrip()
+        if not cur:
+            if out and out[-1] != '':
+                out.append('')
+            i += 1
+            continue
+        # 섹션 헤더 — 그대로 유지 + 앞뒤 빈 줄
+        if SECTION_HDR_RE.match(cur):
+            if out and out[-1] != '':
+                out.append('')
+            out.append(cur)
+            out.append('')
+            i += 1
+            continue
+        # 글머리 부호만 있는 줄 — 다음 줄과 결합
+        if BULLET_ONLY_RE.match(cur) and i + 1 < len(lines):
+            nxt = lines[i + 1].strip()
+            if nxt:
+                out.append(cur.strip() + ' ' + nxt)
+                i += 2
+                continue
+        # 짧은 줄 + 종결 부호 없음 — 다음 줄과 결합 (반복)
+        merged = cur
+        while (not ENDS_PUNCT_RE.search(merged)
+               and len(merged) < 80
+               and i + 1 < len(lines)):
+            nxt = lines[i + 1].strip()
+            if not nxt or SECTION_HDR_RE.match(nxt) or BULLET_ONLY_RE.match(nxt):
+                break
+            merged = merged + ' ' + nxt
+            i += 1
+        out.append(merged)
+        i += 1
+
+    # 빈 줄 묶음 정리
+    result_lines: list[str] = []
+    prev_blank = False
+    for ln in out:
+        if not ln:
+            if not prev_blank and result_lines:
+                result_lines.append('')
+            prev_blank = True
+        else:
+            result_lines.append(ln)
+            prev_blank = False
+    result = '\n'.join(result_lines).rstrip()
+
+    # D. 토큰화 공백 정리 (PDF 변환 잔재)
+    #  - 구두점·닫는 괄호 앞 공백 제거
+    result = re.sub(r'\s+([,.;:!?\)\]\}」』）])', r'\1', result)
+    #  - 여는 괄호 뒤 공백 제거
+    result = re.sub(r'([(\[\{「『（])\s+', r'\1', result)
+    #  - "제 N 조/항/호/목" 사이 공백 제거
+    result = re.sub(r'제\s+(\d+)\s*(조|항|호|목)', r'제\1\2', result)
+    #  - "이하 " ... "" 안쪽 공백 제거 (예: " 특정금융정보법 ") → "특정금융정보법")
+    result = re.sub(r'"\s+', '"', result)
+    result = re.sub(r"\s+\"", '"', result)
+
+    # 최종 컷
+    if len(result) > max_chars:
+        cut = result[:max_chars]
+        m = re.search(r'^.*[.!?。](?=[\s\n]|$)', cut, re.DOTALL)
+        result = (m.group(0) if m else cut).rstrip()
+    return result
+
+
 def _parse_lawflow(soup) -> tuple[str, str]:
     """입법현황 ul 마지막 li에서 (상태명, 날짜) 추출.
     실제 govLm 페이지는 ul에 class가 없으므로 h3='입법현황' 이후 첫 ul로 탐색."""
@@ -1721,8 +1811,15 @@ async def ask_precedent(req: Request):
             {"error": f"Gemini 호출 실패: {err_msg}"}, status_code=502
         )
 
-    # 4) 인용 추출
+    # 4) 인용 추출 + 본문 표현 정규화
     citations = _pqa.parse_citations(answer, candidates, max_cases=20)
+    for c in citations:
+        if c.get("summary"):
+            c["summary"] = _normalize_precedent_body(c["summary"], max_chars=2000)
+        if c.get("body"):
+            c["body"] = _normalize_precedent_body(c["body"], max_chars=4000)
+        if c.get("title"):
+            c["title"] = _normalize_summary(c["title"], max_chars=300)
 
     # 5) 캐시 저장
     try:
@@ -1745,6 +1842,190 @@ async def ask_precedent(req: Request):
         "citations":  citations,
         "cached":     False,
         "elapsed_ms": int((_time.time() - started) * 1000),
+    })
+
+
+# ── Phase 3 — 법률검토 파일 업로드 + 연관성 검증 ───────────────────────────
+from fastapi import UploadFile, File, Form
+
+_DOC_MAX_BYTES = 5 * 1024 * 1024  # 5MB
+
+
+@app.post("/api/precedent/analyze-doc")
+async def analyze_doc(
+    file: UploadFile = File(...),
+    question: str = Form(""),
+    law_ids: str = Form("[]"),   # JSON string
+):
+    """법률검토 docx/pdf 업로드 → 본문 추출 → 우리 DB와 연관성 검증."""
+    import hashlib as _hashlib
+    import time as _time
+    import precedent_qa as _pqa
+    import file_extract as _fx
+
+    started = _time.time()
+
+    # 1) 파일 크기·확장자 검증
+    raw = await file.read()
+    if not raw:
+        return JSONResponse({"error": "empty_file"}, status_code=400)
+    if len(raw) > _DOC_MAX_BYTES:
+        return JSONResponse({"error": "file_too_large", "limit_mb": 5}, status_code=400)
+
+    # 2) 본문 추출
+    try:
+        doc_text = _fx.extract_text(file.filename, raw, max_chars=50000)
+    except ValueError as e:
+        return JSONResponse({"error": str(e)}, status_code=400)
+    except Exception as e:
+        return JSONResponse({"error": f"파일 처리 실패: {e}"}, status_code=500)
+
+    # 3) cache key (질문 + 법령 + 파일 해시)
+    try:
+        law_ids_list = json.loads(law_ids) if law_ids else []
+        if not isinstance(law_ids_list, list):
+            law_ids_list = []
+    except json.JSONDecodeError:
+        law_ids_list = []
+    file_hash = _hashlib.sha256(raw).hexdigest()
+    norm_q = _pqa.normalize_question(question)
+    laws_key = ",".join(sorted(law_ids_list))
+    cache_key = _hashlib.sha1(
+        f"{norm_q}:{laws_key}:file:{file_hash}".encode("utf-8")
+    ).hexdigest()
+
+    # 4) 캐시 조회
+    cached_rows = _supabase_request(
+        "GET", f"precedent_qa_cache?cache_key=eq.{cache_key}&select=*&limit=1"
+    ) or []
+    if cached_rows:
+        row = cached_rows[0]
+        try:
+            _supabase_request(
+                "PATCH", f"precedent_qa_cache?cache_key=eq.{cache_key}",
+                {"hit_count": (row.get("hit_count") or 1) + 1,
+                 "updated_at": datetime.utcnow().isoformat()}
+            )
+        except Exception:
+            pass
+        # citations 안에 law_citations 가 함께 저장된 구조
+        cites = row.get("citations") or []
+        if isinstance(cites, dict):
+            return JSONResponse({
+                "answer":        row.get("answer", ""),
+                "key_issues":    cites.get("key_issues", []),
+                "citations":     cites.get("citations", []),
+                "law_citations": cites.get("law_citations", []),
+                "filename":      file.filename,
+                "cached":        True,
+                "elapsed_ms":    int((_time.time() - started) * 1000),
+            })
+
+    # 5) 후보 추출 (precedent_db + law_articles)
+    precedent_cands = _pqa.build_candidates(doc_text, law_ids_list, top_k=15, db_limit=2500)
+    law_cands       = _pqa.build_law_candidates(doc_text, top_k=10, db_limit=2000)
+
+    if not precedent_cands and not law_cands:
+        return JSONResponse({
+            "answer":        "DB 안에서 관련된 사례·조문을 찾지 못했습니다. 법령 범위를 넓혀보세요.",
+            "key_issues":    [],
+            "citations":     [],
+            "law_citations": [],
+            "filename":      file.filename,
+            "cached":        False,
+            "elapsed_ms":    int((_time.time() - started) * 1000),
+        })
+
+    # 6) Gemini 호출
+    if not GEMINI_API_KEY:
+        return JSONResponse({"error": "GEMINI_API_KEY 미설정"}, status_code=500)
+
+    prompt = _pqa.build_doc_prompt(doc_text, question, precedent_cands, law_cands)
+
+    import ssl as _ssl
+    import requests as _req
+    from requests.adapters import HTTPAdapter
+    from urllib3.util.ssl_ import create_urllib3_context
+
+    class _LaxSSL(HTTPAdapter):
+        def init_poolmanager(self, *a, **kw):
+            ctx = create_urllib3_context()
+            ctx.check_hostname = False
+            ctx.verify_mode = _ssl.CERT_NONE
+            kw["ssl_context"] = ctx
+            super().init_poolmanager(*a, **kw)
+
+    session = _req.Session()
+    session.verify = False
+    session.mount("https://", _LaxSSL())
+
+    answer_raw = ""
+    err_msg = ""
+    for model_id in ("gemini-2.0-flash", "gemini-flash-latest"):
+        try:
+            r = session.post(
+                f"https://generativelanguage.googleapis.com/v1beta/models/"
+                f"{model_id}:generateContent?key={GEMINI_API_KEY}",
+                json={"contents": [{"parts": [{"text": prompt}]}]},
+                timeout=60,
+            )
+            if r.status_code == 429:
+                err_msg = "rate_limit"
+                continue
+            r.raise_for_status()
+            answer_raw = r.json()["candidates"][0]["content"]["parts"][0]["text"].strip()
+            break
+        except Exception as e:
+            err_msg = str(e)
+    if not answer_raw:
+        return JSONResponse({"error": f"Gemini 호출 실패: {err_msg}"}, status_code=502)
+
+    # 7) 응답 파싱 (key_issues / citations / law_citations)
+    parsed = _pqa.parse_doc_response(
+        answer_raw, precedent_cands, law_cands, max_cases=15, max_laws=10
+    )
+
+    # 8) 인용 본문 정규화
+    for c in parsed["citations"]:
+        if c.get("summary"):
+            c["summary"] = _normalize_precedent_body(c["summary"], max_chars=2000)
+        if c.get("body"):
+            c["body"] = _normalize_precedent_body(c["body"], max_chars=4000)
+        if c.get("title"):
+            c["title"] = _normalize_summary(c["title"], max_chars=300)
+    for l in parsed["law_citations"]:
+        if l.get("body"):
+            l["body"] = _normalize_precedent_body(l["body"], max_chars=3000)
+
+    # 9) 캐시 저장 (citations 필드에 통합 JSONB)
+    try:
+        _supabase_request(
+            "POST", "precedent_qa_cache",
+            {
+                "cache_key": cache_key,
+                "question":  question or "(파일 분석)",
+                "law_ids":   laws_key,
+                "answer":    parsed["answer"],
+                "citations": {
+                    "key_issues":    parsed["key_issues"],
+                    "citations":     parsed["citations"],
+                    "law_citations": parsed["law_citations"],
+                    "filename":      file.filename,
+                },
+            },
+            upsert=True,
+        )
+    except Exception as e:
+        print(f"[WARN] precedent_qa_cache (doc) upsert 실패: {e}")
+
+    return JSONResponse({
+        "answer":        parsed["answer"],
+        "key_issues":    parsed["key_issues"],
+        "citations":     parsed["citations"],
+        "law_citations": parsed["law_citations"],
+        "filename":      file.filename,
+        "cached":        False,
+        "elapsed_ms":    int((_time.time() - started) * 1000),
     })
 
 

@@ -773,6 +773,17 @@
       text-align: center; padding: 40px 20px; color: var(--t2); font-size: 13px;
       background: #fff; border: 1px dashed var(--bd); border-radius: 10px;
     }
+    .qa-file-info {
+      margin-top: 10px; padding: 8px 12px;
+      background: var(--accent-lt); border-radius: 6px;
+      font-size: 12px; color: var(--t1);
+      display: flex; align-items: center; gap: 10px;
+    }
+    .qa-issues {
+      margin: 6px 0 0 16px; padding: 0;
+      font-size: 13px; color: var(--t1); line-height: 1.75;
+    }
+    .qa-issues li { margin-bottom: 4px; }
 
     /* 법령 3단비교 표 — PDF 스타일 */
     .compare-table {
@@ -2929,6 +2940,26 @@
                 </div>
               </div>
 
+              <!-- 1-B. 법률검토 파일 첨부 (선택) -->
+              <div class="qa-card">
+                <div class="qa-card-head">
+                  <h3>📎 법률검토 첨부 (선택)</h3>
+                  <span class="qa-hint">.docx / .pdf / .txt — 최대 5MB</span>
+                </div>
+                <input type="file" accept=".docx,.pdf,.txt"
+                       x-ref="qaFileInput"
+                       @change="qaFile = $event.target.files[0] || null"/>
+                <div x-show="qaFile" class="qa-file-info">
+                  📄 <strong x-text="qaFile?.name"></strong>
+                  (<span x-text="qaFile ? (qaFile.size / 1024).toFixed(1) + 'KB' : ''"></span>)
+                  <button class="qa-btn-link"
+                          @click="qaFile = null; $refs.qaFileInput.value = ''">제거</button>
+                </div>
+                <p class="qa-hint" style="margin-top:8px">
+                  법무팀·법무법인 검토 문서를 첨부하면 우리 DB의 회신사례·법령 조문과 비교해 핵심 쟁점·일치·보완 포인트를 정리합니다.
+                </p>
+              </div>
+
               <!-- 2. 대상 법령 카드 -->
               <div class="qa-card">
                 <div class="qa-card-head">
@@ -2962,7 +2993,17 @@
               </div>
 
               <!-- 4. AI 응답 -->
-              <div class="qa-result" x-show="qaAnswer">
+              <div class="qa-result" x-show="qaAnswer || qaKeyIssues.length">
+                <!-- 4-A. 핵심 쟁점 (파일 첨부 시) -->
+                <div x-show="qaKeyIssues.length" style="margin-bottom:18px">
+                  <h3>📋 핵심 쟁점</h3>
+                  <ul class="qa-issues">
+                    <template x-for="iss in qaKeyIssues">
+                      <li x-text="iss"></li>
+                    </template>
+                  </ul>
+                </div>
+
                 <h3>📌 AI 응답</h3>
                 <div class="qa-answer" x-html="renderQaAnswer(qaAnswer)"></div>
 
@@ -2997,6 +3038,30 @@
                         </div>
                         <a x-show="c.link" :href="c.link" target="_blank" rel="noopener"
                            class="link-btn" style="margin-top:10px;display:inline-block">원문 →</a>
+                      </div>
+                    </div>
+                  </template>
+                </div>
+
+                <!-- 4-C. 법령 조문 인용 (파일 첨부 시) -->
+                <h3 style="margin-top:24px" x-show="qaLawCitations.length">
+                  📖 인용 법령 조문 (<span x-text="qaLawCitations.length"></span>건)
+                </h3>
+                <div class="qa-citations">
+                  <template x-for="l in qaLawCitations" :key="'L'+l.idx">
+                    <div class="qa-citation-card"
+                         @click="qaLawExpandedIdx = qaLawExpandedIdx === l.idx ? null : l.idx">
+                      <div class="qa-citation-row">
+                        <span class="qa-citation-num" x-text="'[L' + l.idx + ']'"></span>
+                        <span class="pri-badge"
+                              :class="l.law_type==='act' ? 'pri-high' : l.law_type==='enforce' ? 'pri-mid' : 'pri-low'"
+                              x-text="l.law_type==='act' ? '법률' : l.law_type==='enforce' ? '시행령' : '규정'"></span>
+                        <div class="qa-citation-meta">
+                          <strong x-text="l.law_name + ' ' + (l.jo_label || '') + ' ' + (l.jo_title || '')"></strong>
+                        </div>
+                      </div>
+                      <div x-show="qaLawExpandedIdx === l.idx" class="qa-citation-body" @click.stop>
+                        <p style="white-space:pre-wrap" x-text="(l.body || '').slice(0, 3000)"></p>
                       </div>
                     </div>
                   </template>
@@ -4119,6 +4184,11 @@
       qaCached: false,
       qaElapsedMs: 0,
       qaExpandedId: null,
+      // Phase 3 — 파일 분석
+      qaFile: null,
+      qaKeyIssues: [],
+      qaLawCitations: [],
+      qaLawExpandedIdx: null,
 
       // ── (제거됨: 기존 precedent 표 모드) ──
       precedentItems: [],
@@ -5100,31 +5170,46 @@
         // AI 검색 모드 — 별도 사전 로드 불필요. 호환성 위해 함수만 유지.
       },
       async submitPrecedentQa() {
-        if (!this.qaQuestion.trim() || this.qaLaws.length === 0) return;
+        const hasFile = !!this.qaFile;
+        // 파일 + 질문 둘 다 비어있으면 불가
+        if (!hasFile && !this.qaQuestion.trim()) return;
+        if (this.qaLaws.length === 0) {
+          alert('대상 법령을 1개 이상 선택해주세요.');
+          return;
+        }
         this.qaLoading = true;
         this.qaAnswer = '';
         this.qaCitations = [];
+        this.qaKeyIssues = [];
+        this.qaLawCitations = [];
         this.qaCached = false;
         this.qaElapsedMs = 0;
         this.qaExpandedId = null;
+        this.qaLawExpandedIdx = null;
         try {
-          const res = await fetch('/api/precedent/ask', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              question: this.qaQuestion.trim(),
-              law_ids: this.qaLaws,
-            })
-          });
-          const data = await res.json();
-          if (!res.ok) {
-            alert('AI 응답 실패: ' + (data.error || res.statusText));
-            return;
+          let data;
+          if (hasFile) {
+            const fd = new FormData();
+            fd.append('file', this.qaFile);
+            fd.append('question', this.qaQuestion.trim());
+            fd.append('law_ids', JSON.stringify(this.qaLaws));
+            const res = await fetch('/api/precedent/analyze-doc', { method:'POST', body: fd });
+            data = await res.json();
+            if (!res.ok) { alert('파일 분석 실패: ' + (data.error || res.statusText)); return; }
+          } else {
+            const res = await fetch('/api/precedent/ask', {
+              method:'POST', headers:{'Content-Type':'application/json'},
+              body: JSON.stringify({ question: this.qaQuestion.trim(), law_ids: this.qaLaws })
+            });
+            data = await res.json();
+            if (!res.ok) { alert('AI 응답 실패: ' + (data.error || res.statusText)); return; }
           }
-          this.qaAnswer = data.answer || '';
-          this.qaCitations = data.citations || [];
-          this.qaCached = !!data.cached;
-          this.qaElapsedMs = data.elapsed_ms || 0;
+          this.qaAnswer        = data.answer || '';
+          this.qaCitations     = data.citations || [];
+          this.qaKeyIssues     = data.key_issues || [];
+          this.qaLawCitations  = data.law_citations || [];
+          this.qaCached        = !!data.cached;
+          this.qaElapsedMs     = data.elapsed_ms || 0;
         } catch (e) {
           alert('AI 호출 오류: ' + e.message);
         } finally {

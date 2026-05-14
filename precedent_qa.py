@@ -142,6 +142,142 @@ def build_prompt(question: str, candidates: list[dict], max_cases: int = 20) -> 
     return _PROMPT_HEADER.format(question=question.strip(), cases="\n".join(cases))
 
 
+# ── 법령 조문 후보 (Phase 3 — 파일 분석용) ─────────────────────────────────
+def build_law_candidates(text: str, top_k: int = 15, db_limit: int = 2000) -> list[dict]:
+    """law_articles 에서 텍스트 토큰 자카드 상위 top_k 반환."""
+    try:
+        rows = _sb_get(
+            f"law_articles?select=id,law_id,law_name,law_type,jo_no,jo_label,jo_title,body"
+            f"&limit={db_limit}"
+        )
+    except Exception:
+        rows = []
+    q_tokens = _tokens(text)
+    if not q_tokens:
+        return rows[:top_k]
+    scored = []
+    for r in rows:
+        body = (r.get("body") or "")[:1500]
+        cell = " ".join(filter(None, [r.get("law_name"), r.get("jo_title"), body]))
+        sim = _jaccard(q_tokens, _tokens(cell))
+        if sim > 0:
+            scored.append((sim, r))
+    scored.sort(key=lambda x: -x[0])
+    return [r for _, r in scored[:top_k]]
+
+
+# ── 파일 분석용 프롬프트 ─────────────────────────────────────────────────────
+_DOC_PROMPT_HEADER = """\
+당신은 한국 금융·개인정보 법령 분야 전문가입니다.
+사용자가 법무팀·법무법인의 법률검토 문서를 첨부했고, 우리 DB의 회신사례·판례·법령 조문과
+비교 검증을 요청했습니다.
+
+[작성 지침]
+1) 첨부 문서의 핵심 쟁점을 3~7개 글머리(•) 형식으로 추출하고, 이를 답변 맨 앞에 'KEY_ISSUES:' 라벨로 묶어 적으세요.
+2) 본문 답변에서 우리 회신사례·판례를 인용할 때 [1][2] 형식, 법령 조문 인용은 [L1][L2] 형식을 사용하세요.
+3) 사용자의 추가 질문이 있으면 함께 답하고, 없으면 쟁점 분석에만 집중.
+4) 답변 마지막 단락은 "일치 / 보완 / 불명확" 포인트로 명시적으로 정리.
+5) 한국어, 마크다운 사용 금지. 평어체.
+
+[첨부 법률검토 본문]
+{doc_text}
+
+[사용자 추가 질문]
+{question}
+
+[우리 회신사례·판례 후보]
+{cases}
+
+[우리 법령 조문 후보]
+{laws}
+
+[답변]
+"""
+
+
+def build_doc_prompt(doc_text: str, question: str | None,
+                     precedent_cands: list[dict],
+                     law_cands: list[dict],
+                     max_cases: int = 15,
+                     max_laws: int = 10) -> str:
+    cases = []
+    for i, c in enumerate(precedent_cands[:max_cases], 1):
+        cases.append(
+            f"[{i}] {(c.get('title') or '').strip()}\n"
+            f"    기관: {(c.get('agency') or '').strip()} | 일자: {(c.get('decided_at') or '').strip()}\n"
+            f"    요지: {((c.get('summary') or '').strip())[:400]}"
+        )
+    laws = []
+    for i, l in enumerate(law_cands[:max_laws], 1):
+        laws.append(
+            f"[L{i}] {l.get('law_name','')} {l.get('jo_label','')} {l.get('jo_title','')}\n"
+            f"     {((l.get('body') or '').strip())[:500]}"
+        )
+    return _DOC_PROMPT_HEADER.format(
+        doc_text=(doc_text or "")[:25000],
+        question=(question or "").strip() or "(없음)",
+        cases="\n\n".join(cases) or "(매칭된 사례 없음)",
+        laws="\n\n".join(laws) or "(매칭된 조문 없음)",
+    )
+
+
+_KEY_ISSUES_RE = re.compile(r"KEY_ISSUES\s*:\s*(.*?)(?:\n\s*\n|\Z)", re.DOTALL | re.IGNORECASE)
+_BULLET_LINE_RE = re.compile(r"^[\s•\-·▪▶◆●○]+\s*(.+)$", re.MULTILINE)
+_LAW_CITE_RE = re.compile(r"\[L(\d+)\]")
+
+
+def parse_doc_response(answer: str, precedent_cands: list[dict],
+                       law_cands: list[dict],
+                       max_cases: int = 15, max_laws: int = 10) -> dict:
+    """answer 에서 KEY_ISSUES / [n] / [Ln] 추출."""
+    # 1) KEY_ISSUES 블록 추출
+    key_issues: list[str] = []
+    m = _KEY_ISSUES_RE.search(answer or "")
+    answer_body = answer or ""
+    if m:
+        block = m.group(1)
+        for line_m in _BULLET_LINE_RE.finditer(block):
+            line = line_m.group(1).strip()
+            if line:
+                key_issues.append(line)
+        # KEY_ISSUES 블록은 본문에서 제거
+        answer_body = (answer[:m.start()] + answer[m.end():]).strip()
+
+    # 2) [n] 인용 → citations
+    citations = parse_citations(answer_body, precedent_cands, max_cases=max_cases)
+
+    # 3) [Ln] 법령 인용 → law_citations
+    law_used: set[int] = set()
+    for cm in _LAW_CITE_RE.finditer(answer_body):
+        try:
+            n = int(cm.group(1))
+            if 1 <= n <= max_laws:
+                law_used.add(n)
+        except ValueError:
+            continue
+    law_citations: list[dict] = []
+    for n in sorted(law_used):
+        if n - 1 >= len(law_cands):
+            continue
+        l = law_cands[n - 1]
+        law_citations.append({
+            "idx":      n,
+            "law_id":   l.get("law_id"),
+            "law_name": l.get("law_name"),
+            "law_type": l.get("law_type"),
+            "jo_label": l.get("jo_label"),
+            "jo_title": l.get("jo_title"),
+            "body":     l.get("body"),
+        })
+
+    return {
+        "answer":        answer_body,
+        "key_issues":    key_issues,
+        "citations":     citations,
+        "law_citations": law_citations,
+    }
+
+
 # ── 인용 파싱 ────────────────────────────────────────────────────────────────
 _CITE_RE = re.compile(r"\[(\d+)\]")
 
