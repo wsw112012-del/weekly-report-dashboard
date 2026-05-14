@@ -4398,7 +4398,8 @@
 
           <!-- ── 법령 3단비교 탭 (v2 — 법제처·Westlaw 패턴) ── -->
           <template x-if="polTab === 'compare'">
-            <div class="cmp-v2-wrap">
+            <div class="cmp-v2-wrap"
+                 x-init="if (compareSelectedLaw && compareRows.length === 0) loadCompare(compareSelectedLaw)">
               <!-- 상단 바: 법령 chips + 검색 + 카운터 -->
               <div class="cmp-v2-topbar">
                 <div class="cmp-v2-chips">
