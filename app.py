@@ -2203,12 +2203,19 @@ async def get_law_comparison(law: str = ""):
         if t in by_type:
             by_type[t].append(r)
 
-    # 인용 패턴 — 다양한 표현 모두 매칭
+    # 인용 패턴 — 다양한 표현 매칭. 단어 경계 처리해 '관계법' 등 false match 차단.
     pat_named   = re.compile(r"「[^」]+?법(?:률)?」\s*제\s*(\d+)\s*조")
-    pat_short   = re.compile(r"(?:같은\s*법|이\s*법|동법|본법|법률|법)\s*제\s*(\d+)\s*조", re.UNICODE)
-    pat_enforce = re.compile(r"(?:같은\s*법\s*시행령|이\s*영|동\s*시행령|시행령|영)\s*제\s*(\d+)\s*조", re.UNICODE)
+    # 단독 '법' 매칭 시 앞이 한글이면 제외 (negative lookbehind)
+    pat_short   = re.compile(
+        r"(?:같은\s*법|이\s*법|동법|본법|법률|(?<![가-힣])법)\s*제\s*(\d+)\s*조",
+        re.UNICODE,
+    )
+    pat_enforce = re.compile(
+        r"(?:같은\s*법\s*시행령|이\s*영|동\s*시행령|시행령|(?<![가-힣])영)\s*제\s*(\d+)\s*조",
+        re.UNICODE,
+    )
 
-    # 1단계: 시행령 jo_no -> 법률 jo_no 매핑 테이블 (transitive mapping 용)
+    # 시행령 jo_no → 법률 jo_no 매핑 테이블 (transitive 용)
     enforce_to_act: dict[int, set[int]] = {}
     for r in by_type["enforce"]:
         text = (r.get("body") or "") + " " + (r.get("jo_title") or "")
@@ -2222,20 +2229,21 @@ async def get_law_comparison(law: str = ""):
         if refs:
             enforce_to_act.setdefault(r.get("jo_no") or 0, set()).update(refs)
 
-    def by_act_no(rows_, allow_transitive: bool = False):
+    # 매핑 — 명시 인용 없으면 매핑 0 (fallback 제거).
+    # 시행령(enforce)은 본인 jo_no 가 법률 jo_no 와 1:1 대응되는 경우가 많아 fallback 유지.
+    # 감독규정/시행규칙(regulation)은 별도 체계라 fallback 금지 (false 매핑 원인).
+    def by_act_no(rows_, allow_transitive: bool = False, fallback_jo: bool = True):
         out: dict[int, list[dict]] = {}
+        unmapped: list[dict] = []
         for r in rows_:
             text = (r.get("body") or "") + " " + (r.get("jo_title") or "")
             refs: set[int] = set()
-            # 1차: 「..법」 제N조
             for m in pat_named.finditer(text):
                 try: refs.add(int(m.group(1)))
                 except ValueError: pass
-            # 2차: 법/같은 법/이 법/동법 제N조
             for m in pat_short.finditer(text):
                 try: refs.add(int(m.group(1)))
                 except ValueError: pass
-            # 3차: "영 제N조" → enforce_to_act 거쳐서 transitive 매핑 (행정규칙용)
             if allow_transitive:
                 for m in pat_enforce.finditer(text):
                     try:
@@ -2245,13 +2253,17 @@ async def get_law_comparison(law: str = ""):
             if refs:
                 for no in refs:
                     out.setdefault(no, []).append(r)
-            else:
-                # fallback: 본인 jo_no 와 동일 매칭
+            elif fallback_jo:
                 out.setdefault(r.get("jo_no", 0), []).append(r)
+            else:
+                unmapped.append(r)
+        out["_unmapped"] = unmapped  # 매핑 안 된 행 보존 (현재는 미사용, 향후 별도 섹션 표시 가능)
         return out
 
-    enforce_map = by_act_no(by_type["enforce"], allow_transitive=False)
-    reg_map     = by_act_no(by_type["regulation"], allow_transitive=True)
+    # 시행령은 fallback 유지 (조 번호 1:1 케이스 많음)
+    enforce_map = by_act_no(by_type["enforce"], allow_transitive=False, fallback_jo=True)
+    # 감독규정/시행규칙은 fallback 제거 → 명시 인용만 매핑 (정합도 우선)
+    reg_map     = by_act_no(by_type["regulation"], allow_transitive=True, fallback_jo=False)
 
     def cell(rows_: list[dict] | None) -> dict | None:
         if not rows_:
