@@ -2160,10 +2160,12 @@ async def get_law_comparison(law: str = ""):
         return JSONResponse([])
     # parent_law_id 또는 law_id 매핑 — law_articles 테이블에 직접 ilike 검색
     enc = urllib.parse.quote(law, safe="")
-    # law_name 패턴으로 ilike — 시행령/규정도 모두 잡힘
+    # law_name 패턴으로 ilike — 시행령/규정도 모두 잡힘.
+    # order_idx 가 collect 시점 본문 순서 보존 (가지번호 포함 정렬에 사용)
     rows = _supabase_request(
         "GET",
-        f"law_articles?law_name=ilike.*{enc}*&order=law_type.asc,jo_no.asc&limit=2000",
+        f"law_articles?law_name=ilike.*{enc}*&select=id,law_type,jo_no,jo_label,jo_title,body,order_idx"
+        f"&order=law_type.asc,order_idx.asc&limit=3000",
     ) or []
     if not rows:
         return JSONResponse([])
@@ -2174,7 +2176,7 @@ async def get_law_comparison(law: str = ""):
         if t in by_type:
             by_type[t].append(r)
 
-    # 매핑 — 시행령·규정 조문에서 법률 조문 인용 추출
+    # 시행령·규정 -> 본문 안 '법 제N조' 인용 -> 법률 jo_no 로 매핑
     law_ref_re = re.compile(r"법\s*제(\d+)조")
     def by_act_no(rows_):
         out: dict[int, list[dict]] = {}
@@ -2194,22 +2196,40 @@ async def get_law_comparison(law: str = ""):
         if not rows_:
             return None
         # 여러 매칭 시 본문을 합쳐서 표시
-        labels = " / ".join(r.get("jo_label","") for r in rows_)
+        labels = " / ".join(r.get("jo_label","") for r in rows_ if r.get("jo_label"))
         titles = " / ".join(r.get("jo_title","") for r in rows_ if r.get("jo_title"))
-        bodies = "\n\n".join((r.get("body") or "").strip() for r in rows_)
+        bodies = "\n\n".join((r.get("body") or "").strip() for r in rows_ if r.get("body"))
         return {"label": labels, "title": titles, "body": bodies}
 
+    # 동일 jo_no 안에서 라벨/제목/본문이 비어있는 빈 행 제거 (가지번호 손실로 생긴 중복)
+    # — title 또는 body 있어야 유효. 같은 jo_no 첫 본문 우선.
+    seen_keys: set[str] = set()
     result: list[dict] = []
-    for a in sorted(by_type["act"], key=lambda x: x.get("jo_no", 0)):
+    sorted_acts = sorted(by_type["act"],
+                          key=lambda x: (x.get("order_idx") or x.get("jo_no") or 0))
+    for a in sorted_acts:
         jo = a.get("jo_no", 0)
+        title = (a.get("jo_title") or "").strip()
+        body = (a.get("body") or "").strip()
+        # 빈 행 (제목·본문 모두 없음) 스킵
+        if not title and not body:
+            continue
+        # 같은 (jo_no, title, body[:80]) 조합 중복 스킵 (가지번호 손실 중복 가드)
+        key = f"{jo}|{title}|{body[:80]}"
+        if key in seen_keys:
+            continue
+        seen_keys.add(key)
+        # idx unique 보장 — id 우선, 없으면 order_idx, 없으면 jo_no 합성
+        unique_idx = a.get("id") or f"{jo}-{a.get('order_idx', len(result))}"
         result.append({
-            "idx": jo,
+            "idx": unique_idx,
+            "jo_no": jo,  # 시행령/규정 매핑 참조용
             "act": {
-                "label": a.get("jo_label",""),
-                "title": a.get("jo_title",""),
-                "body": a.get("body","") or "",
+                "label": a.get("jo_label", ""),
+                "title": title,
+                "body": body,
             },
-            "enforce":   cell(enforce_map.get(jo)),
+            "enforce":    cell(enforce_map.get(jo)),
             "regulation": cell(reg_map.get(jo)),
         })
     return JSONResponse(result)
