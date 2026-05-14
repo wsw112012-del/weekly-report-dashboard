@@ -19,6 +19,7 @@
 from __future__ import annotations
 
 import re
+import sys
 import urllib3
 import requests
 from bs4 import BeautifulSoup
@@ -61,9 +62,24 @@ class FscClient:
         # 세션 쿠키 초기화
         self._s.get(f"{_BASE}{_LIST_URL_BASE}", timeout=timeout)
 
+    def _reset_session(self) -> None:
+        """세션 만료/SSL EOF 등 후 새 세션 + 쿠키 재발급."""
+        import time
+        time.sleep(2)
+        self._s = requests.Session()
+        self._s.verify = False
+        self._s.headers.update({
+            "User-Agent": _UA,
+            "Referer":    f"{_BASE}/fsc_new/replyCase/TotalReplyList.do",
+        })
+        try:
+            self._s.get(f"{_BASE}{_LIST_URL_BASE}", timeout=self._timeout)
+        except Exception:
+            pass
+
     def list_items(self, kind: str, start: int = 0, length: int = 100,
-                   search: str = "") -> dict:
-        """kind in {'law','opinion'} 의 목록 한 페이지 조회."""
+                   search: str = "", retries: int = 3) -> dict:
+        """kind in {'law','opinion'} 의 목록 한 페이지 조회. 일시 실패 시 재시도."""
         if kind not in self.KINDS:
             raise ValueError(f"kind 는 {list(self.KINDS)} 중 하나")
         cfg = self.KINDS[kind]
@@ -76,11 +92,25 @@ class FscClient:
             "order[0][column]": "0",
             "order[0][dir]": "desc",
         }
-        r = self._s.post(f"{_BASE}{cfg['list_url']}", data=data,
-                         headers={"X-Requested-With": "XMLHttpRequest"},
-                         timeout=self._timeout)
-        r.raise_for_status()
-        return r.json()
+        last_err = None
+        for attempt in range(retries + 1):
+            try:
+                r = self._s.post(f"{_BASE}{cfg['list_url']}", data=data,
+                                 headers={"X-Requested-With": "XMLHttpRequest"},
+                                 timeout=self._timeout)
+                r.raise_for_status()
+                ct = r.headers.get("Content-Type", "")
+                if "json" not in ct.lower() and not r.text.lstrip().startswith("{"):
+                    # 사이트가 에러 HTML 반환 — 세션 갱신 후 재시도
+                    raise ValueError(f"non-json response (ct={ct[:40]})")
+                return r.json()
+            except Exception as e:
+                last_err = e
+                self._reset_session()
+        # 모두 실패 시 빈 결과 반환 (호출자가 다음 페이지로 진행 가능)
+        print(f"  [WARN] list_items 최종 실패 (kind={kind} start={start}): {last_err}",
+              file=sys.stderr)
+        return {"recordsTotal": 0, "data": []}
 
     def list_all(self, kind: str, max_items: int | None = None, page_size: int = 100):
         """페이지 순회 generator."""
@@ -98,16 +128,26 @@ class FscClient:
             if max_items is not None and start >= max_items:
                 return
 
-    def fetch_detail(self, kind: str, idx: int | str) -> dict:
-        """상세 페이지 td 본문 파싱.
+    def fetch_detail(self, kind: str, idx: int | str, retries: int = 2) -> dict:
+        """상세 페이지 td 본문 파싱. SSL EOF 등 일시 실패 시 재시도.
         반환: {title, status, department, public_yn, register, replied_at,
                attachment, question, answer, reason, link}
         """
         cfg = self.KINDS[kind]
         params = {**cfg["menu"], cfg["idx_key"]: str(idx)}
-        r = self._s.get(f"{_BASE}{cfg['detail_url']}",
-                        params=params, timeout=self._timeout)
-        r.raise_for_status()
+        last_err = None
+        r = None
+        for attempt in range(retries + 1):
+            try:
+                r = self._s.get(f"{_BASE}{cfg['detail_url']}",
+                                params=params, timeout=self._timeout)
+                r.raise_for_status()
+                break
+            except Exception as e:
+                last_err = e
+                self._reset_session()
+        if r is None:
+            raise RuntimeError(f"detail fetch 실패: {last_err}")
         soup = BeautifulSoup(r.text, "lxml")
         tds = soup.find_all("td")
 

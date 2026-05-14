@@ -22,6 +22,14 @@ import urllib3
 from datetime import date, timedelta
 from pathlib import Path
 
+# Windows cp949 콘솔에서 유니코드 문자(em dash 등) 출력 시 죽지 않도록 UTF-8 강제
+if sys.stdout.encoding and sys.stdout.encoding.lower() != 'utf-8':
+    try:
+        sys.stdout.reconfigure(encoding='utf-8', errors='replace')
+        sys.stderr.reconfigure(encoding='utf-8', errors='replace')
+    except Exception:
+        pass
+
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 try:
@@ -74,11 +82,12 @@ CONFIG = {
         ],
     },
     'AML': {
-        'search_words': ['자금세탁', 'FIU', '특정금융'],
+        'search_words': ['자금세탁', 'FIU', '특정금융', '보이스피싱 가상자산'],
         'keywords': [
             '자금세탁', '자금세탁방지', 'AML', '특정금융', 'FATF', 'FIU',
             '의심거래', 'STR', '제재', '과태료', '가상자산범죄', '불법자금',
             '금융정보분석', '테러자금', '자금추적',
+            '보이스피싱', '테더', 'USDT', '환전소', '불법환전', '가상자산환전',
         ],
         'agencies': [
             '금융위원회',
@@ -111,7 +120,8 @@ SUPABASE_KEY = os.environ.get("SUPABASE_KEY", "")
 NAVER_QUERIES = {
     '데이터': ['AI기본법', '개인정보보호', '마이데이터', '데이터규제', '인공지능법'],
     '페이먼트': ['전자금융 규제', '핀테크 정책', '가상자산 규제', '지급결제 법령'],
-    'AML': ['자금세탁방지', '특정금융정보법', 'FIU', '가상자산 범죄', '불법자금'],
+    'AML': ['자금세탁방지', '특정금융정보법', 'FIU', '가상자산 범죄', '불법자금',
+            '가상자산 자금세탁', '보이스피싱 가상자산'],
 }
 
 UA = (
@@ -457,7 +467,7 @@ def scrape_kofiu_press() -> list[dict]:
                 detail = dr.json().get('result', {})
                 html_cn = detail.get('ntcnYardCn') or ''
                 if html_cn:
-                    lead = BeautifulSoup(html_cn, 'lxml').get_text(separator=' ', strip=True)[:600]
+                    lead = BeautifulSoup(html_cn, 'lxml').get_text(separator=' ', strip=True)[:2000]
             except Exception:
                 lead = title
 
@@ -546,7 +556,10 @@ def filter_by_keywords(articles: list[dict], report_type: str) -> list[dict]:
     keywords = CONFIG[report_type]['keywords']
     filtered = [
         a for a in articles
-        if any(kw in (a['title'] + ' ' + a['lead']) for kw in keywords)
+        if any(
+            kw.replace(' ', '') in (a['title'] + ' ' + a['lead']).replace(' ', '')
+            for kw in keywords
+        )
     ]
     print(f"2차 키워드 필터 후: {len(filtered)}건 (원본 {len(articles)}건)")
     return filtered

@@ -78,68 +78,90 @@ def _normalize_date(s: str | None) -> str:
     return f"{m.group(1)}.{int(m.group(2)):02d}.{int(m.group(3)):02d}."
 
 
-def collect_prec_for_law(client: LawClient, law: str, max_items: int = 50) -> list[dict]:
+def collect_prec_for_law(client: LawClient, law: str, max_items: int = 300) -> list[dict]:
+    """법령당 판례 수집 — 페이지 100건씩 순회. max_items 까지 또는 결과 종료까지."""
     rows: list[dict] = []
-    items = client.search_precedent(law, display=max_items)
-    for it in items:
-        prec_seq = it.get("판례일련번호")
-        if not prec_seq:
-            continue
-        # 상세는 비용 절감을 위해 최근 90일만 fetch
-        try:
-            decided = _normalize_date(it.get("선고일자"))
-            recent = False
-            if decided:
-                y, m, d = decided.rstrip(".").split(".")
-                dt = date(int(y), int(m), int(d))
-                recent = (date.today() - dt).days <= 90
-            detail = client.fetch_precedent_detail(prec_seq) if recent else {}
-        except Exception:
-            detail = {}
-        rows.append({
-            "id":         f"prec-{prec_seq}",
-            "source":     "prec",
-            "target_law": law,
-            "title":      (it.get("사건명") or "").strip(),
-            "agency":     it.get("법원명") or "",
-            "case_no":    it.get("사건번호") or "",
-            "decided_at": _normalize_date(it.get("선고일자")),
-            "summary":    (detail.get("판시사항") or "").strip(),
-            "body":       (detail.get("판결요지") or "").strip(),
-            "ref_laws":   (detail.get("참조조문") or "").strip(),
-            "link":       LawClient.absolutize(it.get("판례상세링크") or ""),
-            "scraped_at": date.today().isoformat(),
-        })
-        time.sleep(0.2)
+    page = 1
+    while len(rows) < max_items:
+        items = client.search_precedent(law, display=100, page=page)
+        if not items:
+            break
+        for it in items:
+            prec_seq = it.get("판례일련번호")
+            if not prec_seq:
+                continue
+            # 상세는 비용 절감을 위해 최근 90일만 fetch
+            try:
+                decided = _normalize_date(it.get("선고일자"))
+                recent = False
+                if decided:
+                    y, m, d = decided.rstrip(".").split(".")
+                    dt = date(int(y), int(m), int(d))
+                    recent = (date.today() - dt).days <= 90
+                detail = client.fetch_precedent_detail(prec_seq) if recent else {}
+            except Exception:
+                detail = {}
+            rows.append({
+                "id":         f"prec-{prec_seq}",
+                "source":     "prec",
+                "target_law": law,
+                "title":      (it.get("사건명") or "").strip(),
+                "agency":     it.get("법원명") or "",
+                "case_no":    it.get("사건번호") or "",
+                "decided_at": _normalize_date(it.get("선고일자")),
+                "summary":    (detail.get("판시사항") or "").strip(),
+                "body":       (detail.get("판결요지") or "").strip(),
+                "ref_laws":   (detail.get("참조조문") or "").strip(),
+                "link":       LawClient.absolutize(it.get("판례상세링크") or ""),
+                "scraped_at": date.today().isoformat(),
+            })
+            if len(rows) >= max_items:
+                break
+            time.sleep(0.1)
+        if len(items) < 100:
+            break  # 마지막 페이지
+        page += 1
+        time.sleep(0.3)
     return rows
 
 
-def collect_expc_for_law(client: LawClient, law: str, max_items: int = 50) -> list[dict]:
+def collect_expc_for_law(client: LawClient, law: str, max_items: int = 300) -> list[dict]:
+    """법령당 해석례 수집 — 페이지 100건씩 순회."""
     rows: list[dict] = []
-    items = client.search_expc(law, display=max_items)
-    for it in items:
-        expc_seq = it.get("법령해석례일련번호")
-        if not expc_seq:
-            continue
-        try:
-            detail = client.fetch_expc_detail(expc_seq)
-        except Exception:
-            detail = {}
-        rows.append({
-            "id":         f"expc-{expc_seq}",
-            "source":     "expc",
-            "target_law": law,
-            "title":      (it.get("안건명") or "").strip(),
-            "agency":     it.get("회신기관명") or "",
-            "case_no":    it.get("안건번호") or "",
-            "decided_at": _normalize_date(it.get("회신일자")),
-            "summary":    (detail.get("질의요지") or "").strip(),
-            "body":       (detail.get("회답") or detail.get("이유") or "").strip(),
-            "ref_laws":   (detail.get("관련법령") or "").strip(),
-            "link":       LawClient.absolutize(it.get("법령해석례상세링크") or ""),
-            "scraped_at": date.today().isoformat(),
-        })
-        time.sleep(0.2)
+    page = 1
+    while len(rows) < max_items:
+        items = client.search_expc(law, display=100, page=page)
+        if not items:
+            break
+        for it in items:
+            expc_seq = it.get("법령해석례일련번호")
+            if not expc_seq:
+                continue
+            try:
+                detail = client.fetch_expc_detail(expc_seq)
+            except Exception:
+                detail = {}
+            rows.append({
+                "id":         f"expc-{expc_seq}",
+                "source":     "expc",
+                "target_law": law,
+                "title":      (it.get("안건명") or "").strip(),
+                "agency":     it.get("회신기관명") or "",
+                "case_no":    it.get("안건번호") or "",
+                "decided_at": _normalize_date(it.get("회신일자")),
+                "summary":    (detail.get("질의요지") or "").strip(),
+                "body":       (detail.get("회답") or detail.get("이유") or "").strip(),
+                "ref_laws":   (detail.get("관련법령") or "").strip(),
+                "link":       LawClient.absolutize(it.get("법령해석례상세링크") or ""),
+                "scraped_at": date.today().isoformat(),
+            })
+            if len(rows) >= max_items:
+                break
+            time.sleep(0.1)
+        if len(items) < 100:
+            break
+        page += 1
+        time.sleep(0.3)
     return rows
 
 
@@ -147,7 +169,7 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--law", default=None, help="특정 법령만 수집")
     parser.add_argument("--dry-run", action="store_true")
-    parser.add_argument("--max", type=int, default=50, help="법령당 최대 수집 건수")
+    parser.add_argument("--max", type=int, default=300, help="법령당 최대 수집 건수")
     args = parser.parse_args()
 
     oc = os.environ.get("LAWGO_OC")

@@ -18,6 +18,10 @@ site_check*.txt
 
 # PPT output
 *.pptx
+output/
+
+# 입법현황 fetch 결과 캐시 (매번 변동, runtime 산출물)
+legislation_status.json
 
 # Logs
 *.log
