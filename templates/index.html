@@ -1079,6 +1079,16 @@
     .rs-ai-body .ai-emph-cir  { color: #c026d3; font-weight: 700; }
     .rs-ai-body .ai-emph-art  { color: #0f766e; font-weight: 700; }
     .rs-ai-body .ai-emph-head { font-weight: 800; color: var(--t1); display: inline-block; }
+    /* 일치 / 보완 / 불명확 카테고리 — 파일 분석 답변에서 강조 */
+    .rs-ai-body .ai-emph-cat {
+      display: inline-block; font-weight: 800; font-size: 12.5px;
+      padding: 2px 10px; border-radius: 6px; margin: 6px 6px 4px 0;
+      letter-spacing: .02em;
+    }
+    .rs-ai-body .ai-emph-cat-match   { background: #d1fae5; color: #065f46; border: 1px solid #6ee7b7; }
+    .rs-ai-body .ai-emph-cat-addon   { background: #fef3c7; color: #92400e; border: 1px solid #fcd34d; }
+    .rs-ai-body .ai-emph-cat-unclear { background: #fee2e2; color: #991b1b; border: 1px solid #fca5a5; }
+    .rs-ai-body .ai-emph-cat-diff    { background: #ede9fe; color: #5b21b6; border: 1px solid #c4b5fd; }
 
     /* 결과 리스트 */
     .rs-results-head {
@@ -3447,10 +3457,24 @@
 
                     <!-- 빈 상태 -->
                     <div class="rs-empty" x-show="!rsLoading && !rsQuery && rsResults.length === 0 && !rsAiAnswer && rsKeyIssues.length === 0 && rsAiCitations.length === 0">
-                      <p>💡 검색어를 입력하면 우리 DB(판례·해석례·비조치의견서·법령조문)를 통합 검색합니다.</p>
+                      <p>💡 키워드를 입력하면 우리 DB(판례·해석례·비조치의견서·법령조문)를 통합 검색합니다.</p>
                       <p style="margin-top:8px;font-size:12px;color:var(--t3)">
                         AI 종합 답변과 매칭 사례를 한 화면에서 받아볼 수 있습니다.
                       </p>
+                      <div style="margin-top:16px;padding:14px 18px;background:#f8faff;border:1px solid #dbeafe;border-radius:8px;text-align:left">
+                        <p style="font-size:13px;font-weight:700;color:var(--accent);margin:0 0 6px">
+                          📎 법률검토본을 첨부하면
+                        </p>
+                        <p style="font-size:12.5px;color:var(--t2);line-height:1.7;margin:0">
+                          AI가 첨부 문서를 읽고 우리 DB의
+                          <strong style="color:var(--t1)">법령 조문 · 판례 · 유권해석 · 비조치의견서</strong>와
+                          교차 분석하여
+                          <span style="color:#065f46;font-weight:700">일치</span> ·
+                          <span style="color:#92400e;font-weight:700">보완</span> ·
+                          <span style="color:#991b1b;font-weight:700">불명확</span>
+                          포인트를 정리하고 핵심 쟁점을 추출해 드립니다.
+                        </p>
+                      </div>
                     </div>
                     <div class="rs-empty" x-show="!rsLoading && rsQuery && rsResults.length === 0">
                       <p>🔍 검색 결과가 없습니다. 필터를 넓혀보거나 다른 키워드로 시도해보세요.</p>
@@ -5909,47 +5933,64 @@
         }
       },
       renderQaAnswer(text) {
-        // [n] 인용 마커 + 가./나./다. / 1) / ① / 제N조 강조 + **굵게**
         if (!text) return '';
+
+        // 1) 원시 HTML 태그 제거 (백엔드 정규화 누락 안전망)
         let out = text
-          .replace(/&/g, '&amp;')
+          .replace(/<\s*\/?\s*br\s*\/?\s*>/gi, '\n')
+          .replace(/<\s*\/?\s*(p|div|span|li|ul|ol|font|strong|b|i|em)\b[^>]*>/gi, '\n')
+          .replace(/<[^>]+>/g, '')
+          .replace(/&nbsp;/g, ' ')
+          .replace(/\n{3,}/g, '\n\n');
+
+        // 2) 잔여 < > & 이스케이프
+        out = out
+          .replace(/&(?!amp;|lt;|gt;|quot;|#\d+;)/g, '&amp;')
           .replace(/</g, '&lt;')
           .replace(/>/g, '&gt;');
 
-        // 법령 인용 마커 [Ln] (파일 분석 답변)
+        // 3) 법령 인용 마커 [Ln]
         out = out.replace(/\[L(\d+)\]/g, (m, n) =>
           '<sup class="qa-cite-ref qa-cite-law" data-cite-idx="L' + n + '" '
           + 'onclick="window.dispatchEvent(new CustomEvent(\'rs-focus-cite\',{detail:\'L' + n + '\'}))">'
           + '[L' + n + ']</sup>');
 
-        // 사례 인용 마커 [n]
+        // 4) 사례 인용 마커 [n]
         out = out.replace(/\[(\d+)\]/g,
           '<sup class="qa-cite-ref" data-cite-idx="$1" '
           + 'onclick="window.dispatchEvent(new CustomEvent(\'rs-focus-cite\',{detail:$1}))">'
           + '[$1]</sup>');
 
-        // **굵은 글자** → 헤더
+        // 5) 일치/보완/불명확/유사/불일치/차이 카테고리 (파일 분석 답변)
+        const CAT_MAP = {
+          '일치': 'match', '유사': 'match',
+          '보완': 'addon', '주의': 'addon',
+          '불명확': 'unclear', '미확인': 'unclear', '리스크': 'unclear',
+          '불일치': 'diff', '차이': 'diff', '쟁점': 'diff',
+        };
+        out = out.replace(/(^|\n)(일치|유사|보완|주의|불명확|미확인|리스크|불일치|차이|쟁점)\s*[:：]\s*/g,
+          (m, p, cat) => p + '<span class="ai-emph-cat ai-emph-cat-'
+            + (CAT_MAP[cat] || 'diff') + '">' + cat + '</span>');
+
+        // 6) **굵은 글자**
         out = out.replace(/\*\*([^*\n]+)\*\*/g,
           '<span class="ai-emph-head">$1</span>');
 
-        // 줄 첫머리 한글 가나다 항목 (가. 나. 다. ...) — 최대 30자 헤더
+        // 7) 줄 첫머리 한글 가나다 항목
         out = out.replace(/(^|\n)([가-힣])\.\s/g,
           '$1<span class="ai-emph-kr">$2.</span> ');
 
-        // 줄 첫머리 1) 2) 3) ... 또는 1. 2. 3.
-        out = out.replace(/(^|\n)(\d{1,2})[\.\)]\s/g,
-          '$1<span class="ai-emph-num">$2$&</span> '.replace('$&', ''));
-        // 위 정규식이 너무 fragile하니 명시적으로:
+        // 8) 줄 첫머리 1) 또는 1.
         out = out.replace(/(^|\n)(\d{1,2})\)\s/g,
           '$1<span class="ai-emph-num">$2)</span> ');
         out = out.replace(/(^|\n)(\d{1,2})\.\s(?=\S)/g,
           '$1<span class="ai-emph-num">$2.</span> ');
 
-        // ① ② ③ ... 원숫자
+        // 9) 원숫자 ①②③
         out = out.replace(/([①-⑳])/g,
           '<span class="ai-emph-cir">$1</span>');
 
-        // 제N조(의M)? — 법령 조문 참조
+        // 10) 제N조 / 제N조의M / 제N항
         out = out.replace(/(제\s?\d+\s?조(?:의\s?\d+)?(?:\s?제\s?\d+\s?항)?)/g,
           '<span class="ai-emph-art">$1</span>');
 

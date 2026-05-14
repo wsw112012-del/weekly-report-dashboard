@@ -789,6 +789,24 @@ _bill_summary_cache: dict[str, str] = {}
 _bill_detail_cache: dict[str, dict] = {}
 
 
+def _strip_html(text: str) -> str:
+    """HTML 태그·엔티티만 제거 (잘림·말줄임표 정리 없음 — 답변 본문용)."""
+    if not text:
+        return text or ''
+    text = re.sub(r'<\s*/?\s*br\s*/?\s*>', '\n', text, flags=re.IGNORECASE)
+    text = re.sub(
+        r'<\s*/?\s*(p|div|span|li|ul|ol|tr|td|th|table|tbody|font|strong|b|i|em)\b[^>]*>',
+        '\n', text, flags=re.IGNORECASE,
+    )
+    text = re.sub(r'<[^>]+>', '', text)
+    text = (text.replace('&nbsp;', ' ').replace('&amp;', '&')
+                .replace('&lt;', '<').replace('&gt;', '>')
+                .replace('&quot;', '"').replace('&#39;', "'"))
+    # 빈 줄 묶음 정리 (3개 이상 연속 → 2개로)
+    text = re.sub(r'\n{3,}', '\n\n', text)
+    return text.strip()
+
+
 def _normalize_summary(text: str, max_chars: int = 3000) -> str:
     """입법현황 본문(summary/reason) 표현 정규화 — 모든 상세 fetch 결과에 동일 적용.
 
@@ -1770,7 +1788,7 @@ async def ask_precedent(req: Request):
                 if c.get("title"):
                     c["title"] = _normalize_summary(c["title"], max_chars=300)
         return JSONResponse({
-            "answer":     row.get("answer", ""),
+            "answer":     _strip_html(row.get("answer", "")),
             "citations":  cited,
             "cached":     True,
             "elapsed_ms": int((_time.time() - started) * 1000),
@@ -1880,7 +1898,7 @@ async def ask_precedent(req: Request):
         print(f"[WARN] precedent_qa_cache upsert 실패: {e}")
 
     return JSONResponse({
-        "answer":     answer,
+        "answer":     _strip_html(answer),
         "citations":  citations,
         "cached":     False,
         "elapsed_ms": int((_time.time() - started) * 1000),
@@ -1994,8 +2012,8 @@ async def analyze_doc(
                 if l.get("body"):
                     l["body"] = _normalize_precedent_body(l["body"], max_chars=3000)
             return JSONResponse({
-                "answer":        row.get("answer", ""),
-                "key_issues":    cites.get("key_issues", []),
+                "answer":        _strip_html(row.get("answer", "")),
+                "key_issues":    [_strip_html(x) for x in (cites.get("key_issues") or [])],
                 "citations":     cached_cits,
                 "law_citations": cached_laws,
                 "filename":      file.filename,
@@ -2067,7 +2085,9 @@ async def analyze_doc(
         answer_raw, precedent_cands, law_cands, max_cases=15, max_laws=10
     )
 
-    # 8) 인용 본문 정규화
+    # 8) 인용 본문 + 답변·핵심쟁점 HTML 태그 제거
+    parsed["answer"]     = _strip_html(parsed.get("answer", ""))
+    parsed["key_issues"] = [_strip_html(x) for x in (parsed.get("key_issues") or [])]
     for c in parsed["citations"]:
         if c.get("summary"):
             c["summary"] = _normalize_precedent_body(c["summary"], max_chars=2000)
