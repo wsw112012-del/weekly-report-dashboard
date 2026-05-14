@@ -1433,7 +1433,43 @@
       display: flex; align-items: center; flex-wrap: wrap;
     }
     .cmp-v2-breadcrumb strong { color: var(--t1); font-weight: 700; }
-    /* 카드 3종 가로 배치 — side-by-side 비교 */
+    /* 단일 표 형태 — 3열 가로 비교 */
+    .cmp-v2-table {
+      width: 100%; border-collapse: separate; border-spacing: 0;
+      background: #fff; border: 1px solid var(--bd);
+      border-radius: 12px; overflow: hidden;
+      box-shadow: 0 1px 2px rgba(15,23,42,.03);
+      table-layout: fixed;
+    }
+    .cmp-v2-th {
+      padding: 12px 16px; font-size: 12.5px; font-weight: 800;
+      text-align: left; color: var(--t1); letter-spacing: .02em;
+      border-bottom: 2px solid var(--bd);
+      border-right: 1px solid var(--bd);
+    }
+    .cmp-v2-th:last-child { border-right: none; }
+    .cmp-v2-th-act        { background: linear-gradient(180deg,#fffbeb 0%,#fef9c3 100%); border-top: 4px solid #f59e0b; color: #92400e; }
+    .cmp-v2-th-enforce    { background: linear-gradient(180deg,#eff6ff 0%,#dbeafe 100%); border-top: 4px solid #2563eb; color: #1e40af; }
+    .cmp-v2-th-regulation { background: linear-gradient(180deg,#ecfdf5 0%,#d1fae5 100%); border-top: 4px solid #10b981; color: #065f46; }
+    .cmp-v2-table td {
+      padding: 12px 16px; vertical-align: top;
+      border-right: 1px solid var(--bd);
+      border-bottom: 1px solid #f1f5f9;
+      font-size: 13px; line-height: 1.85; color: var(--t1);
+      word-break: keep-all;
+    }
+    .cmp-v2-table td:last-child { border-right: none; }
+    .cmp-v2-tr-art td {
+      background: #fafbfc; font-weight: 700;
+      border-bottom: 1px solid var(--bd);
+    }
+    .cmp-v2-tr-art strong { color: var(--t1); font-size: 13.5px; }
+    .cmp-v2-tr-body td { vertical-align: top; }
+    .cmp-v2-cell-body { white-space: pre-wrap; }
+    .cmp-v2-empty-cell {
+      color: var(--t3); font-style: italic; font-size: 12px;
+    }
+    /* === deprecated cards layout (호환용 — markup 제거됐으나 CSS 유지) === */
     .cmp-v2-cards-row {
       display: grid;
       grid-template-columns: 1fr 1fr 1fr;
@@ -1446,7 +1482,7 @@
       border: 1px solid var(--bd);
       border-radius: 12px; overflow: hidden; background: #fff;
       box-shadow: 0 1px 2px rgba(15,23,42,.03);
-      min-width: 0; /* grid 내 줄임표 작동 */
+      min-width: 0;
     }
     .cmp-v2-card.empty {
       background: #fafbfc;
@@ -4371,7 +4407,7 @@
                     </div>
                   </template>
 
-                  <!-- 상세 카드 3종 (side-by-side) -->
+                  <!-- 상세: 단일 표 (3열 가로 비교) -->
                   <template x-if="compareSelectedRow">
                     <div>
                       <!-- breadcrumb -->
@@ -4381,63 +4417,63 @@
                         <strong x-text="(compareSelectedRow.act?.label || '') + ' ' + (compareSelectedRow.act?.title || '')"></strong>
                       </div>
 
-                      <div class="cmp-v2-cards-row">
-                      <!-- 법률 -->
-                      <div class="cmp-v2-card cmp-v2-card-act"
-                           :class="!compareSelectedRow.act?.body ? 'empty' : ''">
-                        <div class="cmp-v2-card-head">
-                          <span class="cmp-v2-card-badge">📕 법률</span>
-                          <span class="cmp-v2-card-art"
-                                x-text="(compareSelectedRow.act?.label || '') + ' ' + (compareSelectedRow.act?.title || '')"></span>
-                        </div>
-                        <div class="cmp-v2-card-body"
-                             x-html="compareSelectedRow.act?.body
-                               ? highlightQ(compareSelectedRow.act.body, compareSearch)
-                               : '<span style=&quot;color:var(--t3)&quot;>본문 없음</span>'"></div>
-                      </div>
-
-                      <!-- 시행령 -->
-                      <div class="cmp-v2-card cmp-v2-card-enforce"
-                           :class="!compareSelectedRow.enforce ? 'empty' : ''">
-                        <div class="cmp-v2-card-head">
-                          <span class="cmp-v2-card-badge">📘 시행령</span>
-                          <span class="cmp-v2-card-art"
-                                x-text="compareSelectedRow.enforce
-                                  ? ((compareSelectedRow.enforce.label || '') + ' ' + (compareSelectedRow.enforce.title || ''))
-                                  : '연결된 시행령 없음'"></span>
-                        </div>
-                        <template x-if="compareSelectedRow.enforce">
-                          <div class="cmp-v2-card-body"
-                               x-html="highlightQ(compareSelectedRow.enforce.body || '', compareSearch)"></div>
-                        </template>
-                        <template x-if="!compareSelectedRow.enforce">
-                          <div class="cmp-v2-card-body cmp-v2-card-empty-msg">
-                            해당 조문에 매칭된 시행령이 없습니다.
-                          </div>
-                        </template>
-                      </div>
-
-                      <!-- 시행규칙 / 감독규정 -->
-                      <div class="cmp-v2-card cmp-v2-card-regulation"
-                           :class="!compareSelectedRow.regulation ? 'empty' : ''">
-                        <div class="cmp-v2-card-head">
-                          <span class="cmp-v2-card-badge">📗 시행규칙 / 감독규정</span>
-                          <span class="cmp-v2-card-art"
-                                x-text="compareSelectedRow.regulation
-                                  ? ((compareSelectedRow.regulation.label || '') + ' ' + (compareSelectedRow.regulation.title || ''))
-                                  : '연결된 규칙 없음'"></span>
-                        </div>
-                        <template x-if="compareSelectedRow.regulation">
-                          <div class="cmp-v2-card-body"
-                               x-html="highlightQ(compareSelectedRow.regulation.body || '', compareSearch)"></div>
-                        </template>
-                        <template x-if="!compareSelectedRow.regulation">
-                          <div class="cmp-v2-card-body cmp-v2-card-empty-msg">
-                            해당 조문에 매칭된 시행규칙/감독규정이 없습니다.
-                          </div>
-                        </template>
-                      </div>
-                      </div><!-- /cmp-v2-cards-row -->
+                      <table class="cmp-v2-table">
+                        <colgroup>
+                          <col style="width:33.33%"/>
+                          <col style="width:33.33%"/>
+                          <col style="width:33.33%"/>
+                        </colgroup>
+                        <thead>
+                          <tr>
+                            <th class="cmp-v2-th cmp-v2-th-act">📕 법률</th>
+                            <th class="cmp-v2-th cmp-v2-th-enforce">📘 시행령</th>
+                            <th class="cmp-v2-th cmp-v2-th-regulation">📗 시행규칙 / 감독규정</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          <tr class="cmp-v2-tr-art">
+                            <td>
+                              <strong x-text="(compareSelectedRow.act?.label || '') + ' ' + (compareSelectedRow.act?.title || '')"></strong>
+                            </td>
+                            <td>
+                              <strong x-show="compareSelectedRow.enforce"
+                                      x-text="(compareSelectedRow.enforce?.label || '') + ' ' + (compareSelectedRow.enforce?.title || '')"></strong>
+                              <span x-show="!compareSelectedRow.enforce" class="cmp-v2-empty-cell">— 연결된 시행령 없음</span>
+                            </td>
+                            <td>
+                              <strong x-show="compareSelectedRow.regulation"
+                                      x-text="(compareSelectedRow.regulation?.label || '') + ' ' + (compareSelectedRow.regulation?.title || '')"></strong>
+                              <span x-show="!compareSelectedRow.regulation" class="cmp-v2-empty-cell">— 연결된 규칙 없음</span>
+                            </td>
+                          </tr>
+                          <tr class="cmp-v2-tr-body">
+                            <td>
+                              <div class="cmp-v2-cell-body"
+                                   x-html="compareSelectedRow.act?.body
+                                     ? highlightQ(compareSelectedRow.act.body, compareSearch)
+                                     : '<span class=&quot;cmp-v2-empty-cell&quot;>본문 없음</span>'"></div>
+                            </td>
+                            <td>
+                              <template x-if="compareSelectedRow.enforce">
+                                <div class="cmp-v2-cell-body"
+                                     x-html="highlightQ(compareSelectedRow.enforce.body || '', compareSearch)"></div>
+                              </template>
+                              <template x-if="!compareSelectedRow.enforce">
+                                <div class="cmp-v2-empty-cell">해당 조문에 매칭된 시행령이 없습니다.</div>
+                              </template>
+                            </td>
+                            <td>
+                              <template x-if="compareSelectedRow.regulation">
+                                <div class="cmp-v2-cell-body"
+                                     x-html="highlightQ(compareSelectedRow.regulation.body || '', compareSearch)"></div>
+                              </template>
+                              <template x-if="!compareSelectedRow.regulation">
+                                <div class="cmp-v2-empty-cell">해당 조문에 매칭된 시행규칙/감독규정이 없습니다.</div>
+                              </template>
+                            </td>
+                          </tr>
+                        </tbody>
+                      </table>
                     </div>
                   </template>
                 </main>
