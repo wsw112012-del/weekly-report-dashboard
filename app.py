@@ -1751,7 +1751,6 @@ async def ask_precedent(req: Request):
     ) or []
     if cached_rows:
         row = cached_rows[0]
-        # hit_count++
         try:
             _supabase_request(
                 "PATCH", f"precedent_qa_cache?cache_key=eq.{cache_key}",
@@ -1760,9 +1759,19 @@ async def ask_precedent(req: Request):
             )
         except Exception:
             pass
+        # 안전망: 과거에 저장된 행에 HTML 태그가 남아있을 수 있어 응답 시 재정규화
+        cited = row.get("citations") or []
+        if isinstance(cited, list):
+            for c in cited:
+                if c.get("summary"):
+                    c["summary"] = _normalize_precedent_body(c["summary"], max_chars=2000)
+                if c.get("body"):
+                    c["body"] = _normalize_precedent_body(c["body"], max_chars=4000)
+                if c.get("title"):
+                    c["title"] = _normalize_summary(c["title"], max_chars=300)
         return JSONResponse({
             "answer":     row.get("answer", ""),
-            "citations":  row.get("citations") or [],
+            "citations":  cited,
             "cached":     True,
             "elapsed_ms": int((_time.time() - started) * 1000),
         })
@@ -1951,7 +1960,7 @@ async def analyze_doc(
     norm_q = _pqa.normalize_question(question)
     laws_key = ",".join(sorted(law_ids_list))
     cache_key = _hashlib.sha1(
-        f"{norm_q}:{laws_key}:file:{file_hash}".encode("utf-8")
+        f"{_pqa._CACHE_VERSION}:{norm_q}:{laws_key}:file:{file_hash}".encode("utf-8")
     ).hexdigest()
 
     # 4) 캐시 조회
@@ -1971,11 +1980,24 @@ async def analyze_doc(
         # citations 안에 law_citations 가 함께 저장된 구조
         cites = row.get("citations") or []
         if isinstance(cites, dict):
+            cached_cits = cites.get("citations", []) or []
+            cached_laws = cites.get("law_citations", []) or []
+            # 안전망: 과거에 저장된 행에 HTML 태그가 남아있을 수 있어 매 응답 재정규화
+            for c in cached_cits:
+                if c.get("summary"):
+                    c["summary"] = _normalize_precedent_body(c["summary"], max_chars=2000)
+                if c.get("body"):
+                    c["body"] = _normalize_precedent_body(c["body"], max_chars=4000)
+                if c.get("title"):
+                    c["title"] = _normalize_summary(c["title"], max_chars=300)
+            for l in cached_laws:
+                if l.get("body"):
+                    l["body"] = _normalize_precedent_body(l["body"], max_chars=3000)
             return JSONResponse({
                 "answer":        row.get("answer", ""),
                 "key_issues":    cites.get("key_issues", []),
-                "citations":     cites.get("citations", []),
-                "law_citations": cites.get("law_citations", []),
+                "citations":     cached_cits,
+                "law_citations": cached_laws,
                 "filename":      file.filename,
                 "cached":        True,
                 "elapsed_ms":    int((_time.time() - started) * 1000),

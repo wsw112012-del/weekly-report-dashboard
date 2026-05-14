@@ -3287,7 +3287,7 @@
                   <span class="rs-search-icon">🔍</span>
                   <input type="text" class="rs-search-input" x-model="rsQuery"
                          @keydown.enter="rsSearch()"
-                         placeholder="자연어 · 법령명 · 사건번호로 검색  (예: VASP 신고 의무 위반 처벌)"/>
+                         placeholder="키워드 · 법령명 · 사건번호로 검색  (예: VASP 신고 의무 위반 처벌)"/>
                   <template x-if="rsQuery">
                     <button class="rs-search-clear" @click="rsQuery=''; rsSearch()">✕</button>
                   </template>
@@ -3523,9 +3523,9 @@
                 <aside class="rs-cite-rail" x-show="rsAiCitations.length > 0" x-transition>
                   <div class="rs-cite-rail-title"
                        x-text="'📎 인용 ' + rsAiCitations.length + '건'"></div>
-                  <template x-for="c in rsAiCitations" :key="(c.precedent_id || c.law_article_id || c.idx)">
+                  <template x-for="c in rsAiCitations" :key="String(c.idx)">
                     <button class="rs-cite-chip"
-                            :class="{ active: rsActiveCite === c.idx }"
+                            :class="{ active: String(rsActiveCite) === String(c.idx) }"
                             @click="rsFocusCite(c.idx)">
                       <div class="rs-cite-chip-head">
                         <span class="rs-cite-chip-num" x-text="'[' + c.idx + ']'"></span>
