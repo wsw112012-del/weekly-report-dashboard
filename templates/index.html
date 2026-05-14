@@ -1148,8 +1148,76 @@
     .rs-card-body p { margin: 0; }
 
     .rs-empty {
-      text-align: center; padding: 50px 20px; color: var(--t2);
-      background: #fff; border: 1px dashed var(--bd); border-radius: 10px;
+      text-align: center; padding: 30px 20px; color: var(--t2);
+      background: transparent; border: none;
+    }
+    /* 신규 — 통합 empty hero */
+    .rs-hero {
+      max-width: 680px; margin: 24px auto 0;
+      background: #fff;
+      border: 1px solid var(--bd); border-radius: 16px;
+      padding: 36px 36px 28px;
+      box-shadow: 0 1px 3px rgba(15,23,42,.04);
+    }
+    .rs-hero-icon {
+      width: 56px; height: 56px; margin: 0 auto 16px;
+      display: flex; align-items: center; justify-content: center;
+      background: var(--accent-lt); color: var(--accent);
+      border-radius: 14px; font-size: 26px;
+    }
+    .rs-hero-title {
+      font-size: 18px; font-weight: 800; color: var(--t1);
+      text-align: center; margin: 0 0 6px;
+    }
+    .rs-hero-sub {
+      font-size: 13px; color: var(--t3); text-align: center;
+      line-height: 1.6; margin: 0 0 22px;
+    }
+    .rs-hero-divider {
+      display: flex; align-items: center; gap: 10px;
+      margin: 0 0 18px; color: var(--t3); font-size: 11px;
+      letter-spacing: .04em; text-transform: uppercase;
+    }
+    .rs-hero-divider::before, .rs-hero-divider::after {
+      content: ''; flex: 1; height: 1px; background: var(--bd);
+    }
+    .rs-hero-modes {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 14px;
+    }
+    .rs-hero-mode {
+      padding: 16px 18px;
+      background: #fafbff; border: 1px solid var(--bd); border-radius: 10px;
+      text-align: left;
+    }
+    .rs-hero-mode-head {
+      display: flex; align-items: center; gap: 8px; margin-bottom: 8px;
+    }
+    .rs-hero-mode-badge {
+      width: 28px; height: 28px; display: flex; align-items: center;
+      justify-content: center; border-radius: 8px; font-size: 14px;
+    }
+    .rs-hero-mode-badge.kw   { background: #dbeafe; color: #1e40af; }
+    .rs-hero-mode-badge.file { background: #ede9fe; color: #6d28d9; }
+    .rs-hero-mode-title {
+      font-size: 13px; font-weight: 700; color: var(--t1);
+    }
+    .rs-hero-mode-desc {
+      font-size: 12px; color: var(--t2); line-height: 1.65; margin: 0 0 8px;
+    }
+    .rs-hero-mode-tags {
+      display: flex; gap: 4px; flex-wrap: wrap;
+    }
+    .rs-hero-tag {
+      font-size: 10.5px; font-weight: 600; padding: 2px 8px;
+      border-radius: 10px; background: #fff; border: 1px solid var(--bd);
+      color: var(--t3);
+    }
+    .rs-hero-tag.match   { background: #ecfdf5; border-color: #6ee7b7; color: #065f46; }
+    .rs-hero-tag.addon   { background: #fffbeb; border-color: #fcd34d; color: #92400e; }
+    .rs-hero-tag.unclear { background: #fef2f2; border-color: #fca5a5; color: #991b1b; }
+    @media (max-width: 720px) {
+      .rs-hero { padding: 28px 20px 20px; }
+      .rs-hero-modes { grid-template-columns: 1fr; }
     }
 
     /* 검색어 하이라이트 */
@@ -3457,23 +3525,47 @@
 
                     <!-- 빈 상태 -->
                     <div class="rs-empty" x-show="!rsLoading && !rsQuery && rsResults.length === 0 && !rsAiAnswer && rsKeyIssues.length === 0 && rsAiCitations.length === 0">
-                      <p>💡 키워드를 입력하면 우리 DB(판례·해석례·비조치의견서·법령조문)를 통합 검색합니다.</p>
-                      <p style="margin-top:8px;font-size:12px;color:var(--t3)">
-                        AI 종합 답변과 매칭 사례를 한 화면에서 받아볼 수 있습니다.
-                      </p>
-                      <div style="margin-top:16px;padding:14px 18px;background:#f8faff;border:1px solid #dbeafe;border-radius:8px;text-align:left">
-                        <p style="font-size:13px;font-weight:700;color:var(--accent);margin:0 0 6px">
-                          📎 법률검토본을 첨부하면
+                      <div class="rs-hero">
+                        <div class="rs-hero-icon">⚖️</div>
+                        <h3 class="rs-hero-title">법령 리서치</h3>
+                        <p class="rs-hero-sub">
+                          판례 · 유권해석 · 비조치의견서 · 법령 조문을 한 화면에서 검색하고<br/>
+                          AI 종합 답변과 매칭 사례를 받아볼 수 있습니다.
                         </p>
-                        <p style="font-size:12.5px;color:var(--t2);line-height:1.7;margin:0">
-                          AI가 첨부 문서를 읽고 우리 DB의
-                          <strong style="color:var(--t1)">법령 조문 · 판례 · 유권해석 · 비조치의견서</strong>와
-                          교차 분석하여
-                          <span style="color:#065f46;font-weight:700">일치</span> ·
-                          <span style="color:#92400e;font-weight:700">보완</span> ·
-                          <span style="color:#991b1b;font-weight:700">불명확</span>
-                          포인트를 정리하고 핵심 쟁점을 추출해 드립니다.
-                        </p>
+                        <div class="rs-hero-divider">사용 방법</div>
+                        <div class="rs-hero-modes">
+                          <div class="rs-hero-mode">
+                            <div class="rs-hero-mode-head">
+                              <span class="rs-hero-mode-badge kw">🔍</span>
+                              <span class="rs-hero-mode-title">키워드 검색</span>
+                            </div>
+                            <p class="rs-hero-mode-desc">
+                              법령명·사건번호·키워드를 입력하면 우리 DB를 통합 검색하고
+                              AI 종합 답변과 인용 출처를 함께 표시합니다.
+                            </p>
+                            <div class="rs-hero-mode-tags">
+                              <span class="rs-hero-tag">⚖️ 판례</span>
+                              <span class="rs-hero-tag">📜 유권해석</span>
+                              <span class="rs-hero-tag">📝 비조치</span>
+                              <span class="rs-hero-tag">📖 법령</span>
+                            </div>
+                          </div>
+                          <div class="rs-hero-mode">
+                            <div class="rs-hero-mode-head">
+                              <span class="rs-hero-mode-badge file">📎</span>
+                              <span class="rs-hero-mode-title">법률검토 분석</span>
+                            </div>
+                            <p class="rs-hero-mode-desc">
+                              법률검토 문서를 첨부하면 우리 DB와 교차 분석해
+                              핵심 쟁점과 포인트를 정리해 드립니다.
+                            </p>
+                            <div class="rs-hero-mode-tags">
+                              <span class="rs-hero-tag match">일치</span>
+                              <span class="rs-hero-tag addon">보완</span>
+                              <span class="rs-hero-tag unclear">불명확</span>
+                            </div>
+                          </div>
+                        </div>
                       </div>
                     </div>
                     <div class="rs-empty" x-show="!rsLoading && rsQuery && rsResults.length === 0">
