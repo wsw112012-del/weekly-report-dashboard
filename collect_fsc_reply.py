@@ -72,6 +72,35 @@ def _supabase_upsert(rows: list[dict]) -> int:
     return ok
 
 
+# 대상 법령 자동 분류 (본문 별칭 매칭)
+_LAW_TARGETS_DETECT: list[tuple[str, list[str]]] = [
+    ("외국환거래법", ["외국환거래법", "외환법", "외국환법", "외환거래법"]),
+    ("전자금융거래법", ["전자금융거래법", "전금법"]),
+    ("특정 금융거래정보의 보고 및 이용 등에 관한 법률",
+     ["특금법", "특정금융정보법", "특정금융거래법", "특정 금융거래정보의 보고"]),
+    ("공중 등 협박목적 및 대량살상무기확산을 위한 자금조달행위의 금지에 관한 법률",
+     ["공협법", "테러자금금지법", "테러자금방지법", "공중 등 협박목적", "공중협박자금조달"]),
+    ("개인정보보호법", ["개인정보보호법", "개인정보 보호법"]),
+    ("신용정보의 이용 및 보호에 관한 법률", ["신용정보법", "신용정보의 이용 및 보호"]),
+    ("정보통신망이용촉진및정보보호등에관한법률",
+     ["정보통신망법", "정보통신망 이용촉진", "정보통신망이용촉진"]),
+]
+
+
+def _detect_target_law(title: str, body: str) -> str:
+    """본문에서 우리 대상 8개 법령 별칭을 찾아 정식 명칭으로 반환. 없으면 빈 문자열."""
+    text = (title or "") + " " + (body or "")[:1500]
+    best = ""
+    best_len = 0
+    for canon, aliases in _LAW_TARGETS_DETECT:
+        for a in aliases:
+            if a in text and len(a) > best_len:
+                best_len = len(a)
+                best = canon
+                break
+    return best
+
+
 def _norm_date(s: str) -> str:
     """'2026-04-02' or '2026.04.02' → '2026.04.02.'"""
     if not s:
@@ -105,10 +134,11 @@ def collect(kind: str, max_items: int | None, start: int, dry_run: bool) -> int:
         except Exception as e:
             print(f"  [WARN] detail 실패 ({kind}/{idx}): {e}", file=sys.stderr)
             continue
+        _full_body = (d.get("question") or "") + " " + (d.get("answer") or "") + " " + (d.get("reason") or "")
         rows.append({
             "id":         f"{src}-{idx}",
             "source":     src,
-            "target_law": "",
+            "target_law": _detect_target_law(d.get("title") or row.get("title") or "", _full_body),
             "title":      d.get("title") or row.get("title") or "",
             "agency":     "금융위원회" + (f" {d['department']}" if d.get("department") else ""),
             "case_no":    row.get(num_key) or "",

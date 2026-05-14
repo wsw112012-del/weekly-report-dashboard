@@ -2833,8 +2833,10 @@
                 <div class="pol-sidebar-title">유형</div>
                 <div class="pol-sidebar-item" :class="precedentKind==='전체' ? 'active' : ''"
                      @click="precedentKind='전체'; precedentPage=0">전체</div>
-                <div class="pol-sidebar-item" :class="precedentKind==='expc' ? 'active' : ''"
-                     @click="precedentKind='expc'; precedentPage=0">📜 유권해석례</div>
+                <div class="pol-sidebar-item" :class="precedentKind==='fsc_reply' ? 'active' : ''"
+                     @click="precedentKind='fsc_reply'; precedentPage=0">📜 유권해석례</div>
+                <div class="pol-sidebar-item" :class="precedentKind==='fsc_nonact' ? 'active' : ''"
+                     @click="precedentKind='fsc_nonact'; precedentPage=0">📝 비조치의견서</div>
                 <div class="pol-sidebar-item" :class="precedentKind==='prec' ? 'active' : ''"
                      @click="precedentKind='prec'; precedentPage=0">⚖️ 판례</div>
               </div>
@@ -2881,10 +2883,10 @@
                             @click="precedentSelectedId = precedentSelectedId===p.id ? null : p.id">
                           <td>
                             <span class="pri-badge"
-                                  :class="p.source==='prec' ? 'pri-mid' : 'pri-high'"
-                                  x-text="p.source==='prec' ? '판례' : '해석'"></span>
+                                  :class="p.source==='prec' ? 'pri-low' : (p.source==='fsc_reply' ? 'pri-high' : 'pri-mid')"
+                                  x-text="p.source==='prec' ? '판례' : (p.source==='fsc_reply' ? '해석' : '비조치')"></span>
                           </td>
-                          <td x-text="normalizeLawName(p.target_law || '-')"></td>
+                          <td x-text="normalizeLawName(p.target_law || p.ref_laws || '-')"></td>
                           <td class="pol-title" x-html="highlightQ(p.title||'', precedentSearch)"></td>
                           <td x-text="p.agency || '-'"></td>
                           <td x-text="(p.decided_at || '').slice(0,11)"></td>
