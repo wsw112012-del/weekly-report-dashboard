@@ -888,10 +888,44 @@
       transition: background .15s, color .15s;
       border: 1.5px dashed #cbd5e1;
     }
-    /* 검색박스 안에 들어가는 인라인 첨부 트리거 */
+    /* 검색박스 안에 들어가는 인라인 첨부·텍스트 트리거 */
     .rs-attach-inline {
       padding: 7px 12px; font-size: 12px; border-radius: 6px;
       margin-right: 6px; white-space: nowrap;
+    }
+    /* 텍스트 입력 패널 */
+    .rs-textinput-panel {
+      max-width: 900px; margin: 10px auto 0;
+      background: #fff; border: 1px solid var(--bd);
+      border-radius: 10px; padding: 12px 14px;
+      box-shadow: 0 1px 3px rgba(15,23,42,.03);
+    }
+    .rs-textinput-head {
+      display: flex; align-items: center; justify-content: space-between;
+      font-size: 12px; font-weight: 700; color: var(--t1);
+      margin-bottom: 8px;
+    }
+    .rs-textinput-meta {
+      display: inline-flex; align-items: center; gap: 10px;
+      font-size: 11px; font-weight: 500; color: var(--t3);
+    }
+    .rs-textinput-clear {
+      background: none; border: none; cursor: pointer;
+      font-size: 11px; color: #dc2626; padding: 0;
+    }
+    .rs-textinput-clear:hover { text-decoration: underline; }
+    .rs-textinput-area {
+      width: 100%; min-height: 120px; max-height: 320px;
+      border: 1px solid var(--bd); border-radius: 8px;
+      padding: 10px 12px; font-size: 13px; line-height: 1.6;
+      color: var(--t1); background: #fafbfc;
+      resize: vertical; outline: none;
+      font-family: inherit;
+      box-sizing: border-box;
+    }
+    .rs-textinput-area:focus {
+      border-color: var(--accent); background: #fff;
+      box-shadow: 0 0 0 3px rgba(37,99,235,.1);
     }
     .rs-attach-trigger:hover { background: var(--accent-lt); color: var(--accent); border-color: var(--accent); }
     .rs-attach-trigger.active {
@@ -3450,23 +3484,49 @@
                   <label class="rs-attach-trigger rs-attach-inline" :class="{ 'active': rsFile }">
                     <input type="file" accept=".docx,.pdf,.txt" hidden
                            x-ref="rsFileInput"
-                           @change="rsFile = $event.target.files[0] || null"/>
+                           @change="rsFile = $event.target.files[0] || null; if($event.target.files[0]){ rsShowTextInput=false; rsTextInput=''; }"/>
                     <template x-if="!rsFile">
-                      <span>📎 법률검토</span>
+                      <span>📎 첨부</span>
                     </template>
                     <template x-if="rsFile">
-                      <span>📄 <span x-text="(rsFile?.name || '').length > 16 ? (rsFile.name.slice(0,14)+'…') : rsFile?.name"></span>
+                      <span>📄 <span x-text="(rsFile?.name || '').length > 14 ? (rsFile.name.slice(0,12)+'…') : rsFile?.name"></span>
                         <button type="button" class="rs-attach-remove"
                                 @click.prevent.stop="rsFile=null; $refs.rsFileInput.value=''">✕</button>
                       </span>
                     </template>
                   </label>
+                  <button type="button" class="rs-attach-trigger rs-attach-inline"
+                          :class="{ 'active': rsShowTextInput || rsTextInput }"
+                          @click="rsShowTextInput = !rsShowTextInput; if(rsShowTextInput){ rsFile=null; $refs.rsFileInput.value=''; }">
+                    <template x-if="!rsTextInput">
+                      <span>📝 텍스트</span>
+                    </template>
+                    <template x-if="rsTextInput">
+                      <span>📝 입력됨 (<span x-text="rsTextInput.length"></span>자)</span>
+                    </template>
+                  </button>
                   <button class="rs-search-btn" :disabled="rsLoading"
                           @click="rsSearch()">
                     <span x-text="rsLoading
-                      ? (rsFile ? '📋' : '🔄')
-                      : (rsFile ? '검토 분석' : '검색')"></span>
+                      ? ((rsFile || rsTextInput) ? '📋' : '🔄')
+                      : ((rsFile || rsTextInput) ? '검토 분석' : '검색')"></span>
                   </button>
+                </div>
+
+                <!-- 텍스트 입력 패널 (📝 토글 시 표출) -->
+                <div class="rs-textinput-panel" x-show="rsShowTextInput" x-transition>
+                  <div class="rs-textinput-head">
+                    <span>📝 법률검토 의견 텍스트</span>
+                    <span class="rs-textinput-meta">
+                      <span x-text="rsTextInput.length + '자'"></span>
+                      <button type="button" class="rs-textinput-clear" x-show="rsTextInput"
+                              @click="rsTextInput=''">✕ 지우기</button>
+                    </span>
+                  </div>
+                  <textarea class="rs-textinput-area" x-model="rsTextInput"
+                            placeholder="법무팀·법무법인으로부터 받은 법률검토 의견을 여기에 붙여넣으세요.
+파일 첨부와 동일하게 우리 DB(판례·유권해석·비조치·법령 조문)와 교차 분석하여 핵심 쟁점·일치·보완·불명확 포인트를 정리해 드립니다."
+                            rows="6"></textarea>
                 </div>
                 <div class="rs-recent-row" x-show="rsRecentSearches.length">
                   <div class="rs-recent">
@@ -5099,6 +5159,9 @@
       },
       // 파일 첨부 (법률검토 분석)
       rsFile: null,
+      // 텍스트 입력 분석 (파일 첨부 대체)
+      rsShowTextInput: false,
+      rsTextInput: '',
       rsKeyIssues: [],
       rsAttachedFilename: '',
 
@@ -6281,7 +6344,9 @@
       async rsSearch() {
         const q = (this.rsQuery || '').trim();
         const hasFile = !!this.rsFile;
-        if (!q && !hasFile) {
+        const hasText = !!(this.rsTextInput && this.rsTextInput.trim().length > 0);
+        const analyzeMode = hasFile || hasText;
+        if (!q && !analyzeMode) {
           this.rsResults = []; this.rsAiAnswer = '';
           this.rsAiCitations = []; this.rsKeyIssues = [];
           this.rsAttachedFilename = '';
@@ -6301,12 +6366,15 @@
           const types = isAllTypes ? '' : (this.rsFilters.types || []).join(',');
           const laws  = isAllLaws  ? '' : (this.rsFilters.laws  || []).join(',');
 
-          if (hasFile) {
-            // 파일 분석 모드 — analyze-doc 호출. 분석 응답의 key_issues +
-            // citations + answer 를 그대로 사용. 결과 리스트는 별도 통합 검색
-            // 으로 채워 사용자가 파일 외 추가 사례도 탐색 가능.
+          if (analyzeMode) {
+            // 분석 모드 (파일 OR 텍스트) — analyze-doc 호출.
+            // 결과 리스트는 별도 통합 검색으로 채워 추가 사례 탐색 가능.
             const fd = new FormData();
-            fd.append('file', this.rsFile);
+            if (hasFile) {
+              fd.append('file', this.rsFile);
+            } else {
+              fd.append('text', this.rsTextInput.trim());
+            }
             fd.append('question', q);
             fd.append('law_ids', JSON.stringify(lawIdsEff));
             const searchUrl = '/api/research/search?q=' + encodeURIComponent(q)
@@ -6336,7 +6404,8 @@
             }));
             this.rsAiCitations  = [...precCites, ...lawCites];
             this.rsKeyIssues    = (docRes && docRes.key_issues) || [];
-            this.rsAttachedFilename = (docRes && docRes.filename) || this.rsFile.name;
+            this.rsAttachedFilename = (docRes && docRes.filename)
+              || (hasFile ? this.rsFile.name : '(텍스트 입력)');
             this.rsResults      = (searchRes && searchRes.items) || [];
           } else {
             // 일반 검색 모드 — 통합 검색 + AI 답변 병렬

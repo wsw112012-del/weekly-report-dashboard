@@ -1940,11 +1940,15 @@ async def research_search(
 
 @app.post("/api/precedent/analyze-doc")
 async def analyze_doc(
-    file: UploadFile = File(...),
+    file: UploadFile = File(None),
+    text: str = Form(""),
     question: str = Form(""),
     law_ids: str = Form("[]"),   # JSON string
 ):
-    """법률검토 docx/pdf 업로드 → 본문 추출 → 우리 DB와 연관성 검증."""
+    """법률검토 분석 — 파일(docx/pdf/txt) 또는 텍스트 본문을 받아
+    우리 DB(판례·유권해석·비조치·법령 조문)와 교차 분석.
+    file 과 text 중 하나만 제공되면 됨 (둘 다 없으면 400).
+    """
     import hashlib as _hashlib
     import time as _time
     import precedent_qa as _pqa
@@ -1952,33 +1956,46 @@ async def analyze_doc(
 
     started = _time.time()
 
-    # 1) 파일 크기·확장자 검증
-    raw = await file.read()
-    if not raw:
-        return JSONResponse({"error": "empty_file"}, status_code=400)
-    if len(raw) > _DOC_MAX_BYTES:
-        return JSONResponse({"error": "file_too_large", "limit_mb": 5}, status_code=400)
+    # 1) 입력 방식 분기 — 파일 우선, 없으면 text 사용
+    text_input = (text or "").strip()
+    if file and file.filename:
+        # 파일 모드
+        raw = await file.read()
+        if not raw:
+            return JSONResponse({"error": "empty_file"}, status_code=400)
+        if len(raw) > _DOC_MAX_BYTES:
+            return JSONResponse({"error": "file_too_large", "limit_mb": 5}, status_code=400)
+        try:
+            doc_text = _fx.extract_text(file.filename, raw, max_chars=50000)
+        except ValueError as e:
+            return JSONResponse({"error": str(e)}, status_code=400)
+        except Exception as e:
+            return JSONResponse({"error": f"파일 처리 실패: {e}"}, status_code=500)
+        source_hash = _hashlib.sha256(raw).hexdigest()
+        source_label = file.filename
+        source_kind = "file"
+    elif text_input:
+        # 텍스트 모드 — 추출 단계 건너뜀
+        if len(text_input) > 50000:
+            text_input = text_input[:50000]
+        doc_text = text_input
+        source_hash = _hashlib.sha256(text_input.encode("utf-8")).hexdigest()
+        source_label = "(텍스트 입력)"
+        source_kind = "text"
+    else:
+        return JSONResponse({"error": "file_or_text_required"}, status_code=400)
 
-    # 2) 본문 추출
-    try:
-        doc_text = _fx.extract_text(file.filename, raw, max_chars=50000)
-    except ValueError as e:
-        return JSONResponse({"error": str(e)}, status_code=400)
-    except Exception as e:
-        return JSONResponse({"error": f"파일 처리 실패: {e}"}, status_code=500)
-
-    # 3) cache key (질문 + 법령 + 파일 해시)
+    # 3) cache key (질문 + 법령 + 입력 해시)
     try:
         law_ids_list = json.loads(law_ids) if law_ids else []
         if not isinstance(law_ids_list, list):
             law_ids_list = []
     except json.JSONDecodeError:
         law_ids_list = []
-    file_hash = _hashlib.sha256(raw).hexdigest()
     norm_q = _pqa.normalize_question(question)
     laws_key = ",".join(sorted(law_ids_list))
     cache_key = _hashlib.sha1(
-        f"{_pqa._CACHE_VERSION}:{norm_q}:{laws_key}:file:{file_hash}".encode("utf-8")
+        f"{_pqa._CACHE_VERSION}:{norm_q}:{laws_key}:{source_kind}:{source_hash}".encode("utf-8")
     ).hexdigest()
 
     # 4) 캐시 조회
@@ -2016,7 +2033,7 @@ async def analyze_doc(
                 "key_issues":    [_strip_html(x) for x in (cites.get("key_issues") or [])],
                 "citations":     cached_cits,
                 "law_citations": cached_laws,
-                "filename":      file.filename,
+                "filename":      source_label,
                 "cached":        True,
                 "elapsed_ms":    int((_time.time() - started) * 1000),
             })
@@ -2031,7 +2048,7 @@ async def analyze_doc(
             "key_issues":    [],
             "citations":     [],
             "law_citations": [],
-            "filename":      file.filename,
+            "filename":      source_label,
             "cached":        False,
             "elapsed_ms":    int((_time.time() - started) * 1000),
         })
@@ -2105,14 +2122,14 @@ async def analyze_doc(
             "POST", "precedent_qa_cache",
             {
                 "cache_key": cache_key,
-                "question":  question or "(파일 분석)",
+                "question":  question or ("(텍스트 분석)" if source_kind == "text" else "(파일 분석)"),
                 "law_ids":   laws_key,
                 "answer":    parsed["answer"],
                 "citations": {
                     "key_issues":    parsed["key_issues"],
                     "citations":     parsed["citations"],
                     "law_citations": parsed["law_citations"],
-                    "filename":      file.filename,
+                    "filename":      source_label,
                 },
             },
             upsert=True,
@@ -2125,7 +2142,7 @@ async def analyze_doc(
         "key_issues":    parsed["key_issues"],
         "citations":     parsed["citations"],
         "law_citations": parsed["law_citations"],
-        "filename":      file.filename,
+        "filename":      source_label,
         "cached":        False,
         "elapsed_ms":    int((_time.time() - started) * 1000),
     })
