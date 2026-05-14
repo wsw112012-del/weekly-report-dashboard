@@ -1151,12 +1151,12 @@
       text-align: center; padding: 30px 20px; color: var(--t2);
       background: transparent; border: none;
     }
-    /* 신규 — 통합 empty hero */
+    /* 신규 — 통합 empty hero (검색박스와 동일 폭) */
     .rs-hero {
-      max-width: 680px; margin: 24px auto 0;
+      max-width: 900px; margin: 24px auto 0;
       background: #fff;
       border: 1px solid var(--bd); border-radius: 16px;
-      padding: 36px 36px 28px;
+      padding: 40px 48px 32px;
       box-shadow: 0 1px 3px rgba(15,23,42,.04);
     }
     .rs-hero-icon {
@@ -3027,12 +3027,14 @@
       <template x-if="currentPage === 'policy'">
         <div class="policy-wrap">
 
-          <!-- ── 탭 바 (입법현황·연간시행현황만 — 유권해석/판례·3단비교는 좌측 사이드바) ── -->
-          <div class="pol-tabs" x-show="polTab === 'legislation' || polTab === 'gantt'">
+          <!-- ── 탭 바 (입법현황·연간시행현황·3단조문비교 — 법령 리서치는 좌측 사이드바) ── -->
+          <div class="pol-tabs" x-show="polTab === 'legislation' || polTab === 'gantt' || polTab === 'compare'">
             <button class="pol-tab" :class="polTab==='legislation' ? 'active' : ''"
                     @click="polTab='legislation'">⚖️ 입법현황</button>
             <button class="pol-tab" :class="polTab==='gantt' ? 'active' : ''"
                     @click="polTab='gantt'">📊 연간 시행현황</button>
+            <button class="pol-tab" :class="polTab==='compare' ? 'active' : ''"
+                    @click="polTab='compare'">📑 3단 조문비교</button>
           </div>
 
           <!-- ── 입법현황 탭 ── -->
