@@ -2657,24 +2657,126 @@ def _supabase_request(method: str, path: str, payload: dict | None = None, upser
         return None
 
 
+# ── Supabase Storage 헬퍼 (PPT 파일 영속 저장) ────────────────────────────
+_PPT_BUCKET = "ppt-archive"
+_PPT_STORAGE_PREFIX = "storage://"
+_bucket_ensured = False
+
+
+def _ensure_ppt_bucket() -> bool:
+    """ppt-archive 버킷이 없으면 생성 (idempotent). 1회만 시도."""
+    global _bucket_ensured
+    if _bucket_ensured or not SUPABASE_URL or not SUPABASE_KEY:
+        return _bucket_ensured
+    import urllib.request, urllib.error
+    url = f"{SUPABASE_URL}/storage/v1/bucket"
+    body = json.dumps({"id": _PPT_BUCKET, "name": _PPT_BUCKET, "public": False}).encode("utf-8")
+    headers = {
+        "apikey": SUPABASE_KEY,
+        "Authorization": f"Bearer {SUPABASE_KEY}",
+        "Content-Type": "application/json",
+    }
+    req = urllib.request.Request(url, data=body, headers=headers, method="POST")
+    try:
+        with urllib.request.urlopen(req, timeout=10):
+            _bucket_ensured = True
+            print(f"[INFO] Storage bucket '{_PPT_BUCKET}' 생성 완료")
+    except urllib.error.HTTPError as e:
+        # 409 Conflict = 이미 존재 → 정상
+        if e.code in (400, 409):
+            _bucket_ensured = True
+        else:
+            print(f"[WARN] Storage bucket 생성 실패: {e}")
+    except Exception as e:
+        print(f"[WARN] Storage bucket 생성 예외: {e}")
+    return _bucket_ensured
+
+
+def _supabase_storage_upload(key: str, content: bytes, content_type: str = "application/octet-stream") -> str | None:
+    """Supabase Storage 에 객체 업로드. 성공 시 storage:// path 반환."""
+    if not SUPABASE_URL or not SUPABASE_KEY:
+        return None
+    _ensure_ppt_bucket()
+    import urllib.request, urllib.error
+    url = f"{SUPABASE_URL}/storage/v1/object/{_PPT_BUCKET}/{key}"
+    headers = {
+        "apikey": SUPABASE_KEY,
+        "Authorization": f"Bearer {SUPABASE_KEY}",
+        "Content-Type": content_type,
+        "x-upsert": "true",
+    }
+    req = urllib.request.Request(url, data=content, headers=headers, method="POST")
+    try:
+        with urllib.request.urlopen(req, timeout=30):
+            return f"{_PPT_STORAGE_PREFIX}{_PPT_BUCKET}/{key}"
+    except Exception as e:
+        print(f"[WARN] Storage upload 실패 ({key}): {e}")
+        return None
+
+
+def _supabase_storage_download(storage_path: str) -> bytes | None:
+    """storage://bucket/key 형식 경로에서 객체 바이트 다운로드."""
+    if not storage_path or not storage_path.startswith(_PPT_STORAGE_PREFIX):
+        return None
+    if not SUPABASE_URL or not SUPABASE_KEY:
+        return None
+    rest = storage_path[len(_PPT_STORAGE_PREFIX):]
+    # rest = "bucket/key..."
+    import urllib.request
+    url = f"{SUPABASE_URL}/storage/v1/object/{rest}"
+    headers = {
+        "apikey": SUPABASE_KEY,
+        "Authorization": f"Bearer {SUPABASE_KEY}",
+    }
+    req = urllib.request.Request(url, headers=headers, method="GET")
+    try:
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            return resp.read()
+    except Exception as e:
+        print(f"[WARN] Storage download 실패 ({storage_path}): {e}")
+        return None
+
+
 def _save_history(content: str, ppt_path: str, category: str) -> None:
-    """PPT 생성 완료 이력을 Supabase에 저장 (로컬 history.json 병행)"""
+    """PPT 생성 완료 이력을 Supabase에 저장. PPT 파일은 Supabase Storage 에 업로드해
+    배포(컨테이너 재시작) 후에도 다운로드 가능하도록 영속화. 로컬 history.json 도 병행."""
     title_m = re.search(r'◆[^\|]+\|\s*「?(.+?)」?\s{2,}', content)
     date_m  = re.search(r"'(\d{2}\.\d+\.\d+\([가-힣]\))", content)
     title   = title_m.group(1).strip() if title_m else content.split('\n')[0][:60]
     article_date = date_m.group(1) if date_m else ''
+    entry_id = int(datetime.now().timestamp())
+
+    # 1) Storage 업로드 — 성공 시 ppt_path 는 storage:// 경로로 저장
+    persistent_path = ppt_path  # default: 로컬 경로 (Storage 미구성 fallback)
+    try:
+        local_path = Path(ppt_path)
+        if local_path.exists():
+            data = local_path.read_bytes()
+            # 키: <id>_<filename> 형식 — 충돌 회피 + 파일명 보존
+            safe_name = re.sub(r"[^\w\.\-가-힣]", "_", local_path.name)
+            storage_key = f"{entry_id}_{safe_name}"
+            uploaded = _supabase_storage_upload(
+                storage_key, data,
+                content_type="application/vnd.openxmlformats-officedocument.presentationml.presentation",
+            )
+            if uploaded:
+                persistent_path = uploaded
+                print(f"[INFO] PPT Storage 업로드 완료: {storage_key}")
+    except Exception as e:
+        print(f"[WARN] PPT Storage 업로드 예외: {e}")
+
     entry = {
-        "id": int(datetime.now().timestamp()),
+        "id": entry_id,
         "ppt_created_at": date.today().isoformat(),
         "article_date": article_date,
         "title": title,
         "summary": content[:400],
-        "ppt_path": ppt_path,
+        "ppt_path": persistent_path,
         "category": category,
     }
-    # Supabase 저장
+    # Supabase 저장 (메타데이터)
     _supabase_request("POST", "history", entry)
-    # 로컬 fallback 저장
+    # 로컬 fallback 저장 (개발 환경 또는 Storage 실패 시 동일 세션 다운로드용)
     history: list = []
     if HISTORY_FILE.exists():
         try:
@@ -2706,19 +2808,53 @@ async def get_history():
 
 @app.get("/api/ppt/{item_id}")
 async def download_ppt(item_id: int):
-    """history id로 PPT 파일 다운로드"""
+    """history id 로 PPT 다운로드. storage:// 경로면 Supabase Storage 에서
+    바이트를 가져와 스트리밍, 로컬 경로면 FileResponse."""
     history = _load_history()
     entry = next((h for h in history if h.get("id") == item_id), None)
     if not entry:
         return JSONResponse({"error": "항목 없음"}, status_code=404)
-    ppt_path = Path(entry.get("ppt_path", ""))
-    if not ppt_path.exists():
-        return JSONResponse({"error": f"파일 없음: {ppt_path.name}"}, status_code=404)
-    return FileResponse(
-        path=str(ppt_path),
-        media_type="application/vnd.openxmlformats-officedocument.presentationml.presentation",
-        filename=ppt_path.name,
-    )
+    raw_path = entry.get("ppt_path", "") or ""
+
+    # 1) Storage 경로 → bytes 다운로드 후 스트리밍
+    if raw_path.startswith(_PPT_STORAGE_PREFIX):
+        data = _supabase_storage_download(raw_path)
+        if not data:
+            return JSONResponse({"error": "Storage 다운로드 실패"}, status_code=404)
+        from fastapi.responses import Response
+        # storage_path 형식: storage://bucket/<id>_<filename>
+        key = raw_path[len(_PPT_STORAGE_PREFIX):].split("/", 1)[-1]
+        # <id>_<filename> 에서 filename 만 복원 (id_ prefix 제거)
+        fname = key.split("_", 1)[-1] if "_" in key else key
+        return Response(
+            content=data,
+            media_type="application/vnd.openxmlformats-officedocument.presentationml.presentation",
+            headers={"Content-Disposition": f'attachment; filename="{fname}"'},
+        )
+
+    # 2) 로컬 경로 fallback
+    ppt_path = Path(raw_path)
+    if ppt_path.exists():
+        return FileResponse(
+            path=str(ppt_path),
+            media_type="application/vnd.openxmlformats-officedocument.presentationml.presentation",
+            filename=ppt_path.name,
+        )
+
+    # 3) 로컬에 없으면 — Storage 에 같은 id 로 올라갔을 가능성 시도 (구버전 호환)
+    if SUPABASE_URL and SUPABASE_KEY:
+        legacy_name = ppt_path.name if ppt_path.name else f"{item_id}.pptx"
+        guess = f"{_PPT_STORAGE_PREFIX}{_PPT_BUCKET}/{item_id}_{legacy_name}"
+        data = _supabase_storage_download(guess)
+        if data:
+            from fastapi.responses import Response
+            return Response(
+                content=data,
+                media_type="application/vnd.openxmlformats-officedocument.presentationml.presentation",
+                headers={"Content-Disposition": f'attachment; filename="{legacy_name}"'},
+            )
+
+    return JSONResponse({"error": f"파일 없음: {ppt_path.name}"}, status_code=404)
 
 
 @app.post("/api/generate/{report_type}")
