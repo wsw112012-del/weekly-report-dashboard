@@ -271,12 +271,58 @@ def build_contents(today_str: str, days: int = 2) -> tuple[str, int]:
 
 # ── main ──────────────────────────────────────────────────────────────────────
 
+# ── 발송 로그 (같은 날 중복 발송 방지) ─────────────────────────────────────
+def _check_already_posted(today_str: str) -> dict | None:
+    """flow_post_log 에 오늘 row 있으면 dict 반환, 없으면 None."""
+    su = os.environ.get("SUPABASE_URL"); sk = os.environ.get("SUPABASE_KEY")
+    if not su or not sk:
+        return None
+    url = f"{su}/rest/v1/flow_post_log?post_date=eq.{today_str}&select=*"
+    req = urllib.request.Request(url, headers={
+        "apikey": sk, "Authorization": f"Bearer {sk}"})
+    try:
+        rows = json.loads(urllib.request.urlopen(req, timeout=10).read())
+        return rows[0] if rows else None
+    except Exception:
+        return None
+
+
+def _log_post(today_str: str, response: dict, total: int) -> None:
+    """게시 성공 후 flow_post_log upsert."""
+    su = os.environ.get("SUPABASE_URL"); sk = os.environ.get("SUPABASE_KEY")
+    if not su or not sk:
+        return
+    data_node = (response or {}).get("response", {}).get("data", {}) or {}
+    row = {
+        "post_date":   today_str,
+        "bot_id":      os.environ.get("FLOW_BOT_ID", ""),
+        "project_id":  str(data_node.get("projectId") or os.environ.get("FLOW_PROJECT_ID", "")),
+        "post_id":     str(data_node.get("postId") or ""),
+        "tiny_url":    data_node.get("tinyUrl") or "",
+        "total_items": total,
+    }
+    req = urllib.request.Request(
+        f"{su}/rest/v1/flow_post_log",
+        data=json.dumps(row, ensure_ascii=False).encode("utf-8"),
+        headers={"apikey": sk, "Authorization": f"Bearer {sk}",
+                 "Content-Type": "application/json",
+                 "Prefer": "resolution=merge-duplicates,return=minimal"},
+        method="POST",
+    )
+    try:
+        urllib.request.urlopen(req, timeout=10).read()
+    except Exception as e:
+        print(f"[WARN] flow_post_log 기록 실패: {e}", file=sys.stderr)
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--dry-run", action="store_true",
                         help="API 호출 없이 본문만 stdout 출력")
     parser.add_argument("--allow-empty", action="store_true",
                         help="항목 0건이어도 게시")
+    parser.add_argument("--force", action="store_true",
+                        help="오늘 이미 게시했어도 강제 재발송")
     args = parser.parse_args()
 
     missing = [k for k in ("FLOW_API_KEY", "FLOW_BOT_ID", "FLOW_PROJECT_ID",
@@ -290,6 +336,15 @@ def main() -> int:
               file=sys.stderr)
 
     today_str = date.today().isoformat()
+
+    # 중복 발송 방지 — 같은 날 이미 게시된 경우 skip (--force 로 무시 가능)
+    if not args.dry_run and not args.force:
+        existing = _check_already_posted(today_str)
+        if existing:
+            print(f"[INFO] {today_str} 이미 게시됨 — postId={existing.get('post_id')} "
+                  f"tinyUrl={existing.get('tiny_url')} (강제 재발송: --force)")
+            return 0
+
     contents, total = build_contents(today_str)
     title = f"📊 AML 일일 모니터링 — {today_str.replace('-', '.')}"
 
@@ -314,6 +369,7 @@ def main() -> int:
         contents=contents,
     )
     print(f"[OK] response: {json.dumps(res, ensure_ascii=False)}")
+    _log_post(today_str, res, total)
     return 0
 
 
