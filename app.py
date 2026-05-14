@@ -2165,13 +2165,12 @@ async def get_law_comparison(law: str = ""):
         return _supabase_request(
             "GET",
             f"law_articles?law_name=ilike.*{enc_}*"
-            f"&select=id,law_name,law_type,jo_no,jo_label,jo_title,body,order_idx"
+            f"&select=id,law_id,law_name,law_type,jo_no,jo_label,jo_title,body,parent_law_id,order_idx"
             f"&order=law_type.asc,order_idx.asc&limit=3000",
         ) or []
 
     rows = _fetch(law)
     if not rows and " " not in law and len(law) >= 4:
-        # 공백 없는 법령명 → 첫 4자만으로 prefix 검색 후 재필터
         all_candidates = _fetch(law[:4])
         norm_q = law.replace(" ", "")
         rows = [r for r in all_candidates
@@ -2182,42 +2181,77 @@ async def get_law_comparison(law: str = ""):
     if not rows:
         return JSONResponse([])
 
+    # parent_law_id 로 연결된 추가 자원 (별도 law_id 로 수집된 시행규칙·업무규정 등) 합치기
+    # 예: fiu_aml (자금세탁업무규정, parent=fiu), cipa_rule (신용정보법 시행규칙, parent=cipa)
+    act_law_id = next((r.get("law_id") for r in rows if r.get("law_type") == "act"), None)
+    if act_law_id:
+        enc_ = urllib.parse.quote(act_law_id, safe="")
+        extra = _supabase_request(
+            "GET",
+            f"law_articles?parent_law_id=eq.{enc_}"
+            f"&select=id,law_id,law_name,law_type,jo_no,jo_label,jo_title,body,parent_law_id,order_idx"
+            f"&order=law_type.asc,order_idx.asc&limit=2000",
+        ) or []
+        existing_ids = {r["id"] for r in rows if r.get("id")}
+        for x in extra:
+            if x.get("id") not in existing_ids:
+                rows.append(x)
+
     by_type: dict[str, list[dict]] = {"act": [], "enforce": [], "regulation": []}
     for r in rows:
         t = r.get("law_type") or "act"
         if t in by_type:
             by_type[t].append(r)
 
-    # 시행령·규정 -> 본문/제목 안 법률 조문 인용 -> 법률 jo_no 매핑
-    # 다양한 표현 모두 포함: 법/같은 법/이 법/동법/본법/령 제N조 + 「법」 명시 인용
-    pat_named = re.compile(r"「[^」]+?법(?:률)?」\s*제\s*(\d+)\s*조")
-    pat_short = re.compile(
-        r"(?:같은\s*법|이\s*법|동법|본법|법률|법)\s*제\s*(\d+)\s*조",
-        re.UNICODE,
-    )
+    # 인용 패턴 — 다양한 표현 모두 매칭
+    pat_named   = re.compile(r"「[^」]+?법(?:률)?」\s*제\s*(\d+)\s*조")
+    pat_short   = re.compile(r"(?:같은\s*법|이\s*법|동법|본법|법률|법)\s*제\s*(\d+)\s*조", re.UNICODE)
+    pat_enforce = re.compile(r"(?:같은\s*법\s*시행령|이\s*영|동\s*시행령|시행령|영)\s*제\s*(\d+)\s*조", re.UNICODE)
 
-    def by_act_no(rows_):
+    # 1단계: 시행령 jo_no -> 법률 jo_no 매핑 테이블 (transitive mapping 용)
+    enforce_to_act: dict[int, set[int]] = {}
+    for r in by_type["enforce"]:
+        text = (r.get("body") or "") + " " + (r.get("jo_title") or "")
+        refs = set()
+        for m in pat_named.finditer(text):
+            try: refs.add(int(m.group(1)))
+            except ValueError: pass
+        for m in pat_short.finditer(text):
+            try: refs.add(int(m.group(1)))
+            except ValueError: pass
+        if refs:
+            enforce_to_act.setdefault(r.get("jo_no") or 0, set()).update(refs)
+
+    def by_act_no(rows_, allow_transitive: bool = False):
         out: dict[int, list[dict]] = {}
         for r in rows_:
-            # 매칭된 모든 법률 조문 번호 수집 (1:N 매핑 허용)
             text = (r.get("body") or "") + " " + (r.get("jo_title") or "")
             refs: set[int] = set()
+            # 1차: 「..법」 제N조
             for m in pat_named.finditer(text):
                 try: refs.add(int(m.group(1)))
                 except ValueError: pass
+            # 2차: 법/같은 법/이 법/동법 제N조
             for m in pat_short.finditer(text):
                 try: refs.add(int(m.group(1)))
                 except ValueError: pass
+            # 3차: "영 제N조" → enforce_to_act 거쳐서 transitive 매핑 (행정규칙용)
+            if allow_transitive:
+                for m in pat_enforce.finditer(text):
+                    try:
+                        no = int(m.group(1))
+                        refs.update(enforce_to_act.get(no, set()))
+                    except ValueError: pass
             if refs:
                 for no in refs:
                     out.setdefault(no, []).append(r)
             else:
-                # fallback: 본인 jo_no 와 동일 매칭 (시행규칙 1:1 케이스 + 명시 인용 없는 경우)
+                # fallback: 본인 jo_no 와 동일 매칭
                 out.setdefault(r.get("jo_no", 0), []).append(r)
         return out
 
-    enforce_map = by_act_no(by_type["enforce"])
-    reg_map     = by_act_no(by_type["regulation"])
+    enforce_map = by_act_no(by_type["enforce"], allow_transitive=False)
+    reg_map     = by_act_no(by_type["regulation"], allow_transitive=True)
 
     def cell(rows_: list[dict] | None) -> dict | None:
         if not rows_:
