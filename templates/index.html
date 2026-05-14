@@ -1488,9 +1488,13 @@
       position: sticky; top: 0; z-index: 5;
     }
     .cmp-v2-th:last-child { border-right: none; }
-    .cmp-v2-th-act        { background: #fef3c7; border-top: 3px solid #f59e0b; color: #92400e; }
-    .cmp-v2-th-enforce    { background: #dbeafe; border-top: 3px solid #2563eb; color: #1e40af; }
-    .cmp-v2-th-regulation { background: #d1fae5; border-top: 3px solid #10b981; color: #065f46; }
+    /* thead 3개 컬럼 통일 — 옅은 파랑 */
+    .cmp-v2-th-act,
+    .cmp-v2-th-enforce,
+    .cmp-v2-th-regulation {
+      background: #eff6ff; color: var(--accent);
+      border-top: 3px solid var(--accent);
+    }
     .cmp-v2-table td {
       padding: 14px 16px; vertical-align: top;
       border-right: 1px solid var(--bd);
@@ -1508,15 +1512,15 @@
     .cmp-v2-table tbody tr.cmp-v2-row-active td {
       background: #eff6ff !important;
     }
-    /* 장 헤더 row */
+    /* 장 헤더 row — 옅은 회색 */
     .cmp-v2-chapter-row td {
-      background: linear-gradient(90deg, var(--accent-lt) 0%, #fafbff 60%) !important;
+      background: #f1f5f9 !important;
       padding: 10px 16px !important;
       border-top: 1px solid #cbd5e1;
       border-bottom: 1px solid #cbd5e1;
     }
     .cmp-v2-chapter-row .cmp-v2-chapter-label {
-      font-size: 12.5px; font-weight: 800; color: var(--accent);
+      font-size: 12.5px; font-weight: 800; color: var(--t1);
       margin-right: 8px;
     }
     .cmp-v2-chapter-row .cmp-v2-chapter-title {
