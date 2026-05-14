@@ -679,6 +679,101 @@
     .pol-table-wrap { flex: 1; overflow-y: auto; }
     .pol-table { width: 100%; border-collapse: collapse; font-size: 12px; }
 
+    /* 유권해석/판례 AI 자연어 검색 */
+    .qa-wrap {
+      flex: 1; padding: 24px 32px; overflow-y: auto;
+      max-width: 1100px; margin: 0 auto; width: 100%;
+    }
+    .qa-card {
+      background: #fff; border: 1px solid var(--bd); border-radius: 10px;
+      padding: 18px 20px; margin-bottom: 16px;
+    }
+    .qa-card-head {
+      display: flex; align-items: center; gap: 12px; margin-bottom: 10px;
+    }
+    .qa-card-head h3 {
+      font-size: 13px; font-weight: 800; color: var(--t1); margin: 0;
+    }
+    .qa-hint { font-size: 11px; color: var(--t3); }
+    .qa-input {
+      width: 100%; border: 1px solid var(--bd); border-radius: 8px;
+      padding: 12px 14px; font-size: 13px; color: var(--t1);
+      resize: vertical; min-height: 70px; font-family: inherit;
+    }
+    .qa-input:focus { outline: none; border-color: var(--accent); }
+    .qa-foot { text-align: right; font-size: 11px; color: var(--t3); margin-top: 4px; }
+    .qa-laws-toolbar { display: flex; align-items: center; gap: 10px; margin-left: auto; }
+    .qa-btn-link {
+      background: none; border: none; cursor: pointer;
+      font-size: 11px; color: var(--accent); font-weight: 600;
+    }
+    .qa-btn-link:hover { text-decoration: underline; }
+    .qa-laws-grid {
+      display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px 12px;
+    }
+    @media (min-width: 720px) { .qa-laws-grid { grid-template-columns: repeat(3, 1fr); } }
+    @media (min-width: 1000px) { .qa-laws-grid { grid-template-columns: repeat(4, 1fr); } }
+    .qa-law-chk {
+      display: flex; align-items: center; gap: 6px; cursor: pointer;
+      font-size: 12px; color: var(--t2); padding: 4px 0; user-select: none;
+    }
+    .qa-law-chk input[type=checkbox] { accent-color: var(--accent); }
+    .qa-law-chk:hover span { color: var(--t1); }
+    .qa-actions {
+      display: flex; align-items: center; gap: 14px; margin-bottom: 18px;
+    }
+    .qa-submit {
+      background: var(--accent); color: #fff; border: none;
+      padding: 11px 28px; border-radius: 8px; font-size: 13px; font-weight: 700;
+      cursor: pointer; transition: background .15s;
+    }
+    .qa-submit:hover:not(:disabled) { background: #1e40af; }
+    .qa-submit:disabled { opacity: .45; cursor: not-allowed; }
+    .qa-cache-tag {
+      font-size: 11px; color: var(--accent); background: var(--accent-lt);
+      padding: 4px 10px; border-radius: 6px; font-weight: 600;
+    }
+    .qa-result {
+      background: #fff; border: 1px solid var(--bd); border-radius: 10px;
+      padding: 20px 24px;
+    }
+    .qa-result h3 {
+      font-size: 13px; font-weight: 800; color: var(--t1); margin: 0 0 12px 0;
+    }
+    .qa-answer {
+      font-size: 13px; color: var(--t1); line-height: 1.75; white-space: pre-wrap;
+    }
+    .qa-cite-ref {
+      font-size: 10px; color: var(--accent); font-weight: 700;
+      vertical-align: super; cursor: pointer;
+    }
+    .qa-citations { display: flex; flex-direction: column; gap: 8px; }
+    .qa-citation-card {
+      border: 1px solid var(--bd); border-radius: 8px; padding: 10px 12px;
+      cursor: pointer; transition: border-color .15s, background .15s;
+    }
+    .qa-citation-card:hover { border-color: var(--accent); background: #fafbfc; }
+    .qa-citation-row { display: flex; align-items: center; gap: 10px; }
+    .qa-citation-num {
+      font-size: 11px; font-weight: 800; color: var(--accent); flex-shrink: 0;
+    }
+    .qa-citation-meta { flex: 1; min-width: 0; }
+    .qa-citation-meta strong {
+      display: block; font-size: 13px; color: var(--t1); margin-bottom: 2px;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .qa-citation-sub { font-size: 11px; color: var(--t3); }
+    .qa-citation-body {
+      margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--bd);
+      font-size: 12px; color: var(--t2); line-height: 1.6;
+    }
+    .qa-citation-body strong { color: var(--t1); display: block; margin-bottom: 4px; }
+    .qa-citation-body p { margin: 0; }
+    .qa-empty {
+      text-align: center; padding: 40px 20px; color: var(--t2); font-size: 13px;
+      background: #fff; border: 1px dashed var(--bd); border-radius: 10px;
+    }
+
     /* 법령 3단비교 표 — PDF 스타일 */
     .compare-table {
       width: 100%; border-collapse: collapse; font-size: 11.5px;
@@ -2816,7 +2911,110 @@
           </template>
 
           <!-- ── 유권해석/판례 탭 ── -->
+          <!-- ── 유권해석/판례 — AI 자연어 검색 ── -->
           <template x-if="polTab === 'precedent'">
+            <div class="qa-wrap">
+              <!-- 1. 질문 카드 -->
+              <div class="qa-card">
+                <div class="qa-card-head">
+                  <h3>질문</h3>
+                  <span class="qa-hint">자연어로 묻고 싶은 사안을 입력하세요</span>
+                </div>
+                <textarea class="qa-input" x-model="qaQuestion" maxlength="300"
+                          rows="3"
+                          placeholder="예: 가상자산사업자 신고 의무 위반 시 형사처벌 기준은 무엇인가요?"></textarea>
+                <div class="qa-foot">
+                  <span x-text="qaQuestion.length + ' / 300자'"
+                        :style="qaQuestion.length >= 280 ? 'color:#dc2626' : ''"></span>
+                </div>
+              </div>
+
+              <!-- 2. 대상 법령 카드 -->
+              <div class="qa-card">
+                <div class="qa-card-head">
+                  <h3>대상 법령 선택</h3>
+                  <div class="qa-laws-toolbar">
+                    <button class="qa-btn-link" @click="qaLaws = [...qaAllLaws]">전체 선택</button>
+                    <button class="qa-btn-link" @click="qaLaws = []">해제</button>
+                    <span class="qa-hint" x-text="qaLaws.length + '개 선택'"></span>
+                  </div>
+                </div>
+                <div class="qa-laws-grid">
+                  <template x-for="law in qaAllLaws" :key="law">
+                    <label class="qa-law-chk">
+                      <input type="checkbox" :value="law" x-model="qaLaws"/>
+                      <span x-text="normalizeLawName(law)"></span>
+                    </label>
+                  </template>
+                </div>
+              </div>
+
+              <!-- 3. 검색 액션 -->
+              <div class="qa-actions">
+                <button class="qa-submit"
+                        :disabled="!qaQuestion.trim() || qaLaws.length===0 || qaLoading"
+                        @click="submitPrecedentQa()">
+                  <span x-text="qaLoading ? '🔄 AI 분석 중...' : '🔍 검색'"></span>
+                </button>
+                <span x-show="qaCached" class="qa-cache-tag">⚡ 캐시된 응답</span>
+                <span x-show="qaElapsedMs > 0" class="qa-hint"
+                      x-text="qaElapsedMs + ' ms'"></span>
+              </div>
+
+              <!-- 4. AI 응답 -->
+              <div class="qa-result" x-show="qaAnswer">
+                <h3>📌 AI 응답</h3>
+                <div class="qa-answer" x-html="renderQaAnswer(qaAnswer)"></div>
+
+                <h3 style="margin-top:24px" x-show="qaCitations.length">
+                  📚 인용 사례 (<span x-text="qaCitations.length"></span>건)
+                </h3>
+                <div class="qa-citations">
+                  <template x-for="c in qaCitations" :key="c.precedent_id">
+                    <div class="qa-citation-card"
+                         @click="qaExpandedId = qaExpandedId === c.precedent_id ? null : c.precedent_id">
+                      <div class="qa-citation-row">
+                        <span class="qa-citation-num" x-text="'[' + c.idx + ']'"></span>
+                        <span class="pri-badge"
+                              :class="c.source==='prec' ? 'pri-low' : (c.source==='fsc_reply' ? 'pri-high' : 'pri-mid')"
+                              x-text="c.source==='prec' ? '판례' : (c.source==='fsc_reply' ? '해석' : '비조치')"></span>
+                        <div class="qa-citation-meta">
+                          <strong x-text="c.title"></strong>
+                          <div class="qa-citation-sub">
+                            <span x-text="c.agency || '-'"></span> ·
+                            <span x-text="c.decided_at || '-'"></span>
+                          </div>
+                        </div>
+                      </div>
+                      <div x-show="qaExpandedId === c.precedent_id" class="qa-citation-body" @click.stop>
+                        <div x-show="c.summary">
+                          <strong>요지</strong>
+                          <p x-text="c.summary"></p>
+                        </div>
+                        <div x-show="c.body" style="margin-top:8px">
+                          <strong>본문</strong>
+                          <p style="white-space:pre-wrap" x-text="(c.body||'').slice(0,2000)"></p>
+                        </div>
+                        <a x-show="c.link" :href="c.link" target="_blank" rel="noopener"
+                           class="link-btn" style="margin-top:10px;display:inline-block">원문 →</a>
+                      </div>
+                    </div>
+                  </template>
+                </div>
+              </div>
+
+              <!-- 빈 상태 안내 -->
+              <div class="qa-empty" x-show="!qaAnswer && !qaLoading">
+                <p>💡 질문을 입력하고 검색을 누르면 AI 가 관련 사례를 정리해 답변합니다.</p>
+                <p style="margin-top:8px;font-size:12px;color:var(--t3)">
+                  예시: "VASP 신고 의무 위반 처벌은?", "트래블룰 적용 범위", "개인정보 처리방침 작성 기준" 등
+                </p>
+              </div>
+            </div>
+          </template>
+
+          <!-- ── (제거됨: 기존 유권해석/판례 표 UI — AI 자연어 검색으로 대체) ── -->
+          <template x-if="false">
             <div class="pol-layout">
               <!-- 좌측 사이드바: 대상 법령 -->
               <div class="pol-sidebar" :style="`width:${sidebarW}px`">
@@ -3900,12 +4098,34 @@
       legSideLaw: '',
       legSummaries: {},
 
-      // ── 유권해석/판례 (precedent_db) ──
+      // ── 유권해석/판례 — AI 자연어 검색 (Lexis 스타일) ──
+      qaQuestion: '',
+      qaAllLaws: [
+        '개인정보보호법',
+        '신용정보의 이용 및 보호에 관한 법률',
+        '정보통신망이용촉진및정보보호등에관한법률',
+        '전자금융거래법',
+        '외국환거래법',
+        '특정 금융거래정보의 보고 및 이용 등에 관한 법률',
+        '공중 등 협박목적 및 대량살상무기확산을 위한 자금조달행위의 금지에 관한 법률',
+      ],
+      qaLaws: [
+        '외국환거래법',
+        '특정 금융거래정보의 보고 및 이용 등에 관한 법률',
+      ],
+      qaLoading: false,
+      qaAnswer: '',
+      qaCitations: [],
+      qaCached: false,
+      qaElapsedMs: 0,
+      qaExpandedId: null,
+
+      // ── (제거됨: 기존 precedent 표 모드) ──
       precedentItems: [],
       precedentLoading: false,
       precedentSearch: '',
       precedentLaw: '전체',
-      precedentKind: '전체',           // '전체' | 'expc' | 'prec'
+      precedentKind: '전체',
       precedentSelectedId: null,
       precedentPage: 0,
       precedentPageSize: 20,
@@ -4877,11 +5097,48 @@
 
       // ── 유권해석/판례 메서드 ──
       async loadPrecedent() {
-        this.precedentLoading = true;
+        // AI 검색 모드 — 별도 사전 로드 불필요. 호환성 위해 함수만 유지.
+      },
+      async submitPrecedentQa() {
+        if (!this.qaQuestion.trim() || this.qaLaws.length === 0) return;
+        this.qaLoading = true;
+        this.qaAnswer = '';
+        this.qaCitations = [];
+        this.qaCached = false;
+        this.qaElapsedMs = 0;
+        this.qaExpandedId = null;
         try {
-          this.precedentItems = await fetch('/api/precedent').then(r => r.json());
-        } catch(_) { this.precedentItems = []; }
-        finally { this.precedentLoading = false; }
+          const res = await fetch('/api/precedent/ask', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              question: this.qaQuestion.trim(),
+              law_ids: this.qaLaws,
+            })
+          });
+          const data = await res.json();
+          if (!res.ok) {
+            alert('AI 응답 실패: ' + (data.error || res.statusText));
+            return;
+          }
+          this.qaAnswer = data.answer || '';
+          this.qaCitations = data.citations || [];
+          this.qaCached = !!data.cached;
+          this.qaElapsedMs = data.elapsed_ms || 0;
+        } catch (e) {
+          alert('AI 호출 오류: ' + e.message);
+        } finally {
+          this.qaLoading = false;
+        }
+      },
+      renderQaAnswer(text) {
+        // [n] 마커 → <sup class="qa-cite-ref">[n]</sup> 변환
+        if (!text) return '';
+        const escaped = text
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;');
+        return escaped.replace(/\[(\d+)\]/g, '<sup class="qa-cite-ref">[$1]</sup>');
       },
       async onPrecedentSearch() {
         // 검색어 비어있거나 짧으면 캐시에서만 필터

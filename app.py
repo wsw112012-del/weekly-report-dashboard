@@ -1621,6 +1621,133 @@ async def search_precedent_live(q: str = ""):
     return JSONResponse(out)
 
 
+# ── 유권해석/판례 — AI 자연어 검색 ──────────────────────────────────────────
+@app.post("/api/precedent/ask")
+async def ask_precedent(req: Request):
+    """자연어 질문 + 대상 법령 다중 선택 → Gemini 답변 + 인용 사례 카드."""
+    import time as _time
+    import precedent_qa as _pqa
+
+    started = _time.time()
+    try:
+        payload = await req.json()
+    except Exception:
+        return JSONResponse({"error": "invalid_json"}, status_code=400)
+    question = (payload.get("question") or "").strip()
+    law_ids  = payload.get("law_ids") or []
+    if not question:
+        return JSONResponse({"error": "question_required"}, status_code=400)
+    if len(question) > 300:
+        question = question[:300]
+    if not isinstance(law_ids, list):
+        law_ids = []
+
+    cache_key = _pqa.build_cache_key(question, law_ids)
+
+    # 1) 캐시 조회
+    cached_rows = _supabase_request(
+        "GET", f"precedent_qa_cache?cache_key=eq.{cache_key}&select=*&limit=1"
+    ) or []
+    if cached_rows:
+        row = cached_rows[0]
+        # hit_count++
+        try:
+            _supabase_request(
+                "PATCH", f"precedent_qa_cache?cache_key=eq.{cache_key}",
+                {"hit_count": (row.get("hit_count") or 1) + 1,
+                 "updated_at": datetime.utcnow().isoformat()}
+            )
+        except Exception:
+            pass
+        return JSONResponse({
+            "answer":     row.get("answer", ""),
+            "citations":  row.get("citations") or [],
+            "cached":     True,
+            "elapsed_ms": int((_time.time() - started) * 1000),
+        })
+
+    # 2) 후보 추출 (Supabase precedent_db)
+    candidates = _pqa.build_candidates(question, law_ids, top_k=20, db_limit=2000)
+    if not candidates:
+        return JSONResponse({
+            "answer":     "선택한 법령 범위 안에서 관련된 사례를 찾지 못했습니다. 법령 선택을 넓혀보세요.",
+            "citations":  [],
+            "cached":     False,
+            "elapsed_ms": int((_time.time() - started) * 1000),
+        })
+
+    # 3) Gemini 호출
+    prompt = _pqa.build_prompt(question, candidates, max_cases=20)
+    if not GEMINI_API_KEY:
+        return JSONResponse({"error": "GEMINI_API_KEY 미설정"}, status_code=500)
+
+    import ssl as _ssl
+    import requests as _req
+    from requests.adapters import HTTPAdapter
+    from urllib3.util.ssl_ import create_urllib3_context
+
+    class _LaxSSL(HTTPAdapter):
+        def init_poolmanager(self, *a, **kw):
+            ctx = create_urllib3_context()
+            ctx.check_hostname = False
+            ctx.verify_mode = _ssl.CERT_NONE
+            kw["ssl_context"] = ctx
+            super().init_poolmanager(*a, **kw)
+
+    session = _req.Session()
+    session.verify = False
+    session.mount("https://", _LaxSSL())
+
+    answer = ""
+    err_msg = ""
+    for model_id in ("gemini-2.0-flash", "gemini-flash-latest"):
+        try:
+            r = session.post(
+                f"https://generativelanguage.googleapis.com/v1beta/models/"
+                f"{model_id}:generateContent?key={GEMINI_API_KEY}",
+                json={"contents": [{"parts": [{"text": prompt}]}]},
+                timeout=30,
+            )
+            if r.status_code == 429:
+                err_msg = "rate_limit"
+                continue
+            r.raise_for_status()
+            answer = r.json()["candidates"][0]["content"]["parts"][0]["text"].strip()
+            break
+        except Exception as e:
+            err_msg = str(e)
+    if not answer:
+        return JSONResponse(
+            {"error": f"Gemini 호출 실패: {err_msg}"}, status_code=502
+        )
+
+    # 4) 인용 추출
+    citations = _pqa.parse_citations(answer, candidates, max_cases=20)
+
+    # 5) 캐시 저장
+    try:
+        _supabase_request(
+            "POST", "precedent_qa_cache",
+            {
+                "cache_key": cache_key,
+                "question":  question,
+                "law_ids":   ",".join(law_ids),
+                "answer":    answer,
+                "citations": citations,
+            },
+            upsert=True,
+        )
+    except Exception as e:
+        print(f"[WARN] precedent_qa_cache upsert 실패: {e}")
+
+    return JSONResponse({
+        "answer":     answer,
+        "citations":  citations,
+        "cached":     False,
+        "elapsed_ms": int((_time.time() - started) * 1000),
+    })
+
+
 # ── 법령 3단비교 ─────────────────────────────────────────────────────────────
 @app.get("/api/law-comparison")
 async def get_law_comparison(law: str = ""):
