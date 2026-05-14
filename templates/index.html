@@ -842,9 +842,9 @@
     .rs-search-box {
       display: flex; align-items: center; gap: 0;
       max-width: 900px; margin: 0 auto;
-      border: 2px solid var(--bd); border-radius: 28px;
+      border: 2px solid var(--bd); border-radius: 12px;
       background: #fff; transition: border-color .15s, box-shadow .15s;
-      padding: 0 4px 0 18px;
+      padding: 6px 6px 6px 18px;
     }
     .rs-search-box:focus-within {
       border-color: var(--accent);
@@ -862,9 +862,9 @@
     .rs-search-clear:hover { color: var(--t1); }
     .rs-search-btn {
       background: var(--accent); color: #fff; border: none;
-      padding: 12px 30px; border-radius: 24px; font-weight: 700;
+      padding: 11px 26px; border-radius: 8px; font-weight: 700;
       font-size: 14px; cursor: pointer; transition: background .15s;
-      min-width: 96px;
+      min-width: 110px;
     }
     .rs-search-btn:hover:not(:disabled) { background: #1e40af; }
     .rs-search-btn:disabled { opacity: .5; cursor: not-allowed; }
@@ -949,6 +949,39 @@
       flex: 1; overflow-y: auto; padding: 20px 28px;
       min-width: 0;
     }
+
+    /* 인용 상세 패널 (rail 칩 클릭 시 좌측에 표출) */
+    .rs-cite-detail {
+      width: 440px; flex-shrink: 0;
+      display: flex; flex-direction: column;
+      background: #fff; border-left: 1px solid var(--bd);
+      overflow: hidden;
+    }
+    .rs-cite-detail-head {
+      padding: 14px 16px; border-bottom: 1px solid var(--bd);
+      display: flex; gap: 10px; align-items: flex-start;
+      flex-shrink: 0;
+    }
+    .rs-cite-detail-headinfo { flex: 1; min-width: 0; }
+    .rs-cite-detail-badges {
+      display: flex; gap: 6px; align-items: center; margin-bottom: 8px;
+    }
+    .rs-cite-detail-title {
+      font-size: 14px; font-weight: 800; color: var(--t1);
+      line-height: 1.45; margin-bottom: 5px; word-break: keep-all;
+    }
+    .rs-cite-detail-meta {
+      font-size: 11px; color: var(--t3); line-height: 1.5;
+    }
+    .rs-cite-detail-body {
+      flex: 1; overflow-y: auto; padding: 16px;
+    }
+    .rs-cite-detail-body p {
+      font-size: 12.5px; color: var(--t2); line-height: 1.75;
+      white-space: pre-wrap; word-break: keep-all;
+    }
+    @media (max-width: 1380px) { .rs-cite-detail { width: 360px; } }
+    @media (max-width: 1080px) { .rs-cite-detail { display: none; } }
 
     /* 우측 인용 레일 (AI 답변 인용을 옆에 표출) */
     .rs-cite-rail {
@@ -3396,6 +3429,67 @@
                   </div>
                 </main>
 
+                <!-- 인용 상세 패널 — 우측 레일 칩 클릭 시 본문 옆에 표출 -->
+                <aside class="rs-cite-detail" x-show="rsCiteDetail" x-transition>
+                  <div class="rs-cite-detail-head">
+                    <div class="rs-cite-detail-headinfo">
+                      <div class="rs-cite-detail-badges">
+                        <span class="rs-cite-chip-num"
+                              x-text="'[' + (rsCiteDetail?.idx ?? '') + ']'"></span>
+                        <span class="rs-cite-chip-badge"
+                              :class="rsCiteBadgeClass(rsCiteDetail || {})"
+                              x-text="rsCiteBadgeLabel(rsCiteDetail || {})"></span>
+                      </div>
+                      <div class="rs-cite-detail-title"
+                           x-text="rsCiteDetail?.title || '-'"></div>
+                      <div class="rs-cite-detail-meta">
+                        <span x-text="rsCiteDetail?.agency || rsCiteDetail?.target_law || ''"></span>
+                        <template x-if="rsCiteDetail?.case_no">
+                          <span> · <span x-text="rsCiteDetail.case_no"></span></span>
+                        </template>
+                        <template x-if="rsCiteDetail?.decided_at">
+                          <span> · <span x-text="rsCiteDetail.decided_at"></span></span>
+                        </template>
+                      </div>
+                    </div>
+                    <button class="tl-detail-close" @click="rsCiteDetail=null">✕</button>
+                  </div>
+                  <div class="rs-cite-detail-body">
+                    <template x-if="rsCiteDetail?.summary">
+                      <div class="sum-sec">
+                        <div class="sum-sec-hdr">
+                          <span class="sum-dot"></span>
+                          <span class="sum-sec-title">요지</span>
+                        </div>
+                        <div class="sum-sec-body">
+                          <p x-text="rsCiteDetail.summary"></p>
+                        </div>
+                      </div>
+                    </template>
+                    <template x-if="rsCiteDetail?.body">
+                      <div class="sum-sec">
+                        <div class="sum-sec-hdr">
+                          <span class="sum-dot"></span>
+                          <span class="sum-sec-title"
+                                x-text="rsCiteDetail?.source === 'law_article' ? '조문 본문' : '본문'"></span>
+                        </div>
+                        <div class="sum-sec-body">
+                          <p x-text="rsCiteDetail.body"></p>
+                        </div>
+                      </div>
+                    </template>
+                    <template x-if="rsCiteDetail?.link">
+                      <a :href="rsCiteDetail.link" target="_blank" rel="noopener"
+                         class="link-btn" style="display:inline-block;margin-top:8px">원문 ↗</a>
+                    </template>
+                    <template x-if="!rsCiteDetail?.summary && !rsCiteDetail?.body">
+                      <div style="color:var(--t3);font-size:12px;padding:20px 0;text-align:center">
+                        상세 본문이 없습니다. <span x-show="rsCiteDetail?.link">원문 링크에서 확인해 주세요.</span>
+                      </div>
+                    </template>
+                  </div>
+                </aside>
+
                 <!-- 우측 인용 레일 — AI 답변 인용 문헌을 별도 표출 -->
                 <aside class="rs-cite-rail" x-show="rsAiCitations.length > 0" x-transition>
                   <div class="rs-cite-rail-title"
@@ -4723,6 +4817,7 @@
       rsAiAnswer: '',
       rsAiCitations: [],
       rsActiveCite: null,
+      rsCiteDetail: null,
       rsExpandedId: null,
       rsSort: 'score',                // 'score' | 'date'
       rsRecentSearches: [],
@@ -5805,6 +5900,9 @@
       },
       rsFocusCite(idx) {
         this.rsActiveCite = idx;
+        // 해당 인용 항목을 상세 패널에 표출
+        const cite = (this.rsAiCitations || []).find(c => c.idx === idx);
+        if (cite) this.rsCiteDetail = cite;
         // 본문 내 해당 [n] 마커를 잠깐 깜박이게
         this.$nextTick(() => {
           document.querySelectorAll('.qa-cite-ref[data-cite-idx="' + idx + '"]')
@@ -5813,7 +5911,6 @@
               setTimeout(() => el.classList.remove('flash'), 1200);
             });
         });
-        setTimeout(() => { if (this.rsActiveCite === idx) this.rsActiveCite = null; }, 2000);
       },
       rsCiteBadgeLabel(c) {
         const src = (c.source || '').toLowerCase();
