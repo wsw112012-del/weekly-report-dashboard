@@ -1433,10 +1433,20 @@
       display: flex; align-items: center; flex-wrap: wrap;
     }
     .cmp-v2-breadcrumb strong { color: var(--t1); font-weight: 700; }
+    /* 카드 3종 가로 배치 — side-by-side 비교 */
+    .cmp-v2-cards-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 14px;
+      align-items: stretch;
+    }
     .cmp-v2-card {
-      margin-bottom: 16px; border: 1px solid var(--bd);
+      display: flex; flex-direction: column;
+      margin-bottom: 0;
+      border: 1px solid var(--bd);
       border-radius: 12px; overflow: hidden; background: #fff;
       box-shadow: 0 1px 2px rgba(15,23,42,.03);
+      min-width: 0; /* grid 내 줄임표 작동 */
     }
     .cmp-v2-card.empty {
       background: #fafbfc;
@@ -1463,6 +1473,10 @@
       padding: 16px 22px;
       font-size: 13px; line-height: 1.85; color: var(--t1);
       white-space: pre-wrap; word-break: keep-all;
+      flex: 1;  /* grid 내 동일 높이 카드 */
+    }
+    .cmp-v2-card-head {
+      min-height: 48px; /* head 높이 통일 */
     }
     .cmp-v2-card-empty-msg {
       color: var(--t3); font-style: italic; font-size: 12px;
@@ -1487,6 +1501,12 @@
     }
     .cmp-v2-card-regulation .cmp-v2-card-badge { background: #d1fae5; color: #065f46; }
     /* 좁은 화면 */
+    @media (max-width: 1280px) {
+      .cmp-v2-cards-row {
+        grid-template-columns: 1fr;
+        gap: 12px;
+      }
+    }
     @media (max-width: 1100px) {
       .cmp-v2-toc { width: 240px; }
       .cmp-v2-main { padding: 18px 18px 40px; }
@@ -4351,7 +4371,7 @@
                     </div>
                   </template>
 
-                  <!-- 상세 카드 3종 -->
+                  <!-- 상세 카드 3종 (side-by-side) -->
                   <template x-if="compareSelectedRow">
                     <div>
                       <!-- breadcrumb -->
@@ -4361,6 +4381,7 @@
                         <strong x-text="(compareSelectedRow.act?.label || '') + ' ' + (compareSelectedRow.act?.title || '')"></strong>
                       </div>
 
+                      <div class="cmp-v2-cards-row">
                       <!-- 법률 -->
                       <div class="cmp-v2-card cmp-v2-card-act"
                            :class="!compareSelectedRow.act?.body ? 'empty' : ''">
@@ -4416,6 +4437,7 @@
                           </div>
                         </template>
                       </div>
+                      </div><!-- /cmp-v2-cards-row -->
                     </div>
                   </template>
                 </main>
