@@ -862,8 +862,9 @@
     .rs-search-clear:hover { color: var(--t1); }
     .rs-search-btn {
       background: var(--accent); color: #fff; border: none;
-      padding: 9px 22px; border-radius: 22px; font-weight: 700;
-      font-size: 13px; cursor: pointer; transition: background .15s;
+      padding: 12px 30px; border-radius: 24px; font-weight: 700;
+      font-size: 14px; cursor: pointer; transition: background .15s;
+      min-width: 96px;
     }
     .rs-search-btn:hover:not(:disabled) { background: #1e40af; }
     .rs-search-btn:disabled { opacity: .5; cursor: not-allowed; }
@@ -881,11 +882,11 @@
     .rs-recent-chip:hover { background: var(--accent-lt); color: var(--accent); }
     .rs-attach-row { flex-shrink: 0; margin-left: auto; }
     .rs-attach-trigger {
-      display: inline-flex; align-items: center; gap: 6px;
-      padding: 5px 12px; border-radius: 14px; cursor: pointer;
-      background: #f1f5f9; color: var(--t2); font-size: 11px;
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 9px 18px; border-radius: 18px; cursor: pointer;
+      background: #f1f5f9; color: var(--t2); font-size: 13px; font-weight: 600;
       transition: background .15s, color .15s;
-      border: 1px dashed #cbd5e1;
+      border: 1.5px dashed #cbd5e1;
     }
     .rs-attach-trigger:hover { background: var(--accent-lt); color: var(--accent); border-color: var(--accent); }
     .rs-attach-trigger.active {
@@ -946,7 +947,66 @@
     /* 본문 */
     .rs-main {
       flex: 1; overflow-y: auto; padding: 20px 28px;
-      max-width: 1100px; width: 100%;
+      min-width: 0;
+    }
+
+    /* 우측 인용 레일 (AI 답변 인용을 옆에 표출) */
+    .rs-cite-rail {
+      width: 300px; flex-shrink: 0; padding: 20px 16px 20px 4px;
+      overflow-y: auto; border-left: 1px solid var(--bd);
+      background: #fafbfc;
+    }
+    .rs-cite-rail-title {
+      font-size: 11px; font-weight: 700; color: var(--t3);
+      letter-spacing: .04em; text-transform: uppercase;
+      padding: 0 10px 8px; border-bottom: 1px solid var(--bd); margin-bottom: 10px;
+    }
+    .rs-cite-chip {
+      display: block; width: 100%; text-align: left;
+      background: #fff; border: 1px solid var(--bd); border-radius: 8px;
+      padding: 10px 12px; margin-bottom: 8px; cursor: pointer;
+      transition: border-color .15s, box-shadow .15s, transform .1s;
+    }
+    .rs-cite-chip:hover {
+      border-color: var(--accent);
+      box-shadow: 0 2px 6px rgba(37,99,235,.12);
+    }
+    .rs-cite-chip.active {
+      border-color: var(--accent); background: var(--accent-lt);
+    }
+    .rs-cite-chip-head {
+      display: flex; align-items: center; gap: 6px; margin-bottom: 4px;
+    }
+    .rs-cite-chip-num {
+      background: var(--accent); color: #fff;
+      font-size: 10px; font-weight: 700;
+      padding: 2px 7px; border-radius: 10px;
+    }
+    .rs-cite-chip-badge {
+      font-size: 9px; font-weight: 700; padding: 2px 6px; border-radius: 4px;
+    }
+    .rs-cite-chip-badge.prec    { background: #e0e7ff; color: #3730a3; }
+    .rs-cite-chip-badge.reply   { background: #d1fae5; color: #065f46; }
+    .rs-cite-chip-badge.nonact  { background: #fef3c7; color: #92400e; }
+    .rs-cite-chip-badge.law     { background: #e0f2fe; color: #075985; }
+    .rs-cite-chip-title {
+      font-size: 12px; font-weight: 600; color: var(--t1);
+      line-height: 1.4; margin-bottom: 4px;
+      overflow: hidden; text-overflow: ellipsis;
+      display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+    }
+    .rs-cite-chip-meta {
+      font-size: 10px; color: var(--t3); line-height: 1.35;
+    }
+    .qa-cite-ref {
+      color: var(--accent); cursor: pointer; font-weight: 700;
+      padding: 0 2px; border-radius: 3px;
+      transition: background .15s;
+    }
+    .qa-cite-ref:hover { background: var(--accent-lt); }
+    .qa-cite-ref.flash { background: #fef3c7; }
+    @media (max-width: 1180px) {
+      .rs-cite-rail { display: none; }
     }
 
     /* AI 답변 카드 */
@@ -3335,6 +3395,31 @@
                     </div>
                   </div>
                 </main>
+
+                <!-- 우측 인용 레일 — AI 답변 인용 문헌을 별도 표출 -->
+                <aside class="rs-cite-rail" x-show="rsAiCitations.length > 0" x-transition>
+                  <div class="rs-cite-rail-title"
+                       x-text="'📎 인용 ' + rsAiCitations.length + '건'"></div>
+                  <template x-for="c in rsAiCitations" :key="(c.precedent_id || c.law_article_id || c.idx)">
+                    <button class="rs-cite-chip"
+                            :class="{ active: rsActiveCite === c.idx }"
+                            @click="rsFocusCite(c.idx)">
+                      <div class="rs-cite-chip-head">
+                        <span class="rs-cite-chip-num" x-text="'[' + c.idx + ']'"></span>
+                        <span class="rs-cite-chip-badge"
+                              :class="rsCiteBadgeClass(c)"
+                              x-text="rsCiteBadgeLabel(c)"></span>
+                      </div>
+                      <div class="rs-cite-chip-title" x-text="c.title || '-'"></div>
+                      <div class="rs-cite-chip-meta">
+                        <span x-text="c.agency || c.target_law || ''"></span>
+                        <template x-if="c.decided_at">
+                          <span> · <span x-text="c.decided_at"></span></span>
+                        </template>
+                      </div>
+                    </button>
+                  </template>
+                </aside>
               </div>
             </div>
           </template>
@@ -4637,6 +4722,7 @@
       rsResults: [],
       rsAiAnswer: '',
       rsAiCitations: [],
+      rsActiveCite: null,
       rsExpandedId: null,
       rsSort: 'score',                // 'score' | 'date'
       rsRecentSearches: [],
@@ -5691,13 +5777,17 @@
         }
       },
       renderQaAnswer(text) {
-        // [n] 마커 → <sup class="qa-cite-ref">[n]</sup> 변환
+        // [n] 마커 → <sup class="qa-cite-ref" data-idx="n">[n]</sup> 변환
+        // 클릭 시 rsFocusCite(n) 호출되도록 onclick 부착
         if (!text) return '';
         const escaped = text
           .replace(/&/g, '&amp;')
           .replace(/</g, '&lt;')
           .replace(/>/g, '&gt;');
-        return escaped.replace(/\[(\d+)\]/g, '<sup class="qa-cite-ref">[$1]</sup>');
+        return escaped.replace(/\[(\d+)\]/g,
+          '<sup class="qa-cite-ref" data-cite-idx="$1" '
+          + 'onclick="window.dispatchEvent(new CustomEvent(\'rs-focus-cite\',{detail:$1}))">'
+          + '[$1]</sup>');
       },
 
       // ── 법령 리서치 (Westlaw IA) 메서드 ──
@@ -5707,6 +5797,39 @@
           const raw = localStorage.getItem('rsRecent');
           this.rsRecentSearches = raw ? JSON.parse(raw).slice(0, 6) : [];
         } catch(_) { this.rsRecentSearches = []; }
+        // AI 답변 안의 [n] 마커 클릭 → 우측 인용 칩 focus
+        window.addEventListener('rs-focus-cite', (e) => {
+          const idx = parseInt(e.detail, 10);
+          if (!isNaN(idx)) this.rsFocusCite(idx);
+        });
+      },
+      rsFocusCite(idx) {
+        this.rsActiveCite = idx;
+        // 본문 내 해당 [n] 마커를 잠깐 깜박이게
+        this.$nextTick(() => {
+          document.querySelectorAll('.qa-cite-ref[data-cite-idx="' + idx + '"]')
+            .forEach(el => {
+              el.classList.add('flash');
+              setTimeout(() => el.classList.remove('flash'), 1200);
+            });
+        });
+        setTimeout(() => { if (this.rsActiveCite === idx) this.rsActiveCite = null; }, 2000);
+      },
+      rsCiteBadgeLabel(c) {
+        const src = (c.source || '').toLowerCase();
+        if (src === 'prec') return '판례';
+        if (src === 'fsc_reply') return '해석';
+        if (src === 'fsc_nonact') return '비조치';
+        if (src === 'law_article' || c.law_article_id) return '법령';
+        return '인용';
+      },
+      rsCiteBadgeClass(c) {
+        const src = (c.source || '').toLowerCase();
+        if (src === 'prec') return 'prec';
+        if (src === 'fsc_reply') return 'reply';
+        if (src === 'fsc_nonact') return 'nonact';
+        if (src === 'law_article' || c.law_article_id) return 'law';
+        return '';
       },
       _rsSaveRecent(q) {
         if (!q) return;
