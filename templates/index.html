@@ -1433,11 +1433,50 @@
       display: flex; align-items: center; flex-wrap: wrap;
     }
     .cmp-v2-breadcrumb strong { color: var(--t1); font-weight: 700; }
-    /* 단일 표 형태 — 3열 가로 비교 */
+    /* 인라인 pill 스타일 (이미지 참고) — 깔끔한 라벨 + flowing text */
+    .cmp-v2-stack {
+      margin-bottom: 28px;
+      padding-bottom: 22px;
+      border-bottom: 1px solid var(--bd);
+      scroll-margin-top: 16px;
+    }
+    .cmp-v2-stack:last-child { border-bottom: none; }
+    .cmp-v2-stack-head {
+      font-size: 14px; font-weight: 800; color: var(--t1);
+      margin-bottom: 14px; padding-bottom: 6px;
+      border-bottom: 2px solid var(--accent);
+      display: inline-block;
+    }
+    .cmp-v2-stack-row {
+      display: flex; align-items: flex-start; gap: 12px;
+      padding: 8px 0;
+    }
+    .cmp-v2-pill {
+      display: inline-flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+      min-width: 64px; padding: 5px 12px;
+      border-radius: 6px;
+      font-size: 12px; font-weight: 800;
+      letter-spacing: .02em;
+    }
+    .cmp-v2-pill.pill-act        { background: #fef3c7; color: #92400e; border: 1px solid #fcd34d; }
+    .cmp-v2-pill.pill-enforce    { background: #dbeafe; color: #1e40af; border: 1px solid #93c5fd; }
+    .cmp-v2-pill.pill-regulation { background: #d1fae5; color: #065f46; border: 1px solid #6ee7b7; }
+    .cmp-v2-stack-art {
+      font-size: 13px; font-weight: 700; color: var(--t1);
+      margin-right: 6px;
+    }
+    .cmp-v2-stack-body {
+      margin-top: 4px;
+      font-size: 13px; line-height: 1.85; color: var(--t1);
+      white-space: pre-wrap; word-break: keep-all;
+      flex: 1;
+    }
+    /* N×3 단일 표 — 법률 전체 조문 기준 (자금세탁 편람 스타일) */
     .cmp-v2-table {
       width: 100%; border-collapse: separate; border-spacing: 0;
       background: #fff; border: 1px solid var(--bd);
-      border-radius: 12px; overflow: hidden;
+      border-radius: 10px; overflow: hidden;
       box-shadow: 0 1px 2px rgba(15,23,42,.03);
       table-layout: fixed;
     }
@@ -1446,28 +1485,38 @@
       text-align: left; color: var(--t1); letter-spacing: .02em;
       border-bottom: 2px solid var(--bd);
       border-right: 1px solid var(--bd);
+      position: sticky; top: 0; z-index: 5;
     }
     .cmp-v2-th:last-child { border-right: none; }
-    .cmp-v2-th-act        { background: linear-gradient(180deg,#fffbeb 0%,#fef9c3 100%); border-top: 4px solid #f59e0b; color: #92400e; }
-    .cmp-v2-th-enforce    { background: linear-gradient(180deg,#eff6ff 0%,#dbeafe 100%); border-top: 4px solid #2563eb; color: #1e40af; }
-    .cmp-v2-th-regulation { background: linear-gradient(180deg,#ecfdf5 0%,#d1fae5 100%); border-top: 4px solid #10b981; color: #065f46; }
+    .cmp-v2-th-act        { background: #fef3c7; border-top: 3px solid #f59e0b; color: #92400e; }
+    .cmp-v2-th-enforce    { background: #dbeafe; border-top: 3px solid #2563eb; color: #1e40af; }
+    .cmp-v2-th-regulation { background: #d1fae5; border-top: 3px solid #10b981; color: #065f46; }
     .cmp-v2-table td {
-      padding: 12px 16px; vertical-align: top;
+      padding: 14px 16px; vertical-align: top;
       border-right: 1px solid var(--bd);
-      border-bottom: 1px solid #f1f5f9;
-      font-size: 13px; line-height: 1.85; color: var(--t1);
+      border-bottom: 1px solid #eef0f3;
+      font-size: 13px; line-height: 1.8; color: var(--t1);
       word-break: keep-all;
     }
     .cmp-v2-table td:last-child { border-right: none; }
-    .cmp-v2-tr-art td {
-      background: #fafbfc; font-weight: 700;
-      border-bottom: 1px solid var(--bd);
+    .cmp-v2-table tbody tr {
+      scroll-margin-top: 60px;
+      transition: background .2s;
     }
-    .cmp-v2-tr-art strong { color: var(--t1); font-size: 13.5px; }
-    .cmp-v2-tr-body td { vertical-align: top; }
+    .cmp-v2-table tbody tr:nth-child(even) td { background: #fafbfc; }
+    .cmp-v2-table tbody tr:hover td { background: #f0f7ff; }
+    .cmp-v2-table tbody tr.cmp-v2-row-active td {
+      background: #fef9c3 !important;
+    }
+    .cmp-v2-art-head {
+      font-size: 13px; font-weight: 700; color: var(--t1);
+      margin-bottom: 6px; padding-bottom: 4px;
+      border-bottom: 1px solid #e5e7eb;
+    }
     .cmp-v2-cell-body { white-space: pre-wrap; }
     .cmp-v2-empty-cell {
       color: var(--t3); font-style: italic; font-size: 12px;
+      text-align: center; padding: 6px 0;
     }
     /* === deprecated cards layout (호환용 — markup 제거됐으나 CSS 유지) === */
     .cmp-v2-cards-row {
@@ -4374,7 +4423,7 @@
                       <template x-if="node.type === 'article'">
                         <div class="cmp-v2-toc-item"
                              :class="compareSelectedRowIdx === node.idx ? 'active' : ''"
-                             @click="compareSelectedRowIdx = node.idx">
+                             @click="cmpScrollToRow(node.idx)">
                           <span class="cmp-v2-toc-label">
                             <strong x-text="node.label"></strong>
                             <span x-text="node.title"></span>
@@ -4395,33 +4444,36 @@
                   </template>
                 </aside>
 
-                <main class="cmp-v2-main">
+                <main class="cmp-v2-main" x-ref="cmpMain" @scroll.passive="cmpUpdateActive">
                   <!-- 빈 상태 -->
-                  <template x-if="!compareSelectedRow && !compareLoading">
+                  <template x-if="!compareLoading && filteredCompareRows.length === 0">
                     <div class="cmp-v2-empty">
                       <div style="font-size:36px;margin-bottom:10px">📑</div>
-                      <p style="font-size:14px;font-weight:600;color:var(--t1);margin:0 0 6px">조문을 선택하세요</p>
+                      <p style="font-size:14px;font-weight:600;color:var(--t1);margin:0 0 6px">
+                        <span x-show="!compareSearch">법령을 선택하세요</span>
+                        <span x-show="compareSearch">검색 결과가 없습니다</span>
+                      </p>
                       <p style="font-size:12.5px;color:var(--t3);margin:0">
-                        좌측 목록에서 조문을 클릭하면 <strong>법률 · 시행령 · 시행규칙</strong>이 한 화면에 표시됩니다.
+                        <span x-show="!compareSearch">상단에서 법령을 선택하면 전체 조문이 표시됩니다.</span>
+                        <span x-show="compareSearch">다른 키워드로 시도하거나 검색을 지워주세요.</span>
                       </p>
                     </div>
                   </template>
 
-                  <!-- 상세: 단일 표 (3열 가로 비교) -->
-                  <template x-if="compareSelectedRow">
+                  <!-- 상세: N×3 단일 표 (법률 전체 조문 기준) -->
+                  <template x-if="!compareLoading && filteredCompareRows.length > 0">
                     <div>
-                      <!-- breadcrumb -->
                       <div class="cmp-v2-breadcrumb">
                         <span x-text="normalizeLawName(compareSelectedLaw)"></span>
                         <span style="margin:0 6px;color:var(--t3)">›</span>
-                        <strong x-text="(compareSelectedRow.act?.label || '') + ' ' + (compareSelectedRow.act?.title || '')"></strong>
+                        <strong x-text="filteredCompareRows.length + '개 조문 · 스크롤로 비교'"></strong>
                       </div>
 
                       <table class="cmp-v2-table">
                         <colgroup>
-                          <col style="width:33.33%"/>
-                          <col style="width:33.33%"/>
-                          <col style="width:33.33%"/>
+                          <col style="width:34%"/>
+                          <col style="width:33%"/>
+                          <col style="width:33%"/>
                         </colgroup>
                         <thead>
                           <tr>
@@ -4431,47 +4483,48 @@
                           </tr>
                         </thead>
                         <tbody>
-                          <tr class="cmp-v2-tr-art">
-                            <td>
-                              <strong x-text="(compareSelectedRow.act?.label || '') + ' ' + (compareSelectedRow.act?.title || '')"></strong>
-                            </td>
-                            <td>
-                              <strong x-show="compareSelectedRow.enforce"
-                                      x-text="(compareSelectedRow.enforce?.label || '') + ' ' + (compareSelectedRow.enforce?.title || '')"></strong>
-                              <span x-show="!compareSelectedRow.enforce" class="cmp-v2-empty-cell">— 연결된 시행령 없음</span>
-                            </td>
-                            <td>
-                              <strong x-show="compareSelectedRow.regulation"
-                                      x-text="(compareSelectedRow.regulation?.label || '') + ' ' + (compareSelectedRow.regulation?.title || '')"></strong>
-                              <span x-show="!compareSelectedRow.regulation" class="cmp-v2-empty-cell">— 연결된 규칙 없음</span>
-                            </td>
-                          </tr>
-                          <tr class="cmp-v2-tr-body">
-                            <td>
-                              <div class="cmp-v2-cell-body"
-                                   x-html="compareSelectedRow.act?.body
-                                     ? highlightQ(compareSelectedRow.act.body, compareSearch)
-                                     : '<span class=&quot;cmp-v2-empty-cell&quot;>본문 없음</span>'"></div>
-                            </td>
-                            <td>
-                              <template x-if="compareSelectedRow.enforce">
+                          <template x-for="row in filteredCompareRows" :key="row.idx">
+                            <tr :id="'cmp-v2-row-'+row.idx"
+                                :class="compareSelectedRowIdx === row.idx ? 'cmp-v2-row-active' : ''">
+                              <!-- 법률 -->
+                              <td>
+                                <div class="cmp-v2-art-head"
+                                     x-text="(row.act?.label || '') + ' ' + (row.act?.title || '')"></div>
                                 <div class="cmp-v2-cell-body"
-                                     x-html="highlightQ(compareSelectedRow.enforce.body || '', compareSearch)"></div>
-                              </template>
-                              <template x-if="!compareSelectedRow.enforce">
-                                <div class="cmp-v2-empty-cell">해당 조문에 매칭된 시행령이 없습니다.</div>
-                              </template>
-                            </td>
-                            <td>
-                              <template x-if="compareSelectedRow.regulation">
-                                <div class="cmp-v2-cell-body"
-                                     x-html="highlightQ(compareSelectedRow.regulation.body || '', compareSearch)"></div>
-                              </template>
-                              <template x-if="!compareSelectedRow.regulation">
-                                <div class="cmp-v2-empty-cell">해당 조문에 매칭된 시행규칙/감독규정이 없습니다.</div>
-                              </template>
-                            </td>
-                          </tr>
+                                     x-html="row.act?.body
+                                       ? highlightQ(row.act.body, compareSearch)
+                                       : '<span class=&quot;cmp-v2-empty-cell&quot;>본문 없음</span>'"></div>
+                              </td>
+                              <!-- 시행령 -->
+                              <td>
+                                <template x-if="row.enforce">
+                                  <div>
+                                    <div class="cmp-v2-art-head"
+                                         x-text="(row.enforce.label || '') + ' ' + (row.enforce.title || '')"></div>
+                                    <div class="cmp-v2-cell-body"
+                                         x-html="highlightQ(row.enforce.body || '', compareSearch)"></div>
+                                  </div>
+                                </template>
+                                <template x-if="!row.enforce">
+                                  <div class="cmp-v2-empty-cell">—</div>
+                                </template>
+                              </td>
+                              <!-- 시행규칙 -->
+                              <td>
+                                <template x-if="row.regulation">
+                                  <div>
+                                    <div class="cmp-v2-art-head"
+                                         x-text="(row.regulation.label || '') + ' ' + (row.regulation.title || '')"></div>
+                                    <div class="cmp-v2-cell-body"
+                                         x-html="highlightQ(row.regulation.body || '', compareSearch)"></div>
+                                  </div>
+                                </template>
+                                <template x-if="!row.regulation">
+                                  <div class="cmp-v2-empty-cell">—</div>
+                                </template>
+                              </td>
+                            </tr>
+                          </template>
                         </tbody>
                       </table>
                     </div>
@@ -6876,10 +6929,43 @@
         }
         return out;
       },
-      // v2 — 현재 선택된 row 객체
+      // v2 — 현재 선택된 row 객체 (전체 스크롤 뷰에선 active 표시용으로만 사용)
       get compareSelectedRow() {
         if (this.compareSelectedRowIdx == null) return null;
         return (this.compareRows || []).find(r => r.idx === this.compareSelectedRowIdx) || null;
+      },
+      // 좌측 TOC 클릭 -> 우측 본문 내 해당 조문으로 스크롤
+      cmpScrollToRow(idx) {
+        this.compareSelectedRowIdx = idx;
+        this.$nextTick(() => {
+          const el = document.getElementById('cmp-v2-row-' + idx);
+          const main = this.$refs.cmpMain;
+          if (el && main) {
+            const top = el.offsetTop - main.offsetTop - 10;
+            main.scrollTo({ top, behavior: 'smooth' });
+          }
+        });
+      },
+      // 우측 스크롤 시 좌측 TOC active 자동 갱신 (스크롤 spy)
+      cmpUpdateActive() {
+        const main = this.$refs.cmpMain;
+        if (!main || !this.compareRows.length) return;
+        const offset = main.scrollTop + 60;
+        let cur = null;
+        for (const row of this.filteredCompareRows) {
+          const el = document.getElementById('cmp-v2-row-' + row.idx);
+          if (!el) continue;
+          if (el.offsetTop - main.offsetTop <= offset) cur = row.idx;
+          else break;
+        }
+        if (cur != null && cur !== this.compareSelectedRowIdx) {
+          this.compareSelectedRowIdx = cur;
+          // 좌측 TOC 에 active 항목 자동 스크롤
+          const tocActive = document.querySelector('.cmp-v2-toc-item.active');
+          if (tocActive) {
+            tocActive.scrollIntoView({ block: 'nearest' });
+          }
+        }
       },
       get filteredCompareRows() {
         const q = (this.compareSearch || '').trim().toLowerCase();

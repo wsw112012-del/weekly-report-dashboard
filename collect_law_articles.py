@@ -41,13 +41,11 @@ LAW_TARGETS: dict[str, dict] = {
                 "regulation":"외국환거래규정"},
     "fiu":    {"act":"특정 금융거래정보의 보고 및 이용 등에 관한 법률",
                 "enforce":"특정 금융거래정보의 보고 및 이용 등에 관한 법률 시행령",
-                "regulation":"특정 금융거래정보의 보고 및 감독규정"},
+                "regulation":"특정금융감독규정"},
     "tfpa":   {"act":"공중 등 협박목적 및 대량살상무기확산을 위한 자금조달행위의 금지에 관한 법률",
-                "enforce":"공중 등 협박목적 및 대량살상무기확산을 위한 자금조달행위의 금지에 관한 법률 시행령",
-                "regulation":"공중협박자금조달금지법 시행규칙"},
+                "enforce":"공중 등 협박목적 및 대량살상무기확산을 위한 자금조달행위의 금지에 관한 법률 시행령"},
     "pipa":   {"act":"개인정보 보호법",
-                "enforce":"개인정보 보호법 시행령",
-                "regulation":"개인정보 보호법 시행규칙"},
+                "enforce":"개인정보 보호법 시행령"},
     "cipa":   {"act":"신용정보의 이용 및 보호에 관한 법률",
                 "enforce":"신용정보의 이용 및 보호에 관한 법률 시행령",
                 "regulation":"신용정보업감독규정"},
@@ -57,6 +55,12 @@ LAW_TARGETS: dict[str, dict] = {
     "efta":   {"act":"전자금융거래법",
                 "enforce":"전자금융거래법 시행령",
                 "regulation":"전자금융감독규정"},
+}
+
+# regulation 항목이 행정규칙(admrul) 카테고리에 해당하는지 식별 — 시행규칙은 법령(law)
+ADMRUL_REGULATIONS = {
+    "외국환거래규정", "특정금융감독규정",
+    "신용정보업감독규정", "전자금융감독규정",
 }
 
 
@@ -206,6 +210,23 @@ def _current_mst(client: LawClient, law_name: str) -> tuple[str, str] | None:
     return r.get("법령일련번호") or "", r.get("법령명한글") or law_name
 
 
+def _current_admrul_id(client: LawClient, rule_name: str) -> tuple[str, str] | None:
+    """search_admrul → 첫 매칭 결과의 (행정규칙일련번호, 정확한 명칭) 반환."""
+    try:
+        results = client.search_admrul(rule_name, display=10)
+    except Exception as e:
+        print(f"  [WARN] search_admrul 실패 ({rule_name}): {e}", file=sys.stderr)
+        return None
+    if not results:
+        return None
+    target = rule_name.replace(" ", "")
+    for r in results:
+        if (r.get("행정규칙명") or "").replace(" ", "") == target:
+            return r.get("행정규칙일련번호") or "", r.get("행정규칙명") or rule_name
+    r = results[0]
+    return r.get("행정규칙일련번호") or "", r.get("행정규칙명") or rule_name
+
+
 def _stored_mst_marker(law_id: str, law_type: str) -> str | None:
     """law_articles 행 1개의 scraped_at 또는 별도 마커로 변경 감지.
     간단한 방식: 첫 row 의 id 안에 MST 를 별도 저장하지 않고, 'meta' 행을 별도 관리.
@@ -225,7 +246,13 @@ def _stored_mst_marker(law_id: str, law_type: str) -> str | None:
 def collect_one(client: LawClient, law_id: str, law_type: str, law_name: str,
                 parent_law_id: str | None, force: bool, dry_run: bool) -> int:
     print(f"  · {law_type:<10} {law_name[:40]}", end="")
-    info = _current_mst(client, law_name)
+    # regulation 중 행정규칙(감독규정·외국환거래규정) 은 admrul API 사용
+    use_admrul = (law_type == "regulation" and law_name in ADMRUL_REGULATIONS)
+
+    if use_admrul:
+        info = _current_admrul_id(client, law_name)
+    else:
+        info = _current_mst(client, law_name)
     if not info:
         print("  [SKIP] 검색결과 없음")
         return 0
@@ -234,17 +261,20 @@ def collect_one(client: LawClient, law_id: str, law_type: str, law_name: str,
     # 변경 감지 (단순 모드: 기존에 데이터 있으면 skip)
     marker = _stored_mst_marker(law_id, law_type)
     if marker and not force:
-        print(f"  [SKIP] 이미 수집됨 (force 옵션으로 재수집 가능) MST={mst}")
+        print(f"  [SKIP] 이미 수집됨 (force 옵션으로 재수집 가능) ID={mst}")
         return 0
 
     # 본문 가져오기
     try:
-        articles = client.fetch_law_articles(mst)
+        if use_admrul:
+            articles = client.fetch_admrul_articles(mst)
+        else:
+            articles = client.fetch_law_articles(mst)
     except Exception as e:
         print(f"  [ERR] fetch 실패: {e}")
         return 0
     rows = _build_rows(law_id, law_type, parent_law_id, exact_name, articles, mst)
-    print(f"  MST={mst} 조문={len(rows)}")
+    print(f"  {'AdmRul' if use_admrul else 'MST'}={mst} 조문={len(rows)}")
 
     if dry_run:
         return len(rows)
