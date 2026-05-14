@@ -106,14 +106,16 @@ def build_candidates(question: str, law_ids: list[str],
 # ── Gemini 프롬프트 ──────────────────────────────────────────────────────────
 _PROMPT_HEADER = """\
 당신은 한국 금융·개인정보 법령 분야의 법률·규제 전문가입니다.
-아래는 사용자의 질문과, 관련도가 높은 한국 회신사례·판례 발췌 목록입니다.
+아래는 사용자의 질문과, 관련도가 높은 한국 판례·유권해석·비조치의견서 발췌 목록입니다.
 
 [작성 지침]
 1) 사용자 질문에 직접적으로 답하세요. 추측·면책 문구는 최소화.
 2) 사례를 인용할 때는 반드시 본문 안에 [번호] 형식으로 표기 (예: [1], [3]).
 3) 답변은 3~5문단으로 구성하고, 각 문단은 의미 단위로 끊으세요.
-4) 인용된 사례 번호 외 다른 사례는 답변에 포함하지 마세요.
-5) 한국어로 답변, 마크다운 사용 금지.
+4) 사례가 다양한 출처(대법원/하급심 판례, 금융위·금감원 유권해석, 비조치의견서)에 걸쳐 있다면, **가능한 한 서로 다른 출처를 골고루 인용**하세요. 판례가 있다면 반드시 1건 이상 포함하세요.
+5) 답변 구조는 **요점 → 근거 → 적용** 순으로 가독성 있게 작성하세요. 항목을 나눌 때는 `가.`, `나.`, `다.` 또는 `1)`, `2)` 와 같은 표기를 사용해 가독성을 높이세요.
+6) 인용된 사례 번호 외 다른 사례는 답변에 포함하지 마세요.
+7) 한국어로 답변, 마크다운 표(table)·코드블록 사용 금지. 단, 강조가 필요한 구절은 **굵게** 표기 가능.
 
 [사용자 질문]
 {question}
@@ -125,15 +127,24 @@ _PROMPT_HEADER = """\
 """
 
 
+_SRC_LABEL = {
+    "prec":       "판례(법원)",
+    "fsc_reply":  "유권해석(금융위·금감원)",
+    "fsc_nonact": "비조치의견서",
+    "law_article":"법령 조문",
+}
+
+
 def build_prompt(question: str, candidates: list[dict], max_cases: int = 20) -> str:
     cases = []
     for i, c in enumerate(candidates[:max_cases], 1):
         title = (c.get("title") or "").strip()
         agency = (c.get("agency") or "").strip()
         date_ = (c.get("decided_at") or "").strip()
+        src   = _SRC_LABEL.get((c.get("source") or "").lower(), "사례")
         summary = (c.get("summary") or "").strip()[:600]
         body = (c.get("body") or "").strip()[:800]
-        block = f"[{i}] {title}\n    기관: {agency} | 일자: {date_}\n"
+        block = f"[{i}] ({src}) {title}\n    기관: {agency} | 일자: {date_}\n"
         if summary:
             block += f"    질의/요지: {summary}\n"
         if body:

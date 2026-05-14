@@ -942,6 +942,12 @@
       padding: 4px 0; cursor: pointer; user-select: none;
       color: var(--t2); font-size: 12px;
     }
+    .rs-filter-all {
+      padding: 5px 0; margin-bottom: 2px;
+      border-bottom: 1px dashed var(--bd);
+      color: var(--t1);
+    }
+    .rs-filter-all strong { color: var(--accent); font-weight: 700; }
     .rs-filter-chk:hover span { color: var(--t1); }
     .rs-filter-chk input { accent-color: var(--accent); }
     .rs-sort-select {
@@ -1049,8 +1055,8 @@
 
     /* AI 답변 카드 */
     .rs-ai-card {
-      background: linear-gradient(135deg, #fef3c7 0%, #fff 90%);
-      border: 1px solid #fcd34d; border-radius: 12px;
+      background: #fff;
+      border: 1px solid var(--bd); border-radius: 12px;
       padding: 18px 22px; margin-bottom: 20px;
       box-shadow: 0 1px 3px rgba(0,0,0,.04);
     }
@@ -1058,15 +1064,21 @@
       display: flex; align-items: center; gap: 10px; margin-bottom: 10px;
     }
     .rs-ai-badge {
-      font-size: 12px; font-weight: 800; color: #92400e;
-      padding: 3px 10px; background: #fef3c7; border-radius: 12px;
-      border: 1px solid #fcd34d;
+      font-size: 12px; font-weight: 800; color: var(--accent);
+      padding: 3px 10px; background: var(--accent-lt); border-radius: 12px;
+      border: 1px solid #bfdbfe;
     }
     .rs-ai-meta { font-size: 11px; color: var(--t3); margin-left: auto; }
     .rs-ai-body {
-      font-size: 13px; line-height: 1.75; color: var(--t1);
+      font-size: 13px; line-height: 1.85; color: var(--t1);
       white-space: pre-wrap;
     }
+    /* AI 답변 본문 강조: 가. 나. 다. / 1) 2) / ① ② / 제N조 등 */
+    .rs-ai-body .ai-emph-kr   { color: var(--accent); font-weight: 700; }
+    .rs-ai-body .ai-emph-num  { color: #7c3aed; font-weight: 700; }
+    .rs-ai-body .ai-emph-cir  { color: #c026d3; font-weight: 700; }
+    .rs-ai-body .ai-emph-art  { color: #0f766e; font-weight: 700; }
+    .rs-ai-body .ai-emph-head { font-weight: 800; color: var(--t1); display: inline-block; }
 
     /* 결과 리스트 */
     .rs-results-head {
@@ -3315,6 +3327,13 @@
                 <aside class="rs-filter">
                   <div class="rs-filter-group">
                     <div class="rs-filter-title">유형</div>
+                    <label class="rs-filter-chk rs-filter-all">
+                      <input type="checkbox"
+                             :checked="rsFilters.types.length === rsAllTypes.length"
+                             :indeterminate.prop="rsFilters.types.length > 0 && rsFilters.types.length < rsAllTypes.length"
+                             @change="rsToggleAllTypes($event.target.checked)"/>
+                      <span><strong>전체</strong></span>
+                    </label>
                     <template x-for="t in rsAllTypes" :key="t.value">
                       <label class="rs-filter-chk">
                         <input type="checkbox" :value="t.value" x-model="rsFilters.types"/>
@@ -3324,6 +3343,13 @@
                   </div>
                   <div class="rs-filter-group">
                     <div class="rs-filter-title">대상 법령</div>
+                    <label class="rs-filter-chk rs-filter-all">
+                      <input type="checkbox"
+                             :checked="rsFilters.laws.length === rsAllLaws.length"
+                             :indeterminate.prop="rsFilters.laws.length > 0 && rsFilters.laws.length < rsAllLaws.length"
+                             @change="rsToggleAllLaws($event.target.checked)"/>
+                      <span><strong>전체</strong></span>
+                    </label>
                     <template x-for="law in rsAllLaws" :key="law">
                       <label class="rs-filter-chk">
                         <input type="checkbox" :value="law" x-model="rsFilters.laws"/>
@@ -4841,7 +4867,15 @@
       ],
       rsFilters: {
         types: ['prec','fsc_reply','fsc_nonact','law_article'],
-        laws:  ['외국환거래법','특정 금융거래정보의 보고 및 이용 등에 관한 법률'],
+        laws:  [
+          '외국환거래법',
+          '전자금융거래법',
+          '특정 금융거래정보의 보고 및 이용 등에 관한 법률',
+          '공중 등 협박목적 및 대량살상무기확산을 위한 자금조달행위의 금지에 관한 법률',
+          '개인정보보호법',
+          '신용정보의 이용 및 보호에 관한 법률',
+          '정보통신망이용촉진및정보보호등에관한법률',
+        ],
       },
       // 파일 첨부 (법률검토 분석)
       rsFile: null,
@@ -5875,17 +5909,45 @@
         }
       },
       renderQaAnswer(text) {
-        // [n] 마커 → <sup class="qa-cite-ref" data-idx="n">[n]</sup> 변환
-        // 클릭 시 rsFocusCite(n) 호출되도록 onclick 부착
+        // [n] 인용 마커 + 가./나./다. / 1) / ① / 제N조 강조 + **굵게**
         if (!text) return '';
-        const escaped = text
+        let out = text
           .replace(/&/g, '&amp;')
           .replace(/</g, '&lt;')
           .replace(/>/g, '&gt;');
-        return escaped.replace(/\[(\d+)\]/g,
+
+        // 인용 마커 [n]
+        out = out.replace(/\[(\d+)\]/g,
           '<sup class="qa-cite-ref" data-cite-idx="$1" '
           + 'onclick="window.dispatchEvent(new CustomEvent(\'rs-focus-cite\',{detail:$1}))">'
           + '[$1]</sup>');
+
+        // **굵은 글자** → 헤더
+        out = out.replace(/\*\*([^*\n]+)\*\*/g,
+          '<span class="ai-emph-head">$1</span>');
+
+        // 줄 첫머리 한글 가나다 항목 (가. 나. 다. ...) — 최대 30자 헤더
+        out = out.replace(/(^|\n)([가-힣])\.\s/g,
+          '$1<span class="ai-emph-kr">$2.</span> ');
+
+        // 줄 첫머리 1) 2) 3) ... 또는 1. 2. 3.
+        out = out.replace(/(^|\n)(\d{1,2})[\.\)]\s/g,
+          '$1<span class="ai-emph-num">$2$&</span> '.replace('$&', ''));
+        // 위 정규식이 너무 fragile하니 명시적으로:
+        out = out.replace(/(^|\n)(\d{1,2})\)\s/g,
+          '$1<span class="ai-emph-num">$2)</span> ');
+        out = out.replace(/(^|\n)(\d{1,2})\.\s(?=\S)/g,
+          '$1<span class="ai-emph-num">$2.</span> ');
+
+        // ① ② ③ ... 원숫자
+        out = out.replace(/([①-⑳])/g,
+          '<span class="ai-emph-cir">$1</span>');
+
+        // 제N조(의M)? — 법령 조문 참조
+        out = out.replace(/(제\s?\d+\s?조(?:의\s?\d+)?(?:\s?제\s?\d+\s?항)?)/g,
+          '<span class="ai-emph-art">$1</span>');
+
+        return out;
       },
 
       // ── 법령 리서치 (Westlaw IA) 메서드 ──
@@ -5931,6 +5993,12 @@
         if (src === 'law_article' || c.law_article_id) return 'law';
         return '';
       },
+      rsToggleAllLaws(checked) {
+        this.rsFilters.laws = checked ? [...this.rsAllLaws] : [];
+      },
+      rsToggleAllTypes(checked) {
+        this.rsFilters.types = checked ? this.rsAllTypes.map(t => t.value) : [];
+      },
       _rsSaveRecent(q) {
         if (!q) return;
         const list = [q, ...this.rsRecentSearches.filter(x => x !== q)].slice(0, 6);
@@ -5952,8 +6020,13 @@
         if (q) this._rsSaveRecent(q);
 
         try {
-          const types = (this.rsFilters.types || []).join(',');
-          const laws  = (this.rsFilters.laws || []).join(',');
+          // 전체 선택 시 백엔드에는 빈 배열 전달 (target_law 가 사전 등록되지
+          // 않은 대법원 판례 등도 후보에 포함되도록).
+          const isAllLaws  = this.rsFilters.laws.length === this.rsAllLaws.length;
+          const isAllTypes = this.rsFilters.types.length === this.rsAllTypes.length;
+          const lawIdsEff  = isAllLaws  ? [] : this.rsFilters.laws;
+          const types = isAllTypes ? '' : (this.rsFilters.types || []).join(',');
+          const laws  = isAllLaws  ? '' : (this.rsFilters.laws  || []).join(',');
 
           if (hasFile) {
             // 파일 분석 모드 — analyze-doc 호출. 분석 응답의 key_issues +
@@ -5962,7 +6035,7 @@
             const fd = new FormData();
             fd.append('file', this.rsFile);
             fd.append('question', q);
-            fd.append('law_ids', JSON.stringify(this.rsFilters.laws));
+            fd.append('law_ids', JSON.stringify(lawIdsEff));
             const searchUrl = '/api/research/search?q=' + encodeURIComponent(q)
                             + '&types=' + encodeURIComponent(types)
                             + '&laws='  + encodeURIComponent(laws);
@@ -6003,13 +6076,16 @@
       },
       async _rsFetchAiAnswer(q) {
         // 기존 /api/precedent/ask 재사용 — 선택 법령만 통과시켜 답변 생성
+        // 전체 선택 시 빈 배열로 보내 모든 후보(대법원 판례 포함) 사용
+        const isAllLaws = this.rsFilters.laws.length === this.rsAllLaws.length;
+        const lawIdsEff = isAllLaws ? [] : this.rsFilters.laws;
         try {
           const res = await fetch('/api/precedent/ask', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               question: q,
-              law_ids: this.rsFilters.laws,
+              law_ids: lawIdsEff,
             })
           });
           if (!res.ok) return null;
