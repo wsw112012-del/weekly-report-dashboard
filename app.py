@@ -2188,16 +2188,30 @@ async def get_law_comparison(law: str = ""):
         if t in by_type:
             by_type[t].append(r)
 
-    # 시행령·규정 -> 본문 안 '법 제N조' 인용 -> 법률 jo_no 로 매핑
-    law_ref_re = re.compile(r"법\s*제(\d+)조")
+    # 시행령·규정 -> 본문 안 법률 조문 인용 추출 -> 법률 jo_no 매핑
+    # 1차: "법 제N조" 가장 표준
+    # 2차: "「OOO법」 제N조" 명시적 인용
+    # 3차: 모두 실패 시 본인 jo_no 와 동일 매칭 (fallback)
+    pat_short = re.compile(r"법\s*제\s*(\d+)\s*조")
+    pat_named = re.compile(r"「[^」]+?법(?:률)?」\s*제\s*(\d+)\s*조")
+
     def by_act_no(rows_):
         out: dict[int, list[dict]] = {}
         for r in rows_:
-            m = law_ref_re.search(r.get("body") or "")
-            if m:
-                no = int(m.group(1))
-                out.setdefault(no, []).append(r)
+            body = r.get("body") or ""
+            # 매칭된 모든 법률 조문 번호 수집 (한 행이 여러 법률 조문에 매핑 가능)
+            refs: set[int] = set()
+            for m in pat_named.finditer(body):
+                try: refs.add(int(m.group(1)))
+                except ValueError: pass
+            for m in pat_short.finditer(body):
+                try: refs.add(int(m.group(1)))
+                except ValueError: pass
+            if refs:
+                for no in refs:
+                    out.setdefault(no, []).append(r)
             else:
+                # fallback: 본인 jo_no 와 동일 매칭 (시행규칙 같은 1:1 케이스)
                 out.setdefault(r.get("jo_no", 0), []).append(r)
         return out
 
