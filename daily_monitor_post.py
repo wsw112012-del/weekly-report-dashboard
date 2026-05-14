@@ -68,6 +68,79 @@ _KR_CONTEXT_RE = re.compile(
 LEG_STATUS_KEYWORDS = ("공포", "국무회의", "시행", "가결")
 _DATE_RE = re.compile(r"(\d{4})[\.\s\-]+(\d{1,2})[\.\s\-]+(\d{1,2})")
 
+# 한글 2글자 이상 토큰 (단어 단위 의사 명사 추출)
+_HANGUL_RE = re.compile(r"[가-힣]{2,}")
+_STOPWORDS: set[str] = {
+    "관련", "위한", "위해", "통한", "통해", "대한", "대해", "있다", "있는", "없다", "없는",
+    "한다", "이다", "되다", "된다", "이라", "이라고", "이라는", "그리고", "또한", "그러나",
+    "하지만", "그것", "이것", "저것", "어떤", "그런", "이런", "저런", "모든", "여러",
+    "오늘", "어제", "내일", "올해", "작년", "최근", "지금", "당시", "당분간", "이상", "이하",
+    "기자", "보도", "발표", "기사", "확인", "예정", "가능", "필요", "정도", "수준",
+    "않다", "되어", "위해", "라고", "라며", "이라며",
+}
+# 주요 매체 신뢰도 (대표 매체 우선)
+_TRUSTED_AGENCIES: list[str] = [
+    "연합뉴스", "연합인포맥스", "매일경제", "조선일보", "중앙일보", "한국경제", "동아일보",
+    "조선비즈", "이데일리", "뉴스1", "News1", "한겨레", "경향신문", "서울경제",
+    "헤럴드경제", "파이낸셜뉴스", "머니투데이", "디지털타임스", "DIGITALTODAY",
+    "비즈워치", "비즈니스워치", "전자신문", "법률신문", "메트로신문",
+    "SBS", "KBS", "MBC", "YTN", "JTBC",
+]
+
+
+def _tokens(text: str) -> set[str]:
+    """제목·본문에서 한글 명사 후보 토큰 set 추출."""
+    if not text:
+        return set()
+    raw = _HANGUL_RE.findall(text)
+    return {w for w in raw if w not in _STOPWORDS}
+
+
+def _jaccard(a: set[str], b: set[str]) -> float:
+    if not a or not b:
+        return 0.0
+    inter = len(a & b)
+    union = len(a | b)
+    return inter / union if union else 0.0
+
+
+def _agency_rank(agency: str) -> int:
+    """기관 신뢰도 순위. 낮을수록 우선."""
+    a = (agency or "").strip()
+    for i, t in enumerate(_TRUSTED_AGENCIES):
+        if t == a or t in a or a in t:
+            return i
+    return len(_TRUSTED_AGENCIES) + 1
+
+
+def _is_similar_pair(a: dict, b: dict, thresh_title: float = 0.6,
+                     thresh_combined: float = 0.55) -> bool:
+    """두 기사 a, b 가 중복으로 판정되는지.
+    1) 링크 완전 일치 → True
+    2) 제목 명사 자카드 ≥ thresh_title 또는
+       (제목+본문) 명사 자카드 ≥ thresh_combined → True
+    """
+    la, lb = (a.get("링크") or "").strip(), (b.get("링크") or "").strip()
+    if la and la == lb:
+        return True
+    ta, tb = a.get("제목") or "", b.get("제목") or ""
+    title_sim = _jaccard(_tokens(ta), _tokens(tb))
+    if title_sim >= thresh_title:
+        return True
+    full_a = ta + " " + (a.get("내용") or "")[:1200]
+    full_b = tb + " " + (b.get("내용") or "")[:1200]
+    combined_sim = _jaccard(_tokens(full_a), _tokens(full_b))
+    return combined_sim >= thresh_combined
+
+
+def _pick_representative(group: list[dict]) -> dict:
+    """동일 그룹 안에서 대표 1건 선정 — 본문 길이 desc, 기관 신뢰도 asc."""
+    def score(x: dict) -> tuple:
+        body_len = len(x.get("내용") or "")
+        agency = _agency_rank(x.get("기관") or "")
+        return (-body_len, agency)
+    return sorted(group, key=score)[0]
+
 
 # ── helpers ───────────────────────────────────────────────────────────────────
 
@@ -121,28 +194,34 @@ def _sb_get(path: str):
 # ── 데이터 수집 ────────────────────────────────────────────────────────────────
 
 def _fetch_aml_articles(today_str: str, days: int = 2) -> list[dict]:
-    """AML 기사 → 오늘+이전 N-1일 범위 priority='상' + 노이즈 제거 + 중복 제거.
+    """AML 기사 → 오늘 priority='상' + 노이즈 제거 + 다단계 중복 제거.
 
-    중복 판정: 링크 기준 1차, 정규화 제목 기준 2차 (기관 다르고 같은 제목 케이스 대응).
+    중복 제거 단계:
+      A. 링크/정규화 제목 1차 dedup (기존)
+      B. 어제 priority='상' 후보와 비교 — URL 일치 또는 제목+본문 명사 유사도
+         60%↑ 이면 오늘 후보에서 제외 (사용자 요청 1)
+      C. 오늘 후보 안에서 명사 유사 그룹화 → 그룹당 본문 길이 desc, 매체 신뢰도
+         asc 기준 대표 1건만 선정 (사용자 요청 2)
     """
     rows = _sb_get("articles?type=eq.AML&select=data&order=updated_at.desc&limit=1")
     if not rows:
         return []
     raw = rows[0].get("data") or []
 
-    # 날짜 범위: 오늘 - (days-1) 일 ~ 오늘
     today_dt = date.fromisoformat(today_str)
     cutoff = today_dt - timedelta(days=days - 1)
     cutoff_str = cutoff.isoformat()
+    prev_day_str = (today_dt - timedelta(days=1)).isoformat()
 
     def _in_range(a: dict) -> bool:
         d = (a.get("날짜") or "")[:10]
         return cutoff_str <= d <= today_str
 
+    # ── 후보 추출 (priority='상' + 노이즈 컷 + 날짜 범위)
     candidates = [a for a in raw
                   if _in_range(a) and get_priority(a) == "상" and not _is_noise(a)]
 
-    # 중복 제거: 링크 1순위, 정규화 제목 2순위
+    # ── A. 링크/정규화 제목 1차 dedup
     seen_links: set[str] = set()
     seen_titles: set[str] = set()
     deduped: list[dict] = []
@@ -153,18 +232,54 @@ def _fetch_aml_articles(today_str: str, days: int = 2) -> list[dict]:
             continue
         if title_key and title_key in seen_titles:
             continue
-        if link:
-            seen_links.add(link)
-        if title_key:
-            seen_titles.add(title_key)
-        deduped.append({**a, "_overseas": _is_overseas(a)})
+        if link:        seen_links.add(link)
+        if title_key:   seen_titles.add(title_key)
+        deduped.append(a)
 
-    # 최신순(날짜 desc) + 국내 우선
-    deduped.sort(key=lambda x: (
+    # ── B. 어제(또는 그 전날) 후보와 명사 유사도 비교 → 중복 제외
+    prev_candidates = [a for a in raw
+                       if (a.get("날짜") or "")[:10] < today_str
+                       and (a.get("날짜") or "")[:10] >= prev_day_str
+                       and get_priority(a) == "상" and not _is_noise(a)]
+    if prev_candidates:
+        filtered: list[dict] = []
+        dropped_prev = 0
+        for cur in deduped:
+            is_dup = any(_is_similar_pair(cur, p) for p in prev_candidates)
+            if is_dup:
+                dropped_prev += 1
+                continue
+            filtered.append(cur)
+        if dropped_prev:
+            print(f"[INFO] 어제 발송 유사 기사 제외: {dropped_prev}건", file=sys.stderr)
+        deduped = filtered
+
+    # ── C. 오늘 후보들끼리 명사 유사도 그룹화 → 대표 1건
+    groups: list[list[dict]] = []
+    for cur in deduped:
+        placed = False
+        for g in groups:
+            if _is_similar_pair(cur, g[0]):
+                g.append(cur)
+                placed = True
+                break
+        if not placed:
+            groups.append([cur])
+    repr_only: list[dict] = []
+    dropped_cycle = 0
+    for g in groups:
+        repr_only.append(_pick_representative(g))
+        dropped_cycle += len(g) - 1
+    if dropped_cycle:
+        print(f"[INFO] 사이클 내 유사 기사 묶음 제외: {dropped_cycle}건", file=sys.stderr)
+
+    # ── _overseas 플래그 + 정렬
+    out = [{**a, "_overseas": _is_overseas(a)} for a in repr_only]
+    out.sort(key=lambda x: (
         1 if x["_overseas"] else 0,
         -date.fromisoformat((x.get("날짜") or today_str)[:10]).toordinal(),
     ))
-    return deduped
+    return out
 
 
 def _fetch_legislation(today_str: str) -> list[dict]:
