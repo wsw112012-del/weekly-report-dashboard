@@ -888,6 +888,11 @@
       transition: background .15s, color .15s;
       border: 1.5px dashed #cbd5e1;
     }
+    /* 검색박스 안에 들어가는 인라인 첨부 트리거 */
+    .rs-attach-inline {
+      padding: 7px 12px; font-size: 12px; border-radius: 6px;
+      margin-right: 6px; white-space: nowrap;
+    }
     .rs-attach-trigger:hover { background: var(--accent-lt); color: var(--accent); border-color: var(--accent); }
     .rs-attach-trigger.active {
       background: var(--accent-lt); color: var(--accent);
@@ -3274,6 +3279,20 @@
                   <template x-if="rsQuery">
                     <button class="rs-search-clear" @click="rsQuery=''; rsSearch()">✕</button>
                   </template>
+                  <label class="rs-attach-trigger rs-attach-inline" :class="{ 'active': rsFile }">
+                    <input type="file" accept=".docx,.pdf,.txt" hidden
+                           x-ref="rsFileInput"
+                           @change="rsFile = $event.target.files[0] || null"/>
+                    <template x-if="!rsFile">
+                      <span>📎 법률검토</span>
+                    </template>
+                    <template x-if="rsFile">
+                      <span>📄 <span x-text="(rsFile?.name || '').length > 16 ? (rsFile.name.slice(0,14)+'…') : rsFile?.name"></span>
+                        <button type="button" class="rs-attach-remove"
+                                @click.prevent.stop="rsFile=null; $refs.rsFileInput.value=''">✕</button>
+                      </span>
+                    </template>
+                  </label>
                   <button class="rs-search-btn" :disabled="rsLoading"
                           @click="rsSearch()">
                     <span x-text="rsLoading
@@ -3281,28 +3300,12 @@
                       : (rsFile ? '검토 분석' : '검색')"></span>
                   </button>
                 </div>
-                <div class="rs-recent-row">
-                  <div class="rs-recent" x-show="rsRecentSearches.length">
+                <div class="rs-recent-row" x-show="rsRecentSearches.length">
+                  <div class="rs-recent">
                     <span class="rs-recent-label">최근:</span>
                     <template x-for="rq in rsRecentSearches" :key="rq">
                       <button class="rs-recent-chip" @click="rsQuery=rq; rsSearch()" x-text="rq"></button>
                     </template>
-                  </div>
-                  <div class="rs-attach-row">
-                    <label class="rs-attach-trigger" :class="{ 'active': rsFile }">
-                      <input type="file" accept=".docx,.pdf,.txt" hidden
-                             x-ref="rsFileInput"
-                             @change="rsFile = $event.target.files[0] || null"/>
-                      <template x-if="!rsFile">
-                        <span>📎 법률검토 첨부</span>
-                      </template>
-                      <template x-if="rsFile">
-                        <span>📄 <span x-text="rsFile?.name"></span>
-                          <button type="button" class="rs-attach-remove"
-                                  @click.prevent.stop="rsFile=null; $refs.rsFileInput.value=''">✕</button>
-                        </span>
-                      </template>
-                    </label>
                   </div>
                 </div>
               </div>
