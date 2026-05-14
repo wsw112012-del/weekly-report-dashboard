@@ -1501,29 +1501,26 @@
     .cmp-v2-table td:last-child { border-right: none; }
     .cmp-v2-table tbody tr {
       scroll-margin-top: 60px;
-      transition: box-shadow .15s;
-      position: relative;
+      transition: background .15s;
     }
     .cmp-v2-table tbody tr:nth-child(even) td { background: #fafbfc; }
-    /* hover/active: 노란 음영 -> 파란 테두리 (left/right border + box-shadow) */
-    .cmp-v2-table tbody tr:hover td {
-      box-shadow: inset 0 2px 0 var(--accent), inset 0 -2px 0 var(--accent);
-    }
-    .cmp-v2-table tbody tr:hover td:first-child {
-      box-shadow: inset 2px 0 0 var(--accent), inset 0 2px 0 var(--accent), inset 0 -2px 0 var(--accent);
-    }
-    .cmp-v2-table tbody tr:hover td:last-child {
-      box-shadow: inset -2px 0 0 var(--accent), inset 0 2px 0 var(--accent), inset 0 -2px 0 var(--accent);
-    }
+    .cmp-v2-table tbody tr:hover td { background: #eff6ff; }
     .cmp-v2-table tbody tr.cmp-v2-row-active td {
       background: #eff6ff !important;
-      box-shadow: inset 0 2px 0 var(--accent), inset 0 -2px 0 var(--accent);
     }
-    .cmp-v2-table tbody tr.cmp-v2-row-active td:first-child {
-      box-shadow: inset 3px 0 0 var(--accent), inset 0 2px 0 var(--accent), inset 0 -2px 0 var(--accent);
+    /* 장 헤더 row */
+    .cmp-v2-chapter-row td {
+      background: linear-gradient(90deg, var(--accent-lt) 0%, #fafbff 60%) !important;
+      padding: 10px 16px !important;
+      border-top: 1px solid #cbd5e1;
+      border-bottom: 1px solid #cbd5e1;
     }
-    .cmp-v2-table tbody tr.cmp-v2-row-active td:last-child {
-      box-shadow: inset -3px 0 0 var(--accent), inset 0 2px 0 var(--accent), inset 0 -2px 0 var(--accent);
+    .cmp-v2-chapter-row .cmp-v2-chapter-label {
+      font-size: 12.5px; font-weight: 800; color: var(--accent);
+      margin-right: 8px;
+    }
+    .cmp-v2-chapter-row .cmp-v2-chapter-title {
+      font-size: 13px; font-weight: 700; color: var(--t1);
     }
     .cmp-v2-art-head {
       font-size: 13px; font-weight: 700; color: var(--t1);
@@ -4500,46 +4497,58 @@
                           </tr>
                         </thead>
                         <tbody>
-                          <template x-for="row in filteredCompareRows" :key="row.idx">
+                          <template x-for="row in filteredCompareRows" :key="String(row.idx)">
                             <tr :id="'cmp-v2-row-'+row.idx"
-                                :class="compareSelectedRowIdx === row.idx ? 'cmp-v2-row-active' : ''">
-                              <!-- 법률 -->
-                              <td>
-                                <div class="cmp-v2-art-head"
-                                     x-text="(row.act?.label || '') + ' ' + (row.act?.title || '')"></div>
-                                <div class="cmp-v2-cell-body"
-                                     x-html="row.act?.body
-                                       ? highlightQ(row.act.body, compareSearch)
-                                       : '<span class=&quot;cmp-v2-empty-cell&quot;>본문 없음</span>'"></div>
-                              </td>
-                              <!-- 시행령 -->
-                              <td>
-                                <template x-if="row.enforce">
-                                  <div>
-                                    <div class="cmp-v2-art-head"
-                                         x-text="(row.enforce.label || '') + ' ' + (row.enforce.title || '')"></div>
-                                    <div class="cmp-v2-cell-body"
-                                         x-html="highlightQ(row.enforce.body || '', compareSearch)"></div>
-                                  </div>
-                                </template>
-                                <template x-if="!row.enforce">
-                                  <div class="cmp-v2-empty-cell">—</div>
-                                </template>
-                              </td>
-                              <!-- 시행규칙 -->
-                              <td>
-                                <template x-if="row.regulation">
-                                  <div>
-                                    <div class="cmp-v2-art-head"
-                                         x-text="(row.regulation.label || '') + ' ' + (row.regulation.title || '')"></div>
-                                    <div class="cmp-v2-cell-body"
-                                         x-html="highlightQ(row.regulation.body || '', compareSearch)"></div>
-                                  </div>
-                                </template>
-                                <template x-if="!row.regulation">
-                                  <div class="cmp-v2-empty-cell">—</div>
-                                </template>
-                              </td>
+                                :class="(row.type==='chapter' ? 'cmp-v2-chapter-row' : '')
+                                       + (compareSelectedRowIdx === row.idx ? ' cmp-v2-row-active' : '')">
+                              <!-- 장 헤더 row: 3칸 병합 -->
+                              <template x-if="row.type === 'chapter'">
+                                <td colspan="3">
+                                  <span class="cmp-v2-chapter-label" x-text="row.label"></span>
+                                  <span class="cmp-v2-chapter-title" x-text="row.title"></span>
+                                </td>
+                              </template>
+                              <!-- 일반 조문 row: 3열 -->
+                              <template x-if="row.type !== 'chapter'">
+                                <td>
+                                  <div class="cmp-v2-art-head"
+                                       x-text="(row.act?.label || '') + ' ' + (row.act?.title || '')"></div>
+                                  <div class="cmp-v2-cell-body"
+                                       x-html="row.act?.body
+                                         ? highlightQ(row.act.body, compareSearch)
+                                         : '<span class=&quot;cmp-v2-empty-cell&quot;>본문 없음</span>'"></div>
+                                </td>
+                              </template>
+                              <template x-if="row.type !== 'chapter'">
+                                <td>
+                                  <template x-if="row.enforce">
+                                    <div>
+                                      <div class="cmp-v2-art-head"
+                                           x-text="(row.enforce.label || '') + ' ' + (row.enforce.title || '')"></div>
+                                      <div class="cmp-v2-cell-body"
+                                           x-html="highlightQ(row.enforce.body || '', compareSearch)"></div>
+                                    </div>
+                                  </template>
+                                  <template x-if="!row.enforce">
+                                    <div class="cmp-v2-empty-cell">—</div>
+                                  </template>
+                                </td>
+                              </template>
+                              <template x-if="row.type !== 'chapter'">
+                                <td>
+                                  <template x-if="row.regulation">
+                                    <div>
+                                      <div class="cmp-v2-art-head"
+                                           x-text="(row.regulation.label || '') + ' ' + (row.regulation.title || '')"></div>
+                                      <div class="cmp-v2-cell-body"
+                                           x-html="highlightQ(row.regulation.body || '', compareSearch)"></div>
+                                    </div>
+                                  </template>
+                                  <template x-if="!row.regulation">
+                                    <div class="cmp-v2-empty-cell">—</div>
+                                  </template>
+                                </td>
+                              </template>
                             </tr>
                           </template>
                         </tbody>
@@ -5537,9 +5546,9 @@
         '전자금융거래법',
         '특정 금융거래정보의 보고 및 이용 등에 관한 법률',
         '공중 등 협박목적 및 대량살상무기확산을 위한 자금조달행위의 금지에 관한 법률',
-        '개인정보보호법',
+        '개인정보 보호법',
         '신용정보의 이용 및 보호에 관한 법률',
-        '정보통신망이용촉진및정보보호등에관한법률',
+        '정보통신망 이용촉진 및 정보보호 등에 관한 법률',
       ],
       legDetails: {},
       artPanel: null,
@@ -6919,26 +6928,22 @@
           regulation: rows.filter(r => r.regulation).length,
         };
       },
-      // v2 — 검색 필터 + 시행령/규칙 보유 태그 포함된 TOC
+      // v2 — 백엔드가 type='chapter'|'article' 명시 → 그대로 사용
       get cmpTocV2() {
         const rows = this.filteredCompareRows || [];
         const out = [];
         for (const row of rows) {
-          if (!row.act) continue;
-          const body = row.act.body || '';
-          const title = row.act.title || '';
-          const chapMatch = body.trim().match(/^(제\d+장(?:의\d+)?)\s*(.+?)(?:\s*<|$)/);
-          if (!title && chapMatch) {
+          if (row.type === 'chapter') {
             out.push({
               idx: row.idx, type: 'chapter',
-              label: chapMatch[1],
-              title: (chapMatch[2] || '').trim(),
+              label: row.label || '',
+              title: row.title || '',
             });
-          } else if (title || row.act.label) {
+          } else if (row.act) {
             out.push({
               idx: row.idx, type: 'article',
-              label: row.act.label || ('제' + row.idx + '조'),
-              title: title,
+              label: row.act.label || '',
+              title: row.act.title || '',
               hasEnforce: !!row.enforce,
               hasRegu: !!row.regulation,
             });

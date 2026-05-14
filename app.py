@@ -2158,15 +2158,27 @@ async def get_law_comparison(law: str = ""):
     """
     if not law:
         return JSONResponse([])
-    # parent_law_id 또는 law_id 매핑 — law_articles 테이블에 직접 ilike 검색
-    enc = urllib.parse.quote(law, safe="")
-    # law_name 패턴으로 ilike — 시행령/규정도 모두 잡힘.
-    # order_idx 가 collect 시점 본문 순서 보존 (가지번호 포함 정렬에 사용)
-    rows = _supabase_request(
-        "GET",
-        f"law_articles?law_name=ilike.*{enc}*&select=id,law_type,jo_no,jo_label,jo_title,body,order_idx"
-        f"&order=law_type.asc,order_idx.asc&limit=3000",
-    ) or []
+    # law_name 매칭 — 공백 유무 (예: '개인정보보호법' vs '개인정보 보호법') 차이로
+    # 1차 실패할 수 있으므로 fallback: 공백 제거 키 (몇 글자 단위 prefix 검색)
+    def _fetch(pattern: str) -> list:
+        enc_ = urllib.parse.quote(pattern, safe="")
+        return _supabase_request(
+            "GET",
+            f"law_articles?law_name=ilike.*{enc_}*"
+            f"&select=id,law_name,law_type,jo_no,jo_label,jo_title,body,order_idx"
+            f"&order=law_type.asc,order_idx.asc&limit=3000",
+        ) or []
+
+    rows = _fetch(law)
+    if not rows and " " not in law and len(law) >= 4:
+        # 공백 없는 법령명 → 첫 4자만으로 prefix 검색 후 재필터
+        all_candidates = _fetch(law[:4])
+        norm_q = law.replace(" ", "")
+        rows = [r for r in all_candidates
+                if (r.get("law_name", "").replace(" ", "")).startswith(norm_q)
+                or norm_q in r.get("law_name", "").replace(" ", "")]
+    elif not rows and " " in law:
+        rows = _fetch(law.replace(" ", ""))
     if not rows:
         return JSONResponse([])
 
@@ -2201,8 +2213,11 @@ async def get_law_comparison(law: str = ""):
         bodies = "\n\n".join((r.get("body") or "").strip() for r in rows_ if r.get("body"))
         return {"label": labels, "title": titles, "body": bodies}
 
-    # 동일 jo_no 안에서 라벨/제목/본문이 비어있는 빈 행 제거 (가지번호 손실로 생긴 중복)
-    # — title 또는 body 있어야 유효. 같은 jo_no 첫 본문 우선.
+    # 빈 행/중복 제거 + 장(章) 헤더 명시 마킹
+    # 외국환거래법 같은 법령은 jo_label='제N조', title='', body='제M장 OOO <개정...>' 식으로
+    # 장 헤더가 별도 row 로 저장되어 있음 → type='chapter' 로 식별해 프런트가 분기 처리
+    chap_re = re.compile(r"^\s*(제\s*\d+\s*장(?:의\s*\d+)?)\s*(.*?)(?:\s*<|$)")
+
     seen_keys: set[str] = set()
     result: list[dict] = []
     sorted_acts = sorted(by_type["act"],
@@ -2214,20 +2229,33 @@ async def get_law_comparison(law: str = ""):
         # 빈 행 (제목·본문 모두 없음) 스킵
         if not title and not body:
             continue
-        # 같은 (jo_no, title, body[:80]) 조합 중복 스킵 (가지번호 손실 중복 가드)
+        unique_idx = a.get("id") or f"{jo}-{a.get('order_idx', len(result))}"
+
+        # 장 헤더 감지 — title 비어있고 body 가 "제N장" 으로 시작
+        if not title:
+            cm = chap_re.match(body)
+            if cm:
+                result.append({
+                    "idx":     unique_idx,
+                    "type":    "chapter",  # 프런트가 장 row 로 분기
+                    "label":   cm.group(1).strip().replace(" ", ""),
+                    "title":   (cm.group(2) or "").strip(),
+                })
+                continue
+            # title 도 body 도 의미있는 게 없으면 스킵 (위에서 처리됨)
+        # 같은 (jo_no, title, body[:80]) 중복 스킵 (가지번호 손실 중복 가드)
         key = f"{jo}|{title}|{body[:80]}"
         if key in seen_keys:
             continue
         seen_keys.add(key)
-        # idx unique 보장 — id 우선, 없으면 order_idx, 없으면 jo_no 합성
-        unique_idx = a.get("id") or f"{jo}-{a.get('order_idx', len(result))}"
         result.append({
-            "idx": unique_idx,
-            "jo_no": jo,  # 시행령/규정 매핑 참조용
+            "idx":  unique_idx,
+            "type": "article",
+            "jo_no": jo,
             "act": {
                 "label": a.get("jo_label", ""),
                 "title": title,
-                "body": body,
+                "body":  body,
             },
             "enforce":    cell(enforce_map.get(jo)),
             "regulation": cell(reg_map.get(jo)),
