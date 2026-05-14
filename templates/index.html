@@ -1079,16 +1079,48 @@
     .rs-ai-body .ai-emph-cir  { color: #c026d3; font-weight: 700; }
     .rs-ai-body .ai-emph-art  { color: #0f766e; font-weight: 700; }
     .rs-ai-body .ai-emph-head { font-weight: 800; color: var(--t1); display: inline-block; }
-    /* 일치 / 보완 / 불명확 카테고리 — 파일 분석 답변에서 강조 */
-    .rs-ai-body .ai-emph-cat {
-      display: inline-block; font-weight: 800; font-size: 12.5px;
-      padding: 2px 10px; border-radius: 6px; margin: 6px 6px 4px 0;
-      letter-spacing: .02em;
+    /* 일치 / 보완 / 불명확 카테고리 카드 — 파일 분석 답변 */
+    .rs-ai-body .rs-ai-cat {
+      margin: 14px 0 0; padding: 14px 18px 12px;
+      border-left: 4px solid; border-radius: 0 10px 10px 0;
+      position: relative;
     }
-    .rs-ai-body .ai-emph-cat-match   { background: #d1fae5; color: #065f46; border: 1px solid #6ee7b7; }
-    .rs-ai-body .ai-emph-cat-addon   { background: #fef3c7; color: #92400e; border: 1px solid #fcd34d; }
-    .rs-ai-body .ai-emph-cat-unclear { background: #fee2e2; color: #991b1b; border: 1px solid #fca5a5; }
-    .rs-ai-body .ai-emph-cat-diff    { background: #ede9fe; color: #5b21b6; border: 1px solid #c4b5fd; }
+    .rs-ai-body .rs-ai-cat + .rs-ai-cat { margin-top: 12px; }
+    .rs-ai-body .rs-ai-cat-label {
+      display: inline-flex; align-items: center; gap: 5px;
+      font-weight: 800; font-size: 12px; letter-spacing: .04em;
+      padding: 4px 11px; border-radius: 5px;
+      margin-bottom: 10px;
+    }
+    .rs-ai-body .rs-ai-cat-label::before {
+      content: ''; display: inline-block;
+      width: 6px; height: 6px; border-radius: 50%;
+      background: currentColor;
+    }
+    .rs-ai-body .rs-ai-cat-body {
+      font-size: 13px; line-height: 1.85; color: var(--t1);
+      white-space: pre-wrap; word-break: keep-all;
+    }
+    .rs-ai-body .rs-ai-cat-match {
+      background: linear-gradient(135deg, #ecfdf5 0%, #fafffd 60%);
+      border-left-color: #10b981;
+    }
+    .rs-ai-body .rs-ai-cat-match .rs-ai-cat-label   { background: #d1fae5; color: #047857; }
+    .rs-ai-body .rs-ai-cat-addon {
+      background: linear-gradient(135deg, #fffbeb 0%, #fffefb 60%);
+      border-left-color: #f59e0b;
+    }
+    .rs-ai-body .rs-ai-cat-addon .rs-ai-cat-label   { background: #fef3c7; color: #b45309; }
+    .rs-ai-body .rs-ai-cat-unclear {
+      background: linear-gradient(135deg, #fef2f2 0%, #fffbfb 60%);
+      border-left-color: #ef4444;
+    }
+    .rs-ai-body .rs-ai-cat-unclear .rs-ai-cat-label { background: #fee2e2; color: #b91c1c; }
+    .rs-ai-body .rs-ai-cat-diff {
+      background: linear-gradient(135deg, #f5f3ff 0%, #fdfcff 60%);
+      border-left-color: #8b5cf6;
+    }
+    .rs-ai-body .rs-ai-cat-diff .rs-ai-cat-label    { background: #ede9fe; color: #6d28d9; }
 
     /* 결과 리스트 */
     .rs-results-head {
@@ -6063,38 +6095,52 @@
           + 'onclick="window.dispatchEvent(new CustomEvent(\'rs-focus-cite\',{detail:$1}))">'
           + '[$1]</sup>');
 
-        // 5) 일치/보완/불명확/유사/불일치/차이 카테고리 (파일 분석 답변)
+        // 5) **굵은 글자**
+        out = out.replace(/\*\*([^*\n]+)\*\*/g,
+          '<span class="ai-emph-head">$1</span>');
+
+        // 6) 줄 첫머리 한글 가나다 항목
+        out = out.replace(/(^|\n)([가-힣])\.\s/g,
+          '$1<span class="ai-emph-kr">$2.</span> ');
+
+        // 7) 줄 첫머리 1) 또는 1.
+        out = out.replace(/(^|\n)(\d{1,2})\)\s/g,
+          '$1<span class="ai-emph-num">$2)</span> ');
+        out = out.replace(/(^|\n)(\d{1,2})\.\s(?=\S)/g,
+          '$1<span class="ai-emph-num">$2.</span> ');
+
+        // 8) 원숫자 ①②③
+        out = out.replace(/([①-⑳])/g,
+          '<span class="ai-emph-cir">$1</span>');
+
+        // 9) 제N조 / 제N조의M / 제N항
+        out = out.replace(/(제\s?\d+\s?조(?:의\s?\d+)?(?:\s?제\s?\d+\s?항)?)/g,
+          '<span class="ai-emph-art">$1</span>');
+
+        // 10) 일치/보완/불명확 카테고리 — 블록 카드로 마지막에 wrap
+        //    라벨부터 다음 라벨 직전(또는 끝)까지의 본문을 한 카드로 묶음
+        //    모든 인라인 변환 ([n], 가., 1), 제N조 등) 이후 실행해야 본문에
+        //    이미 강조가 적용된 상태로 카드 안에 들어감
         const CAT_MAP = {
           '일치': 'match', '유사': 'match',
           '보완': 'addon', '주의': 'addon',
           '불명확': 'unclear', '미확인': 'unclear', '리스크': 'unclear',
           '불일치': 'diff', '차이': 'diff', '쟁점': 'diff',
         };
-        out = out.replace(/(^|\n)(일치|유사|보완|주의|불명확|미확인|리스크|불일치|차이|쟁점)\s*[:：]\s*/g,
-          (m, p, cat) => p + '<span class="ai-emph-cat ai-emph-cat-'
-            + (CAT_MAP[cat] || 'diff') + '">' + cat + '</span>');
-
-        // 6) **굵은 글자**
-        out = out.replace(/\*\*([^*\n]+)\*\*/g,
-          '<span class="ai-emph-head">$1</span>');
-
-        // 7) 줄 첫머리 한글 가나다 항목
-        out = out.replace(/(^|\n)([가-힣])\.\s/g,
-          '$1<span class="ai-emph-kr">$2.</span> ');
-
-        // 8) 줄 첫머리 1) 또는 1.
-        out = out.replace(/(^|\n)(\d{1,2})\)\s/g,
-          '$1<span class="ai-emph-num">$2)</span> ');
-        out = out.replace(/(^|\n)(\d{1,2})\.\s(?=\S)/g,
-          '$1<span class="ai-emph-num">$2.</span> ');
-
-        // 9) 원숫자 ①②③
-        out = out.replace(/([①-⑳])/g,
-          '<span class="ai-emph-cir">$1</span>');
-
-        // 10) 제N조 / 제N조의M / 제N항
-        out = out.replace(/(제\s?\d+\s?조(?:의\s?\d+)?(?:\s?제\s?\d+\s?항)?)/g,
-          '<span class="ai-emph-art">$1</span>');
+        const CAT_LIST = '일치|유사|보완|주의|불명확|미확인|리스크|불일치|차이|쟁점';
+        const catRe = new RegExp(
+          '(?:^|\\n+)[ \\t]*(' + CAT_LIST + ')\\s*[:：]\\s*'
+          + '([\\s\\S]*?)'
+          + '(?=\\n+[ \\t]*(?:' + CAT_LIST + ')\\s*[:：]|$)',
+          'g'
+        );
+        out = out.replace(catRe, (m, cat, body) => {
+          const cls = CAT_MAP[cat] || 'diff';
+          return '<div class="rs-ai-cat rs-ai-cat-' + cls + '">'
+            + '<div class="rs-ai-cat-label">' + cat + '</div>'
+            + '<div class="rs-ai-cat-body">' + body.trim() + '</div>'
+            + '</div>';
+        });
 
         return out;
       },
