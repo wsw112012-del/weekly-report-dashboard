@@ -101,9 +101,9 @@ jobs:
       # 향후 재활성화 시: 아래 블록 주석 해제 + 실패 원인(폰트/계정 등) 진단 필요.
 
       - name: Flow 데일리 모니터링 게시글 (v1 Bot API)
-        # schedule(매일 09:00 KST) 트리거에만 실제 게시. 수동(workflow_dispatch)
-        # 트리거는 검증 목적이므로 Flow 발송 제외. 이전 v3 카드 step 실패에 무관.
-        if: ${{ !cancelled() && github.event_name == 'schedule' }}
+        # schedule(매일 09:00 KST) + 수동(workflow_dispatch) 모두 실제 게시.
+        # 중복 발송 방지는 daily_monitor_post.py 의 flow_post_log 체크가 담당.
+        if: ${{ !cancelled() && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') }}
         env:
           SUPABASE_URL:    ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY:    ${{ secrets.SUPABASE_KEY }}
