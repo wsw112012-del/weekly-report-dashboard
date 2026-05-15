@@ -2277,13 +2277,34 @@ async def get_law_comparison(law: str = ""):
     # 감독규정/시행규칙은 fallback 제거 → 명시 인용만 매핑 (정합도 우선)
     reg_map     = by_act_no(by_type["regulation"], allow_transitive=True, fallback_jo=False)
 
+    # 본문 항목 마커 앞에 줄바꿈 주입 (DB 본문이 한 줄로 붙어 있는 경우 가독성 보강)
+    # 두 단계: ① 기존 공백→\n 정규화  ② 공백 자체가 없으면 \n 삽입
+    _CIRCLED = "①②③④⑤⑥⑦⑧⑨⑩⑪⑫⑬⑭⑮⑯⑰⑱⑲⑳㉑㉒㉓㉔㉕㉖㉗㉘㉙㉚"
+    _RE_CIRCLED_WS  = re.compile(rf"\s+(?=[{_CIRCLED}])")
+    _RE_CIRCLED_INS = re.compile(rf"(?<=\S)(?=[{_CIRCLED}])")
+    # "가.~하." 항목 — 직전이 마침표/괄호/한글 종결 뒤
+    _RE_HANGUL_ITEM = re.compile(r"(?<=[\.\?！。」\)])\s+(?=[가-하]\.\s)")
+    # "1. 2. ..." 호 — 한글 종결+공백 뒤에서만 (날짜 "2011.8.18" 회피)
+    _RE_NUM_ITEM    = re.compile(r"(?<=[다요함음됨임\.\)])\s+(?=\d{1,2}\.\s[가-힣])")
+
+    def _format_body(s: str) -> str:
+        if not s:
+            return s
+        s = _RE_CIRCLED_WS.sub("\n", s)     # 기존 공백/개행을 \n 한 개로
+        s = _RE_CIRCLED_INS.sub("\n", s)    # 공백이 전혀 없는 케이스만 삽입
+        s = _RE_HANGUL_ITEM.sub("\n", s)
+        s = _RE_NUM_ITEM.sub("\n", s)
+        s = re.sub(r"\n{3,}", "\n\n", s)
+        return s.strip()
+
     def cell(rows_: list[dict] | None) -> dict | None:
         if not rows_:
             return None
         # 여러 매칭 시 본문을 합쳐서 표시
         labels = " / ".join(r.get("jo_label","") for r in rows_ if r.get("jo_label"))
         titles = " / ".join(r.get("jo_title","") for r in rows_ if r.get("jo_title"))
-        bodies = "\n\n".join((r.get("body") or "").strip() for r in rows_ if r.get("body"))
+        bodies = "\n\n".join(_format_body((r.get("body") or "").strip())
+                             for r in rows_ if r.get("body"))
         return {"label": labels, "title": titles, "body": bodies}
 
     # 빈 행/중복 제거 + 장(章) 헤더 명시 마킹
@@ -2328,7 +2349,7 @@ async def get_law_comparison(law: str = ""):
             "act": {
                 "label": a.get("jo_label", ""),
                 "title": title,
-                "body":  body,
+                "body":  _format_body(body),
             },
             "enforce":    cell(enforce_map.get(jo)),
             "regulation": cell(reg_map.get(jo)),
