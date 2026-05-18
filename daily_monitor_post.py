@@ -57,6 +57,22 @@ _NOISE_RE = re.compile(
     r"\[사설\]|사설\s*[:\]]|방문\s*간담회|취임\s*인사|기념\s*행사|보도참고\]"
 )
 
+# AML 무관 오프토픽 — 정치 스캔들·연예·부동산 일반.
+# 실제 5/17·5/18 운영 중 검출된 케이스를 기반으로 보수적으로 작성
+# (지나친 일반화 시 가상자산·AML 관련 정상 기사가 잘릴 위험).
+_OFFTOPIC_RE = re.compile(
+    # 정치 일일 브리핑 묶음 (다주제 혼합)
+    r"\[아주이슈\]|\[오늘\s*정치|정치\s*브리핑|"
+    # 정치 스캔들 시그니처 표현
+    r"사과만\s*할게요|묵묵부답|따까리|"
+    # 사생활/이혼 법정
+    r"재산분할|이혼\s*소송|위자료\s*청구|"
+    # 연예
+    r"넷플릭스\s*(라인업|오리지널)|영화\s*제작|드라마\s*(공개|방영)|"
+    # 부동산 특집(희망 부동산·집값 등 — 결제수단 보조 기사)
+    r"희망\s*20\d{2}\s*부동산|월세.*카드결제"
+)
+
 # 해외 동향 판별 — 해외 정부/규제기관 또는 명백한 해외 정책 흐름만.
 # 단순 외국 회사명(코인베이스/바이낸스 등)은 국내 보도에도 자주 등장하므로 제외.
 _OVERSEAS_RE = re.compile(
@@ -159,7 +175,7 @@ def _clean(s) -> str:
 
 def _is_noise(article: dict) -> bool:
     text = (article.get("제목") or "") + " " + (article.get("내용") or "")[:500]
-    return bool(_NOISE_RE.search(text))
+    return bool(_NOISE_RE.search(text) or _OFFTOPIC_RE.search(text))
 
 
 def _is_overseas(article: dict) -> bool:
