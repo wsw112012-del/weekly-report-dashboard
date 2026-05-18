@@ -83,6 +83,43 @@ _OFFTOPIC_RE = re.compile(
     r"나도\s*[\d.]+\s*(ETH|BTC|XRP|SOL)"
 )
 
+# 제목 토픽 화이트리스트 — 제목에 아래 키워드 중 하나도 없으면 AML 무관으로 컷.
+# (본문에 "자금세탁/AML" 한두 줄 부수 등장 케이스 — UAE 시장진출·금융권 AI 일반 등 제외용)
+_TOPIC_RE = re.compile(
+    # AML 직접 키워드
+    r"자금\s*세탁|세탁|AML|CDD|KYC|"
+    # 가상자산·코인·디지털자산
+    r"가상자산|암호화폐|비트코인|이더리움|스테이블|디지털\s*자산|토큰|NFT|"
+    r"블록체인|웹\s*3|Web\s*3|코인|"
+    # 거래소·지갑
+    r"거래소|지갑|월렛|"
+    r"두나무|업비트|빗썸|코인원|코빗|고팍스|바이낸스|"
+    # 법령·규제기관
+    r"특금법|외환법|외국환|전자금융|신용정보|개인정보|정보통신망|"
+    r"FIU|금융위|금감원|금융정보분석원|"
+    # 규제·집행
+    r"규제|제재|과태료|위반|입법|시행령|개정|"
+    r"검거|적발|압수|동결|수사|기소|판결|처벌|"
+    # 보고·이상거래
+    r"트래블룰|STR|CTR|의심거래|이상거래|"
+    # 사기 유형
+    r"피싱|리딩방|투자리딩|다단계|금융사기|"
+    # 해외 정책
+    r"클래리티법|MiCA|FATF|"
+    # 기타
+    r"보이스피싱|불법.*자금|발의안"
+)
+
+# 매체 블랙리스트 — AML 관련 기사를 거의 다루지 않는 매체.
+# 통과돼도 본문에 자금세탁 단어가 짧게 들어가서 nois cut 우회.
+_BLACKLIST_AGENCIES = {
+    # KOTRA 시장진출 정보 — 시장진출/투자환경 일반
+    "DREAM",
+    # 연예·스포츠 매체
+    "STARNEWSKOREA", "OSEN", "TV리포트", "스타뉴스", "일간스포츠",
+    "스포츠경향", "텐아시아", "마이데일리", "엑스포츠뉴스",
+}
+
 # 해외 동향 판별 — 해외 정부/규제기관 또는 명백한 해외 정책 흐름만.
 # 단순 외국 회사명(코인베이스/바이낸스 등)은 국내 보도에도 자주 등장하므로 제외.
 _OVERSEAS_RE = re.compile(
@@ -185,7 +222,15 @@ def _clean(s) -> str:
 
 def _is_noise(article: dict) -> bool:
     text = (article.get("제목") or "") + " " + (article.get("내용") or "")[:500]
-    return bool(_NOISE_RE.search(text) or _OFFTOPIC_RE.search(text))
+    if _NOISE_RE.search(text) or _OFFTOPIC_RE.search(text):
+        return True
+    # 매체 블랙리스트 — AML과 무관한 매체
+    if (article.get("기관") or "").strip() in _BLACKLIST_AGENCIES:
+        return True
+    # 제목 토픽 화이트리스트 — 제목에 AML 토픽 키워드가 하나도 없으면 컷
+    if not _TOPIC_RE.search(article.get("제목") or ""):
+        return True
+    return False
 
 
 def _is_overseas(article: dict) -> bool:
