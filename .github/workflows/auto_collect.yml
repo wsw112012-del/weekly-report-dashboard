@@ -115,4 +115,5 @@ jobs:
           FLOW_API_KEY:    ${{ secrets.FLOW_API_KEY }}
           FLOW_BOT_ID:     ${{ secrets.FLOW_BOT_ID }}
           FLOW_PROJECT_ID: ${{ secrets.FLOW_PROJECT_ID }}
+          GEMINI_API_KEY:  ${{ secrets.GEMINI_API_KEY }}  # 임베딩 유사도 그룹화
         run: python daily_monitor_post.py
