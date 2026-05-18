@@ -1,0 +1,54 @@
+name: Flow 게시 backfill (특정 일자)
+
+# 특정 일자의 AML 모니터링 게시글을 수동 재발송.
+# 수집(collect) 없이 현재 articles 테이블 데이터로 본문을 만들어 발송한다.
+# 사용처: 누락 보완, 검증 후 재발송, 데모 등.
+
+on:
+  workflow_dispatch:
+    inputs:
+      post_date:
+        description: '게시 일자 (YYYY-MM-DD, KST)'
+        required: true
+        type: string
+      force:
+        description: '이미 게시된 경우에도 강제 재발송'
+        required: false
+        type: boolean
+        default: true
+
+jobs:
+  backfill:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      PYTHONIOENCODING: utf-8
+      PYTHONUTF8: '1'
+      LANG: ko_KR.UTF-8
+      TZ: Asia/Seoul
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Python 3.12 설치
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: 패키지 설치
+        run: pip install requests python-dotenv
+
+      - name: Flow 게시 (--date ${{ inputs.post_date }})
+        env:
+          SUPABASE_URL:    ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY:    ${{ secrets.SUPABASE_KEY }}
+          FLOW_API_KEY:    ${{ secrets.FLOW_API_KEY }}
+          FLOW_BOT_ID:     ${{ secrets.FLOW_BOT_ID }}
+          FLOW_PROJECT_ID: ${{ secrets.FLOW_PROJECT_ID }}
+          GEMINI_API_KEY:  ${{ secrets.GEMINI_API_KEY }}
+        run: |
+          ARGS="--date ${{ inputs.post_date }}"
+          if [ "${{ inputs.force }}" = "true" ]; then
+            ARGS="$ARGS --force"
+          fi
+          python daily_monitor_post.py $ARGS

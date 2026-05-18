@@ -655,6 +655,8 @@ def main() -> int:
                         help="항목 0건이어도 게시")
     parser.add_argument("--force", action="store_true",
                         help="오늘 이미 게시했어도 강제 재발송")
+    parser.add_argument("--date", default=None,
+                        help="특정 날짜로 backfill (YYYY-MM-DD). 미지정 시 KST 오늘")
     args = parser.parse_args()
 
     missing = [k for k in ("FLOW_API_KEY", "FLOW_BOT_ID", "FLOW_PROJECT_ID",
@@ -667,7 +669,14 @@ def main() -> int:
         print("[WARN] GEMINI_API_KEY 없음 — risk_analyze 가 룰 기반 폴백으로만 동작",
               file=sys.stderr)
 
-    today_str = _today_kst().isoformat()
+    if args.date:
+        try:
+            today_str = date.fromisoformat(args.date).isoformat()
+        except ValueError:
+            print(f"[ERROR] --date 형식 오류 (YYYY-MM-DD 필요): {args.date}", file=sys.stderr)
+            return 1
+    else:
+        today_str = _today_kst().isoformat()
 
     # 중복 발송 방지 — 같은 날 이미 게시된 경우 skip (--force 로 무시 가능)
     if not args.dry_run and not args.force:
