@@ -1127,11 +1127,15 @@
     .rs-ai-card {
       background: #fff;
       border: 1px solid var(--bd); border-radius: 12px;
-      padding: 18px 22px; margin-bottom: 20px;
+      padding: 14px 20px; margin-bottom: 14px;
+      /* viewport 비례 max-height + 내부 스크롤 — head 고정 / body 만 스크롤 */
+      display: flex; flex-direction: column;
+      max-height: 55vh; min-height: 0;
       box-shadow: 0 1px 3px rgba(0,0,0,.04);
     }
     .rs-ai-head {
-      display: flex; align-items: center; gap: 10px; margin-bottom: 10px;
+      display: flex; align-items: center; gap: 10px; margin-bottom: 8px;
+      flex-shrink: 0;   /* 카드 max-height 안에서 head 는 항상 보임 */
     }
     .rs-ai-badge {
       font-size: 12px; font-weight: 800; color: var(--accent);
@@ -1140,8 +1144,11 @@
     }
     .rs-ai-meta { font-size: 11px; color: var(--t3); margin-left: auto; }
     .rs-ai-body {
-      font-size: 13px; line-height: 1.85; color: var(--t1);
+      font-size: 13px; line-height: 1.7; color: var(--t1);
       white-space: pre-wrap;
+      /* head 고정·body 만 내부 스크롤 → 페이지 전체 스크롤 차단 */
+      flex: 1 1 auto; min-height: 0; overflow-y: auto;
+      padding-right: 6px;   /* 스크롤바 여유 */
     }
     /* AI 답변 본문 강조: 가. 나. 다. / 1) 2) / ① ② / 제N조 등 */
     .rs-ai-body .ai-emph-kr   { color: var(--accent); font-weight: 700; }
@@ -1500,7 +1507,10 @@
       border-right: 1px solid var(--bd);
       border-bottom: 1px solid #eef0f3;
       font-size: 13px; line-height: 1.8; color: var(--t1);
-      word-break: keep-all;
+      word-break: break-all;
+      overflow-wrap: anywhere;
+      overflow: hidden;
+      max-width: 0;  /* fixed-layout에서 자식 폭 제한 강제 */
     }
     .cmp-v2-table td:last-child { border-right: none; }
     .cmp-v2-table tbody tr {
@@ -1531,7 +1541,18 @@
       margin-bottom: 6px; padding-bottom: 4px;
       border-bottom: 1px solid #e5e7eb;
     }
-    .cmp-v2-cell-body { white-space: pre-wrap; }
+    .cmp-v2-cell-body {
+      white-space: pre-wrap;
+      overflow-wrap: anywhere !important;
+      word-break: break-all !important;
+      min-width: 0;
+      max-width: 100%;
+    }
+    .cmp-v2-cell-body * {
+      overflow-wrap: anywhere !important;
+      word-break: break-all !important;
+      max-width: 100%;
+    }
     .cmp-v2-empty-cell {
       color: var(--t3); font-style: italic; font-size: 12px;
       text-align: center; padding: 6px 0;
