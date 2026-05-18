@@ -1,12 +1,13 @@
-name: 보도자료 자동 수집 (09:00 KST)
+name: 보도자료 자동 수집 (09:30 KST)
 
 on:
   schedule:
-    # GitHub Actions schedule cron 은 정확도 한계로 가끔 누락됨 (특히 00:00 UTC
-    # 같이 부하 집중 시간대). 2회 등록 + daily_monitor_post.py 의 중복 발송
-    # 방지 로직으로 안정성 확보.
-    - cron: '30 23 * * *'  # 08:30 KST  (1차 시도)
-    - cron: '30 0 * * *'   # 09:30 KST  (1차 누락 시 2차)
+    # 사용자 회의 10:00 KST 전후 활용 → 발송 완료 09:45 KST 목표.
+    # 수집·필터링 10~15분 소요라 메인 cron 은 09:30 KST.
+    # GitHub Actions cron 누락 대응으로 10:00 KST 백업 cron 추가
+    # (정상 발송 시 flow_post_log 가 중복 차단).
+    - cron: '30 0 * * *'   # 09:30 KST  (메인)
+    - cron: '0  1 * * *'   # 10:00 KST  (백업 — 메인 누락 시)
   workflow_dispatch:         # 수동 실행 버튼
 
 jobs:
