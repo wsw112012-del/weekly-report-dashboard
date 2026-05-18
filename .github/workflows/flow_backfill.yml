@@ -36,7 +36,8 @@ jobs:
           python-version: '3.12'
 
       - name: 패키지 설치
-        run: pip install requests python-dotenv
+        # priority.py → collect_입법현황 → bs4 transitive import
+        run: pip install requests beautifulsoup4 lxml python-dotenv
 
       - name: Flow 게시 (--date ${{ inputs.post_date }})
         env:
