@@ -1,17 +1,17 @@
-name: 보도자료 자동 수집 (평일 09:30 / 주말 14:00 KST)
+name: 보도자료 자동 수집 (평일 09:00 수집 / 14:00 게시)
 
 on:
   schedule:
-    # ── 평일 (월~금) — 10:00 KST 오전 회의 직전 발송 목표
-    # 수집·필터링 10~15분 소요라 메인 09:30 / 백업 10:00.
-    - cron: '30 0 * * 1-5'  # 09:30 KST 메인
-    - cron: '0  1 * * 1-5'  # 10:00 KST 백업
-    # ── 주말 (토·일) — 매체 송고 완료 시점 이후
-    # 토요일 매체는 보통 10시 이후 본격 송고, 공공기관 보도자료는 평일 한정.
-    # 14:00 시점 발송하면 그날 분 거의 전부 포착.
-    - cron: '0  5 * * 0,6'  # 14:00 KST 메인
-    - cron: '30 5 * * 0,6'  # 14:30 KST 백업
-  workflow_dispatch:         # 수동 실행 버튼
+    # ── 평일 09:00 KST — 수집만 (Render 대시보드 데이터 갱신용)
+    #     Flow 게시 step 은 아래 if 조건으로 skip 됨.
+    - cron: '0 0 * * 1-5'   # 09:00 KST 평일 수집만
+    # ── 평일 14:00 KST — 수집 + Flow 게시
+    #     공공기관 보도자료(11시 전후)·종일 언론기사 신규분 모두 포함.
+    - cron: '0 5 * * 1-5'   # 14:00 KST 평일 수집+게시
+    # ── 주말 14:00 KST — 수집 + Flow 게시
+    #     주말 매체 송고 완료 시점.
+    - cron: '0 5 * * 0,6'   # 14:00 KST 주말 수집+게시
+  workflow_dispatch:         # 수동 실행 버튼 (게시 포함)
 
 jobs:
   collect:
@@ -106,9 +106,10 @@ jobs:
       # 향후 재활성화 시: 아래 블록 주석 해제 + 실패 원인(폰트/계정 등) 진단 필요.
 
       - name: Flow 데일리 모니터링 게시글 (v1 Bot API)
-        # schedule(매일 09:00 KST) + 수동(workflow_dispatch) 모두 실제 게시.
+        # 14:00 KST cron (평일·주말) + 수동(workflow_dispatch) 에서만 게시.
+        # 09:00 KST 평일 수집 cron 은 데이터 갱신만 하고 skip.
         # 중복 발송 방지는 daily_monitor_post.py 의 flow_post_log 체크가 담당.
-        if: ${{ !cancelled() && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') }}
+        if: ${{ !cancelled() && (github.event.schedule == '0 5 * * 1-5' || github.event.schedule == '0 5 * * 0,6' || github.event_name == 'workflow_dispatch') }}
         env:
           SUPABASE_URL:    ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY:    ${{ secrets.SUPABASE_KEY }}
