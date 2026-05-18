@@ -28,8 +28,16 @@ import re
 import sys
 import urllib.parse
 import urllib.request
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from pathlib import Path
+from zoneinfo import ZoneInfo
+
+_KST = ZoneInfo("Asia/Seoul")
+
+
+def _today_kst() -> date:
+    """KST 기준 오늘 날짜. GitHub Actions(UTC)·로컬 어디서 돌아도 동일하게 KST 일자를 반환."""
+    return datetime.now(_KST).date()
 
 from flow_bot import FlowBot
 from priority import get_priority
@@ -282,6 +290,169 @@ def _fetch_aml_articles(today_str: str, days: int = 2) -> list[dict]:
     return out
 
 
+# ── 임베딩 기반 유사도 (Gemini gemini-embedding-001) ──────────────────────────
+
+_EMBED_MODEL = "models/gemini-embedding-001"
+_EMBED_URL = "https://generativelanguage.googleapis.com/v1beta/{model}:embedContent"
+_EMBED_SIM_THRESHOLD = 0.88  # cosine — 같은 사안 0.88+, 다른 사안 ≤0.81 분리선 (회색지대 보수화)
+_EMBED_WORKERS = 8
+
+
+def _embed_text(article: dict) -> str:
+    """임베딩 입력 텍스트 — 제목 + 본문 앞 800자."""
+    title = _clean(article.get("제목") or "")
+    body = _clean(article.get("내용") or "")[:800]
+    return (title + "\n" + body).strip()
+
+
+def _embed_one(text: str, api_key: str) -> list[float] | None:
+    payload = {
+        "content": {"parts": [{"text": text or " "}]},
+        "taskType": "SEMANTIC_SIMILARITY",
+    }
+    url = _EMBED_URL.format(model=_EMBED_MODEL) + f"?key={api_key}"
+    req = urllib.request.Request(
+        url,
+        data=json.dumps(payload, ensure_ascii=False).encode("utf-8"),
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+        return data.get("embedding", {}).get("values")
+    except Exception as e:
+        print(f"[WARN] embedContent 실패: {e}", file=sys.stderr)
+        return None
+
+
+def _gemini_embed_batch(texts: list[str]) -> list[list[float]] | None:
+    """ThreadPool 로 embedContent 병렬 호출. 단 하나라도 실패하면 None."""
+    api_key = os.environ.get("GEMINI_API_KEY")
+    if not api_key or not texts:
+        return None
+    from concurrent.futures import ThreadPoolExecutor
+    results: list[list[float] | None] = [None] * len(texts)
+    try:
+        with ThreadPoolExecutor(max_workers=_EMBED_WORKERS) as ex:
+            futures = {ex.submit(_embed_one, t, api_key): i for i, t in enumerate(texts)}
+            for f in futures:
+                i = futures[f]
+                results[i] = f.result()
+    except Exception as e:
+        print(f"[WARN] Gemini 임베딩 실패 → jaccard 폴백: {e}", file=sys.stderr)
+        return None
+    if any(r is None for r in results):
+        print("[WARN] 일부 임베딩 누락 → jaccard 폴백", file=sys.stderr)
+        return None
+    return results  # type: ignore[return-value]
+
+
+def _cosine(a: list[float], b: list[float]) -> float:
+    if not a or not b or len(a) != len(b):
+        return 0.0
+    dot = sum(x * y for x, y in zip(a, b))
+    na = sum(x * x for x in a) ** 0.5
+    nb = sum(y * y for y in b) ** 0.5
+    if na == 0 or nb == 0:
+        return 0.0
+    return dot / (na * nb)
+
+
+def _group_by_embedding(articles: list[dict], embeddings: list[list[float]],
+                       exclude_embs: list[list[float]],
+                       threshold: float = _EMBED_SIM_THRESHOLD,
+                       ) -> list[list[dict]]:
+    """임베딩 cosine 기반 그룹화. exclude_embs 와 가까운 항목은 사전 제거."""
+    keep_idx = []
+    for i, emb in enumerate(embeddings):
+        if any(_cosine(emb, e) >= threshold for e in exclude_embs):
+            continue
+        keep_idx.append(i)
+
+    groups: list[list[int]] = []
+    for i in keep_idx:
+        placed = False
+        for g in groups:
+            if _cosine(embeddings[i], embeddings[g[0]]) >= threshold:
+                g.append(i)
+                placed = True
+                break
+        if not placed:
+            groups.append([i])
+    return [[articles[i] for i in g] for g in groups]
+
+
+def _fetch_all_aml_titles(today_str: str, days: int = 2,
+                          exclude: list[dict] | None = None) -> list[dict]:
+    """AML 전체 기사(우선순위 무관) → 노이즈 컷 + 1차 dedup + 유사도 그룹 대표만.
+
+    - 상등급(이미 요약 카드로 노출된 항목)은 exclude 로 받아 유사도 비교로 추가 제외.
+    - 결과는 제목·URL만 노출하는 용도이므로 본문은 그대로 두되 정렬·중복 제거에만 활용.
+    """
+    rows = _sb_get("articles?type=eq.AML&select=data&order=updated_at.desc&limit=1")
+    if not rows:
+        return []
+    raw = rows[0].get("data") or []
+
+    today_dt = date.fromisoformat(today_str)
+    cutoff_str = (today_dt - timedelta(days=days - 1)).isoformat()
+
+    def _in_range(a: dict) -> bool:
+        d = (a.get("날짜") or "")[:10]
+        return cutoff_str <= d <= today_str
+
+    candidates = [a for a in raw if _in_range(a) and not _is_noise(a)]
+
+    # ── A. 링크/정규화 제목 1차 dedup
+    seen_links: set[str] = set()
+    seen_titles: set[str] = set()
+    deduped: list[dict] = []
+    for a in candidates:
+        link = (a.get("링크") or "").strip()
+        title_key = re.sub(r"\s+", "", _clean(a.get("제목") or ""))
+        if link and link in seen_links:
+            continue
+        if title_key and title_key in seen_titles:
+            continue
+        if link:        seen_links.add(link)
+        if title_key:   seen_titles.add(title_key)
+        deduped.append(a)
+
+    # ── B+C. 임베딩 cosine 으로 상등급 유사 제외 + 후보 내부 그룹화
+    #         실패 시 명사 jaccard 폴백
+    exclude_list = list(exclude or [])
+    all_articles = exclude_list + deduped
+    embeddings = _gemini_embed_batch([_embed_text(a) for a in all_articles])
+
+    if embeddings and len(embeddings) == len(all_articles):
+        exclude_embs = embeddings[:len(exclude_list)]
+        cand_embs = embeddings[len(exclude_list):]
+        groups = _group_by_embedding(deduped, cand_embs, exclude_embs)
+        print(f"[INFO] 전체기사 임베딩 dedup: 후보 {len(deduped)} → 그룹 {len(groups)}",
+              file=sys.stderr)
+    else:
+        # 폴백: 명사 jaccard
+        if exclude_list:
+            deduped = [a for a in deduped
+                       if not any(_is_similar_pair(a, e) for e in exclude_list)]
+        groups = []
+        for cur in deduped:
+            placed = False
+            for g in groups:
+                if _is_similar_pair(cur, g[0]):
+                    g.append(cur)
+                    placed = True
+                    break
+            if not placed:
+                groups.append([cur])
+    repr_only = [_pick_representative(g) for g in groups]
+
+    # 최신순 정렬
+    repr_only.sort(key=lambda x: (x.get("날짜") or "")[:10], reverse=True)
+    return repr_only
+
+
 def _fetch_legislation(today_str: str) -> list[dict]:
     """AML 카테고리 입법현황 중 status/propose_date 가 오늘인 항목."""
     rows = _sb_get(f"legislation_status?category=eq.AML"
@@ -327,6 +498,14 @@ def _format_article_card(idx: int, x: dict) -> str:
     return "\n".join(lines)
 
 
+def _format_title_url(idx: int, x: dict) -> str:
+    """전체 기사 — 제목·URL만 한 항목당 1~2줄."""
+    title = _clean(x.get("제목"))
+    link = x.get("링크") or ""
+    line1 = f"{idx:>2}. {title}"
+    return f"{line1}\n    {link}" if link else line1
+
+
 def _format_leg_card(idx: int, r: dict) -> str:
     title = _clean(r.get("bill_title"))
     ministry = _clean(r.get("ministry") or "-")
@@ -347,16 +526,18 @@ def _format_leg_card(idx: int, r: dict) -> str:
 def build_contents(today_str: str, days: int = 2) -> tuple[str, int]:
     articles = _fetch_aml_articles(today_str, days=days)
     legs = _fetch_legislation(today_str)
+    all_titles = _fetch_all_aml_titles(today_str, days=days, exclude=articles)
 
     domestic = [x for x in articles if not x["_overseas"]]
     overseas = [x for x in articles if x["_overseas"]]
 
-    total = len(articles) + len(legs)
+    total = len(articles) + len(legs) + len(all_titles)
     range_str = (f"{(date.fromisoformat(today_str) - timedelta(days=days-1)).strftime('%m.%d')}"
                  f"~{date.fromisoformat(today_str).strftime('%m.%d')}")
     header = [
         f"📊 AML 모니터링 — {today_str.replace('-', '.')} ({range_str} 수집분)",
-        f"국내 {len(domestic)}건 · 해외 {len(overseas)}건 · 입법 {len(legs)}건",
+        f"국내 {len(domestic)}건 · 해외 {len(overseas)}건 · 입법 {len(legs)}건"
+        f" · 전체 {len(all_titles)}건",
     ]
     sections: list[str] = []
     idx = 0
@@ -375,6 +556,12 @@ def build_contents(today_str: str, days: int = 2) -> tuple[str, int]:
         for r in legs:
             idx += 1
             sections.append(_format_leg_card(idx, r))
+
+    if all_titles:
+        sections.append(_SEP)
+        sections.append(f"\n📰 전체 기사 — 제목·URL ({len(all_titles)}건, 중복 제외)")
+        for i, x in enumerate(all_titles, start=1):
+            sections.append(_format_title_url(i, x))
 
     if total == 0:
         sections.append("\n오늘 신규 의미있는 AML 동향이 없습니다.")
@@ -398,7 +585,15 @@ def _check_already_posted(today_str: str) -> dict | None:
     try:
         rows = json.loads(urllib.request.urlopen(req, timeout=10).read())
         return rows[0] if rows else None
-    except Exception:
+    except urllib.error.HTTPError as e:
+        if e.code == 404:
+            print("[WARN] flow_post_log 테이블 미존재 — 중복 발송 방지 무력화. "
+                  "schema_flow_log.sql 실행 필요", file=sys.stderr)
+        else:
+            print(f"[WARN] flow_post_log 조회 실패: HTTP {e.code}", file=sys.stderr)
+        return None
+    except Exception as e:
+        print(f"[WARN] flow_post_log 조회 실패: {e}", file=sys.stderr)
         return None
 
 
@@ -426,6 +621,12 @@ def _log_post(today_str: str, response: dict, total: int) -> None:
     )
     try:
         urllib.request.urlopen(req, timeout=10).read()
+    except urllib.error.HTTPError as e:
+        if e.code == 404:
+            print("[WARN] flow_post_log 테이블 미존재 — 발송 로그 기록 실패. "
+                  "schema_flow_log.sql 실행 필요", file=sys.stderr)
+        else:
+            print(f"[WARN] flow_post_log 기록 실패: HTTP {e.code}", file=sys.stderr)
     except Exception as e:
         print(f"[WARN] flow_post_log 기록 실패: {e}", file=sys.stderr)
 
@@ -450,7 +651,7 @@ def main() -> int:
         print("[WARN] GEMINI_API_KEY 없음 — risk_analyze 가 룰 기반 폴백으로만 동작",
               file=sys.stderr)
 
-    today_str = date.today().isoformat()
+    today_str = _today_kst().isoformat()
 
     # 중복 발송 방지 — 같은 날 이미 게시된 경우 skip (--force 로 무시 가능)
     if not args.dry_run and not args.force:

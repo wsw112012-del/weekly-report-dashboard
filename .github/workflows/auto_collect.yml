@@ -19,6 +19,7 @@ jobs:
       PYTHONIOENCODING: utf-8
       PYTHONUTF8: '1'
       LANG: ko_KR.UTF-8
+      TZ: Asia/Seoul   # date.today() 계열을 KST 기준으로 통일 (2회 게시 방지 이중 안전장치)
 
     steps:
       - uses: actions/checkout@v4
