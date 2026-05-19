@@ -4,13 +4,15 @@ on:
   schedule:
     # ── 평일 09:00 KST — 수집만 (Render 대시보드 데이터 갱신용)
     #     Flow 게시 step 은 아래 if 조건으로 skip 됨.
-    - cron: '0 0 * * 1-5'   # 09:00 KST 평일 수집만
-    # ── 평일 14:00 KST — 수집 + Flow 게시
-    #     공공기관 보도자료(11시 전후)·종일 언론기사 신규분 모두 포함.
-    - cron: '0 5 * * 1-5'   # 14:00 KST 평일 수집+게시
-    # ── 주말 14:00 KST — 수집 + Flow 게시
-    #     주말 매체 송고 완료 시점.
-    - cron: '0 5 * * 0,6'   # 14:00 KST 주말 수집+게시
+    - cron: '0 0 * * 1-5'    # 09:00 KST 평일 수집만
+    # ── 평일 14:00 + 14:30 KST — 수집 + Flow 게시 (메인 + 누락 백업)
+    #     GitHub Actions schedule cron 미트리거 사례(5/19) 재발 방지용 백업 cron.
+    #     정상 발송 시 flow_post_log 중복 차단으로 14:30 cron 은 자동 skip.
+    - cron: '0  5 * * 1-5'   # 14:00 KST 평일 메인
+    - cron: '30 5 * * 1-5'   # 14:30 KST 평일 백업
+    # ── 주말 14:00 + 14:30 KST — 수집 + Flow 게시 (메인 + 누락 백업)
+    - cron: '0  5 * * 0,6'   # 14:00 KST 주말 메인
+    - cron: '30 5 * * 0,6'   # 14:30 KST 주말 백업
   workflow_dispatch:         # 수동 실행 버튼 (게시 포함)
 
 jobs:
@@ -106,10 +108,11 @@ jobs:
       # 향후 재활성화 시: 아래 블록 주석 해제 + 실패 원인(폰트/계정 등) 진단 필요.
 
       - name: Flow 데일리 모니터링 게시글 (v1 Bot API)
-        # 14:00 KST cron (평일·주말) + 수동(workflow_dispatch) 에서만 게시.
-        # 09:00 KST 평일 수집 cron 은 데이터 갱신만 하고 skip.
-        # 중복 발송 방지는 daily_monitor_post.py 의 flow_post_log 체크가 담당.
-        if: ${{ !cancelled() && (github.event.schedule == '0 5 * * 1-5' || github.event.schedule == '0 5 * * 0,6' || github.event_name == 'workflow_dispatch') }}
+        # 14:00·14:30 KST cron (평일·주말) + 수동(workflow_dispatch) 에서만 게시.
+        # 09:00 KST 평일 수집 cron 만 명시적으로 제외 (negate 방식).
+        # 중복 발송 방지는 daily_monitor_post.py 의 flow_post_log 체크가 담당
+        # (14:00 정상 발송 시 14:30 cron 은 자동 skip).
+        if: ${{ !cancelled() && github.event.schedule != '0 0 * * 1-5' && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') }}
         env:
           SUPABASE_URL:    ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY:    ${{ secrets.SUPABASE_KEY }}
