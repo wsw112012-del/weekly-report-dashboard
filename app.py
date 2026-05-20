@@ -748,7 +748,14 @@ async def serve_static(filename: str):
 @app.get("/", response_class=HTMLResponse)
 async def root():
     html = (TEMPLATES / "index.html").read_text(encoding="utf-8")
-    return HTMLResponse(content=html)
+    return HTMLResponse(
+        content=html,
+        headers={
+            "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
+            "Pragma": "no-cache",
+            "Expires": "0",
+        },
+    )
 
 
 @app.get("/api/config")
