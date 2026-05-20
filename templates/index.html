@@ -6659,7 +6659,7 @@
         // localStorage 에서 최근 검색어 복원
         try {
           const raw = localStorage.getItem('rsRecent');
-          this.rsRecentSearches = raw ? JSON.parse(raw).slice(0, 6) : [];
+          this.rsRecentSearches = raw ? JSON.parse(raw).slice(0, 3) : [];
         } catch(_) { this.rsRecentSearches = []; }
         // AI 답변 안의 [n] / [Ln] 마커 클릭 → 우측 인용 칩 focus
         window.addEventListener('rs-focus-cite', (e) => {
@@ -6721,7 +6721,7 @@
       },
       _rsSaveRecent(q) {
         if (!q) return;
-        const list = [q, ...this.rsRecentSearches.filter(x => x !== q)].slice(0, 6);
+        const list = [q, ...this.rsRecentSearches.filter(x => x !== q)].slice(0, 3);
         this.rsRecentSearches = list;
         try { localStorage.setItem('rsRecent', JSON.stringify(list)); } catch(_) {}
       },
